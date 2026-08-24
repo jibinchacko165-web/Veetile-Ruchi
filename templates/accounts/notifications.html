@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container" style="max-width: 800px; padding-top: 2rem;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;">
+        <h2 style="margin: 0; color: var(--primary-brown); font-family: 'Poppins', sans-serif;">My Notifications</h2>
+        <span class="badge badge-primary" style="font-size: 0.9rem; padding: 0.4rem 1rem;">{{ notifications.count }} Total</span>
+    </div>
+
+    {% if notifications %}
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+            {% for notif in notifications %}
+                <div class="card" style="padding: 1.25rem; display: flex; gap: 1rem; align-items: flex-start; {% if not notif.is_read %}border-left: 4px solid var(--primary-orange); background-color: var(--primary-orange-light);{% endif %}">
+                    <div style="width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1.2rem;
+                        {% if notif.notification_type == 'order_delivered' or notif.notification_type == 'staff_delivery_alert' %}background: #E8F5E9; color: #2E7D32;
+                        {% else %}background: var(--accent-warm); color: var(--primary-orange);{% endif %}">
+                        <i class="fa-solid {% if notif.notification_type == 'order_confirmed' %}fa-utensils{% elif notif.notification_type == 'out_for_delivery' %}fa-motorcycle{% elif notif.notification_type == 'order_delivered' or notif.notification_type == 'staff_delivery_alert' %}fa-check-circle{% else %}fa-bell{% endif %}"></i>
+                    </div>
+                    <div style="flex: 1;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <h4 style="margin: 0; font-size: 1.1rem; color: var(--text-main);">{{ notif.title }}</h4>
+                            <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 500;">{{ notif.created_at|timesince }} ago</span>
+                        </div>
+                        <p style="margin: 0; font-size: 0.95rem; color: var(--text-main); line-height: 1.5; margin-bottom: 0.75rem;">
+                            {{ notif.message }}
+                        </p>
+                        {% if not notif.is_read %}
+                            <div style="display: flex; gap: 0.75rem;">
+                                {% if notif.order %}
+                                    <a href="{% url 'mark_notification_read' notif.id %}" class="btn" style="padding: 0.4rem 1rem; font-size: 0.85rem;">View Order</a>
+                                {% else %}
+                                    <a href="{% url 'mark_notification_read' notif.id %}" class="btn btn-outline" style="padding: 0.4rem 1rem; font-size: 0.85rem;">Mark as Read</a>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            {% if notif.order %}
+                                <a href="{% url 'order_tracking' notif.order.order_id %}" style="font-size: 0.85rem; color: var(--primary-orange); font-weight: 600; text-decoration: none;">View Order &rarr;</a>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card text-center" style="padding: 4rem 2rem;">
+            <div style="font-size: 3rem; color: var(--border-light); margin-bottom: 1rem;">
+                <i class="fa-regular fa-bell-slash"></i>
+            </div>
+            <h3 style="color: var(--text-main); margin-bottom: 0.5rem;">No notifications yet</h3>
+            <p style="color: var(--text-muted);">When you receive updates about your orders or other alerts, they will appear here.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
