@@ -1,60 +1,492 @@
 {% extends 'base.html' %}
 
+{% block title %}My Profile — Veetile-Ruchi{% endblock %}
+
 {% block extra_head %}
+<style>
+    .profile-container {
+        max-width: 900px;
+        margin: 2rem auto;
+    }
+    .profile-header-card {
+        background: var(--card-bg, #1a1a2e);
+        border: 1px solid var(--dark-border, rgba(255,255,255,0.1));
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .profile-user-avatar {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #ff6b6b, #ff8e53);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-weight: bold;
+        color: white;
+        text-transform: uppercase;
+    }
+    .profile-tabs {
+        display: flex;
+        gap: 0.5rem;
+        border-bottom: 2px solid var(--dark-border, rgba(255,255,255,0.1));
+        margin-bottom: 1.5rem;
+    }
+    .profile-tab {
+        padding: 0.75rem 1.25rem;
+        color: var(--text-muted, #a0a0a0);
+        text-decoration: none;
+        font-weight: 600;
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s ease;
+    }
+    .profile-tab:hover {
+        color: var(--primary, #ff6b6b);
+    }
+    .profile-tab.active {
+        color: var(--primary, #ff6b6b);
+        border-bottom-color: var(--primary, #ff6b6b);
+    }
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+    .info-item {
+        background: var(--dark-bg, #0f0f1d);
+        border: 1px solid var(--dark-border, rgba(255,255,255,0.05));
+        border-radius: 8px;
+        padding: 1rem;
+    }
+    .info-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        color: var(--text-muted, #888);
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+    }
+    .info-value {
+        font-size: 1.05rem;
+        font-weight: 500;
+        color: var(--text-light, #ffffff);
+    }
+    .badge-status {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    .badge-approved { background: rgba(40, 167, 69, 0.2); color: #2ecc71; border: 1px solid #2ecc71; }
+    .badge-pending { background: rgba(255, 193, 7, 0.2); color: #f1c40f; border: 1px solid #f1c40f; }
+    .badge-available { background: rgba(40, 167, 69, 0.2); color: #2ecc71; border: 1px solid #2ecc71; }
+    .badge-on_delivery { background: rgba(255, 152, 0, 0.2); color: #ff9800; border: 1px solid #ff9800; }
+    .badge-offline { background: rgba(108, 117, 125, 0.2); color: #95a5a6; border: 1px solid #95a5a6; }
+</style>
 <script>
     function recaptureGPS() {
         if (navigator.geolocation) {
-            document.getElementById('gps-status').innerHTML = "Fetching...";
+            document.getElementById('gps-status').innerHTML = "Fetching current GPS location...";
             navigator.geolocation.getCurrentPosition((position) => {
                 document.getElementById('latitude').value = position.coords.latitude.toFixed(6);
                 document.getElementById('longitude').value = position.coords.longitude.toFixed(6);
-                document.getElementById('gps-status').innerHTML = "🟢 GPS coordinates updated successfully!";
+                document.getElementById('gps-status').innerHTML = "🟢 GPS coordinates refreshed successfully!";
             }, (error) => {
-                document.getElementById('gps-status').innerHTML = "🔴 GPS fetch failed.";
+                document.getElementById('gps-status').innerHTML = "🔴 Geolocation error: " + error.message;
             });
+        } else {
+            alert("Geolocation is not supported by your browser.");
         }
     }
 </script>
 {% endblock %}
 
 {% block content %}
-<div style="max-width: 600px; margin: 2rem auto;" class="card">
-    <h2 class="mb-1" style="color: var(--text-light);">My Profile</h2>
-    <p class="mb-3" style="color: var(--text-muted);">Manage your personal details and location metrics</p>
-    
-    <div style="background-color: var(--dark-bg); padding: 1rem; border-radius: 8px; border: 1px solid var(--dark-border); margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
-        <div>
-            <h4 style="color: var(--primary);">{{ user.username|upper }}</h4>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Role: {{ user.get_role_display }}</p>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Email: {{ user.email }}</p>
+<div class="profile-container">
+
+    <!-- Profile Header Card -->
+    <div class="profile-header-card">
+        <div style="display: flex; align-items: center; gap: 1.25rem;">
+            <div class="profile-user-avatar">
+                {{ user.username|slice:":1" }}
+            </div>
+            <div>
+                <h2 style="margin: 0; color: var(--text-light, #ffffff);">
+                    {% if user.get_full_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}
+                </h2>
+                <p style="margin: 0.2rem 0 0 0; color: var(--text-muted, #a0a0a0); font-size: 0.9rem;">
+                    @{{ user.username }} • {{ user.email }}
+                </p>
+                {% if user.role == 'chef' and chef_profile %}
+                    <p style="margin: 0.2rem 0 0 0; font-size: 0.85rem; color: var(--primary, #ff6b6b);">
+                        👨‍🍳 {{ chef_profile.kitchen_name|default:"Home Kitchen" }}
+                    </p>
+                {% endif %}
+            </div>
         </div>
-        <div>
-            <span class="badge badge-primary">{{ user.role }}</span>
+
+        <div style="text-align: right;">
+            <span class="badge badge-primary" style="font-size: 0.9rem; padding: 0.4rem 0.9rem; text-transform: uppercase;">
+                {{ user.get_role_display }}
+            </span>
+            
+            {% if user.role == 'chef' and chef_profile %}
+                <div style="margin-top: 0.5rem;">
+                    {% if chef_profile.is_approved %}
+                        <span class="badge-status badge-approved">✓ Verified Chef</span>
+                    {% else %}
+                        <span class="badge-status badge-pending">⏳ Approval Pending</span>
+                    {% endif %}
+                </div>
+            {% elif user.role == 'delivery_boy' and courier_profile %}
+                <div style="margin-top: 0.5rem;">
+                    <span class="badge-status badge-{{ courier_profile.status }}">
+                        ● {{ courier_profile.get_status_display }}
+                    </span>
+                </div>
+            {% endif %}
         </div>
     </div>
 
-    <form method="POST" action="{% url 'profile' %}">
-        {% csrf_token %}
-        <div class="form-group">
-            <label class="form-label" for="phone">Phone Number</label>
-            <input type="text" name="phone" id="phone" class="form-control" value="{{ user.phone|default:'' }}" required>
+    <!-- Profile Tabs -->
+    <div class="profile-tabs">
+        <a href="?tab=view" class="profile-tab {% if active_tab == 'view' %}active{% endif %}">
+            👤 View Profile
+        </a>
+        <a href="?tab=edit" class="profile-tab {% if active_tab == 'edit' %}active{% endif %}">
+            ✏️ Edit Profile
+        </a>
+        <a href="?tab=password" class="profile-tab {% if active_tab == 'password' %}active{% endif %}">
+            🔒 Change Password
+        </a>
+    </div>
+
+    <!-- TAB 1: VIEW PROFILE -->
+    {% if active_tab == 'view' %}
+    <div class="card">
+        <h3 style="margin-bottom: 1rem; color: var(--text-light);">Account Overview</h3>
+        
+        <div class="info-grid mb-3">
+            <div class="info-item">
+                <div class="info-label">Full Name</div>
+                <div class="info-value">{% if user.get_full_name %}{{ user.get_full_name }}{% else %}Not specified{% endif %}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Email Address</div>
+                <div class="info-value">{{ user.email|default:"Not provided" }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Phone Number</div>
+                <div class="info-value">{{ user.phone|default:"Not provided" }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Date of Birth</div>
+                <div class="info-value">{{ user.dob|default:"Not provided" }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Role / Account Type</div>
+                <div class="info-value">{{ user.get_role_display }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Delivery Address</div>
+                <div class="info-value">{{ user.address|default:"No primary address saved" }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">GPS Coordinates</div>
+                <div class="info-value">{{ user.latitude }}, {{ user.longitude }}</div>
+            </div>
         </div>
 
-        <div class="form-group">
-            <label class="form-label">Saved GPS Location Coordinates</label>
-            <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem;">
-                <input type="text" name="latitude" id="latitude" class="form-control" value="{{ user.latitude }}" required readonly>
-                <input type="text" name="longitude" id="longitude" class="form-control" value="{{ user.longitude }}" required readonly>
+        <!-- ROLE-SPECIFIC DETAILED SECTION -->
+        {% if user.role == 'chef' and chef_profile %}
+            <hr style="border-color: var(--dark-border); margin: 1.5rem 0;">
+            <h3 style="margin-bottom: 1rem; color: var(--primary);">👨‍🍳 Chef & Kitchen Profile</h3>
+            
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Kitchen Name</div>
+                    <div class="info-value">{{ chef_profile.kitchen_name|default:"Veetile Ruchi Kitchen" }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Culinary Specialty</div>
+                    <div class="info-value">{{ chef_profile.specialty|default:"Kerala Cuisine" }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Experience</div>
+                    <div class="info-value">{{ chef_profile.experience_years }} Year(s)</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Chef Rating</div>
+                    <div class="info-value">⭐ {{ chef_profile.rating }} / 5.0</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Approval Status</div>
+                    <div class="info-value">
+                        {% if chef_profile.is_approved %}
+                            <span style="color: #2ecc71;">✓ Approved by Staff/Admin</span>
+                        {% else %}
+                            <span style="color: #f1c40f;">⏳ Pending Staff Approval</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">Kitchen Address & Bio</div>
+                    <div class="info-value">{{ chef_profile.kitchen_address|default:"Not set" }} | {{ chef_profile.bio|default:"No bio available" }}</div>
+                </div>
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <p id="gps-status" style="font-size: 0.8rem; color: var(--text-muted);">Current coordinates active.</p>
-                <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.8rem; font-size: 0.8rem;" onclick="recaptureGPS()">Update GPS Coordinates</button>
-            </div>
-        </div>
 
-        <button type="submit" class="btn" style="width: 100%; padding: 0.8rem; font-size: 1.1rem; border-radius: 8px; margin-top: 1rem;">
-            Save Changes
-        </button>
-    </form>
+        {% elif user.role == 'delivery_boy' and courier_profile %}
+            <hr style="border-color: var(--dark-border); margin: 1.5rem 0;">
+            <h3 style="margin-bottom: 1rem; color: var(--primary);">🚚 Courier Profile & Status</h3>
+            
+            <div class="info-grid mb-3">
+                <div class="info-item">
+                    <div class="info-label">Vehicle Number</div>
+                    <div class="info-value">{{ courier_profile.vehicle_number|default:"Not assigned" }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Current Availability Status</div>
+                    <div class="info-value">
+                        <span class="badge-status badge-{{ courier_profile.status }}">
+                            ● {{ courier_profile.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Courier Rating</div>
+                    <div class="info-value">⭐ {{ courier_profile.rating }} / 5.0</div>
+                </div>
+            </div>
+
+            <!-- Courier Quick Status Toggle -->
+            <form method="POST" action="{% url 'profile' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_status">
+                <div style="background: var(--dark-bg); padding: 1rem; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+                    <div>
+                        <strong>Quick Status Toggle</strong>
+                        <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">Switch your duty availability status</p>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="submit" name="status" value="available" class="btn btn-outline" style="border-color: #2ecc71; color: #2ecc71;">Set Available</button>
+                        <button type="submit" name="status" value="offline" class="btn btn-outline" style="border-color: #95a5a6; color: #95a5a6;">Set Offline</button>
+                    </div>
+                </div>
+            </form>
+
+        {% elif user.role == 'customer' and health_profile %}
+            <hr style="border-color: var(--dark-border); margin: 1.5rem 0;">
+            <h3 style="margin-bottom: 1rem; color: var(--primary);">🩺 Health & Dietary Preferences</h3>
+            
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">Diabetic Status</div>
+                    <div class="info-value">{% if health_profile.has_diabetes %}⚠️ Yes{% else %}No{% endif %}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Hypertension / BP</div>
+                    <div class="info-value">{% if health_profile.has_hypertension %}⚠️ Yes{% else %}No{% endif %}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Dietary Preference</div>
+                    <div class="info-value">{{ health_profile.dietary_preference|upper }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Daily Caloric Target</div>
+                    <div class="info-value">{{ health_profile.caloric_limit }} kcal</div>
+                </div>
+            </div>
+        {% endif %}
+
+        <div style="margin-top: 1.5rem; text-align: right;">
+            <a href="?tab=edit" class="btn">Edit Profile Details</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- TAB 2: EDIT PROFILE -->
+    {% if active_tab == 'edit' %}
+    <div class="card">
+        <h3 style="margin-bottom: 1.5rem; color: var(--text-light);">Edit Profile Information</h3>
+
+        <form method="POST" action="{% url 'profile' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="edit_profile">
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="first_name">First Name</label>
+                    <input type="text" name="first_name" id="first_name" class="form-control" value="{{ user.first_name }}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="last_name">Last Name</label>
+                    <input type="text" name="last_name" id="last_name" class="form-control" value="{{ user.last_name }}">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address</label>
+                    <input type="email" name="email" id="email" class="form-control" value="{{ user.email }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="phone">10-Digit Mobile Phone Number</label>
+                    <input type="text" name="phone" id="phone" class="form-control" value="{{ user.phone|default:'' }}" required placeholder="e.g. 9876543210">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="address">Primary Delivery Address</label>
+                <textarea name="address" id="address" class="form-control" rows="2">{{ user.address|default:'' }}</textarea>
+            </div>
+
+            <!-- GPS Location coordinates -->
+            <div class="form-group">
+                <label class="form-label">Saved GPS Location Coordinates</label>
+                <div style="display: flex; gap: 1rem; margin-bottom: 0.5rem;">
+                    <input type="text" name="latitude" id="latitude" class="form-control" value="{{ user.latitude }}" required readonly>
+                    <input type="text" name="longitude" id="longitude" class="form-control" value="{{ user.longitude }}" required readonly>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <p id="gps-status" style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">Location coordinates active.</p>
+                    <button type="button" class="btn btn-outline" style="padding: 0.3rem 0.8rem; font-size: 0.8rem;" onclick="recaptureGPS()">Fetch Device GPS</button>
+                </div>
+            </div>
+
+            <!-- ROLE-SPECIFIC EDIT FIELDS -->
+            {% if user.role == 'chef' %}
+                <hr style="border-color: var(--dark-border); margin: 1.5rem 0;">
+                <h4 style="color: var(--primary); margin-bottom: 1rem;">👨‍🍳 Chef & Kitchen Profile Fields</h4>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="kitchen_name">Kitchen Name</label>
+                        <input type="text" name="kitchen_name" id="kitchen_name" class="form-control" value="{{ chef_profile.kitchen_name|default:'' }}" placeholder="e.g. Grandma's Home Kitchen">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="specialty">Culinary Specialty</label>
+                        <input type="text" name="specialty" id="specialty" class="form-control" value="{{ chef_profile.specialty|default:'' }}" placeholder="e.g. Traditional Malabar Seafood">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="experience_years">Cooking Experience (Years)</label>
+                    <input type="number" name="experience_years" id="experience_years" class="form-control" value="{{ chef_profile.experience_years|default:1 }}" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="kitchen_address">Kitchen Address</label>
+                    <textarea name="kitchen_address" id="kitchen_address" class="form-control" rows="2">{{ chef_profile.kitchen_address|default:'' }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="bio">Chef Bio & Description</label>
+                    <textarea name="bio" id="bio" class="form-control" rows="2">{{ chef_profile.bio|default:'' }}</textarea>
+                </div>
+
+            {% elif user.role == 'delivery_boy' %}
+                <hr style="border-color: var(--dark-border); margin: 1.5rem 0;">
+                <h4 style="color: var(--primary); margin-bottom: 1rem;">🚚 Courier Profile Fields</h4>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="vehicle_number">Vehicle Number</label>
+                        <input type="text" name="vehicle_number" id="vehicle_number" class="form-control" value="{{ courier_profile.vehicle_number|default:'' }}" placeholder="e.g. KL-07-CD-1001" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="status">Duty Availability Status</label>
+                        <select name="status" id="status" class="form-control">
+                            <option value="available" {% if courier_profile.status == 'available' %}selected{% endif %}>🟢 Available</option>
+                            <option value="on_delivery" {% if courier_profile.status == 'on_delivery' or courier_profile.status == 'busy' %}selected{% endif %}>🚚 On Delivery</option>
+                            <option value="offline" {% if courier_profile.status == 'offline' %}selected{% endif %}>⚪ Offline</option>
+                        </select>
+                    </div>
+                </div>
+
+            {% elif user.role == 'customer' and health_profile %}
+                <hr style="border-color: var(--dark-border); margin: 1.5rem 0;">
+                <h4 style="color: var(--primary); margin-bottom: 1rem;">🩺 Health & Diet Settings</h4>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;" class="form-group">
+                    <div>
+                        <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" name="has_diabetes" {% if health_profile.has_diabetes %}checked{% endif %}>
+                            Diabetic Condition
+                        </label>
+                    </div>
+                    <div>
+                        <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" name="has_hypertension" {% if health_profile.has_hypertension %}checked{% endif %}>
+                            Hypertension / High BP
+                        </label>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label" for="dietary_preference">Dietary Preference</label>
+                        <select name="dietary_preference" id="dietary_preference" class="form-control">
+                            <option value="veg" {% if health_profile.dietary_preference == 'veg' %}selected{% endif %}>Vegetarian</option>
+                            <option value="non_veg" {% if health_profile.dietary_preference == 'non_veg' %}selected{% endif %}>Non-Vegetarian</option>
+                            <option value="any" {% if health_profile.dietary_preference == 'any' or not health_profile.dietary_preference %}selected{% endif %}>Any / No Restrictions</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="caloric_limit">Daily Caloric Limit (kcal)</label>
+                        <input type="number" name="caloric_limit" id="caloric_limit" class="form-control" value="{{ health_profile.caloric_limit|default:2000.0 }}" step="50">
+                    </div>
+                </div>
+            {% endif %}
+
+            <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                <a href="?tab=view" class="btn btn-outline">Cancel</a>
+                <button type="submit" class="btn">Save Profile Changes</button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- TAB 3: CHANGE PASSWORD -->
+    {% if active_tab == 'password' %}
+    <div class="card" style="max-width: 550px; margin: 0 auto;">
+        <h3 style="margin-bottom: 0.5rem; color: var(--text-light);">Change Password</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+            Update your account password securely.
+        </p>
+
+        <form method="POST" action="{% url 'profile' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="change_password">
+
+            <div class="form-group">
+                <label class="form-label" for="current_password">Current Password</label>
+                <input type="password" name="current_password" id="current_password" class="form-control" required placeholder="Enter current password">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="new_password">New Password</label>
+                <input type="password" name="new_password" id="new_password" class="form-control" required minlength="6" placeholder="Minimum 6 characters">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="confirm_password">Confirm New Password</label>
+                <input type="password" name="confirm_password" id="confirm_password" class="form-control" required minlength="6" placeholder="Re-enter new password">
+            </div>
+
+            <div style="margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: flex-end;">
+                <a href="?tab=view" class="btn btn-outline">Cancel</a>
+                <button type="submit" class="btn">Update Password</button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
 </div>
 {% endblock %}

@@ -12,8 +12,9 @@ class CustomUserAdmin(BaseUserAdmin):
 
 @admin.register(ChefProfile)
 class ChefProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'specialty', 'is_approved', 'rating')
-    search_fields = ('user__username', 'specialty')
+    list_display = ('user', 'kitchen_name', 'specialty', 'is_approved', 'rating')
+    list_filter = ('is_approved',)
+    search_fields = ('user__username', 'kitchen_name', 'specialty')
 
 @admin.register(DeliveryBoyProfile)
 class DeliveryBoyProfileAdmin(admin.ModelAdmin):

@@ -1,6 +1,7 @@
-from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout, authenticate
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import login, logout, authenticate, update_session_auth_hash
 import secrets
+import re
 from datetime import timedelta
 from django.utils import timezone
 from django.contrib.auth.hashers import make_password, check_password
@@ -14,18 +15,20 @@ from django.urls import reverse
 from django.conf import settings
 from django.db.models import Q
 from .models import User, ChefProfile, DeliveryBoyProfile
+from .decorators import role_required
 from health.models import HealthProfile
 from orders.models import Notification
 
 def register_view(request):
     if request.method == 'POST':
-        username = request.POST.get('username')
-        email = request.POST.get('email')
-        dob = request.POST.get('dob')
-        password = request.POST.get('password')
-        confirm_password = request.POST.get('confirm_password')
+        username = request.POST.get('username', '').strip()
+        email = request.POST.get('email', '').strip()
+        dob = request.POST.get('dob', '').strip()
+        password = request.POST.get('password', '')
+        confirm_password = request.POST.get('confirm_password', '')
         role = request.POST.get('role', 'customer')
-        phone = request.POST.get('phone', '')
+        phone = request.POST.get('phone', '').strip()
+        
         try:
             latitude = float(request.POST.get('latitude', '') or 10.0)
         except (ValueError, TypeError):
@@ -42,6 +45,7 @@ def register_view(request):
             'role': role,
             'phone': phone,
             'specialty': request.POST.get('specialty', ''),
+            'kitchen_name': request.POST.get('kitchen_name', ''),
             'vehicle_number': request.POST.get('vehicle_number', ''),
             'latitude': latitude,
             'longitude': longitude,
@@ -63,7 +67,6 @@ def register_view(request):
             messages.error(request, "Username already exists. Please choose a different username.")
             return render(request, 'accounts/register.html', {'form_data': form_data})
 
-        import re
         clean_phone = re.sub(r'\D', '', phone)
         if role == 'delivery_boy' and not clean_phone:
             messages.error(request, "Phone number is required for Delivery Personnel registration.")
@@ -92,19 +95,26 @@ def register_view(request):
 
         # Create role-specific profiles
         if role == 'chef':
-            ChefProfile.objects.create(user=user, specialty=request.POST.get('specialty', 'All Rounder'), is_approved=True)
+            specialty = request.POST.get('specialty', 'Kerala Cuisine').strip() or 'Kerala Cuisine'
+            kitchen_name = request.POST.get('kitchen_name', f"{username}'s Kitchen").strip() or f"{username}'s Kitchen"
+            ChefProfile.objects.create(
+                user=user, 
+                specialty=specialty, 
+                kitchen_name=kitchen_name,
+                is_approved=False  # Requires Admin/Staff approval workflow
+            )
         elif role == 'delivery_boy':
+            vehicle_num = request.POST.get('vehicle_number', 'KL-01-A-1234').strip() or 'KL-01-A-1234'
             DeliveryBoyProfile.objects.create(
                 user=user, 
-                vehicle_number=request.POST.get('vehicle_number', 'KL-01-A-1234'), 
+                vehicle_number=vehicle_num, 
+                status='available',
                 current_latitude=latitude, 
                 current_longitude=longitude
             )
         elif role == 'customer':
-            # Create default empty health profile
             HealthProfile.objects.create(user=user)
 
-        # Do not automatically log in user upon registration
         request.session['prefill_username'] = username
         messages.success(request, f"Registration successful for '{username}'! Please enter your password to sign in.")
         return redirect(f"{reverse('login')}?username={username}")
@@ -157,42 +167,174 @@ def dashboard_redirect(request):
 
 @login_required
 def profile_view(request):
+    """
+    Comprehensive User Profile view supporting:
+    1. View Profile (Role-specific stats & details)
+    2. Edit Profile (Personal details & Role-specific profile attributes)
+    3. Change Password (Current password check & new password validation)
+    """
+    user = request.user
+    active_tab = request.GET.get('tab', 'view')
+
+    chef_profile = getattr(user, 'chef_profile', None)
+    courier_profile = getattr(user, 'delivery_boy_profile', None)
+    try:
+        health_profile = getattr(user, 'health_profile', None)
+    except Exception:
+        health_profile = None
+
     if request.method == 'POST':
-        try:
+        action = request.POST.get('action', 'edit_profile')
+
+        if action == 'change_password':
+            current_password = request.POST.get('current_password', '')
+            new_password = request.POST.get('new_password', '')
+            confirm_password = request.POST.get('confirm_password', '')
+
+            if not user.check_password(current_password):
+                messages.error(request, "Incorrect current password. Please try again.")
+                return redirect(f"{reverse('profile')}?tab=password")
+
+            if new_password != confirm_password:
+                messages.error(request, "New passwords do not match. Please verify.")
+                return redirect(f"{reverse('profile')}?tab=password")
+
+            if len(new_password) < 6:
+                messages.error(request, "New password must be at least 6 characters long.")
+                return redirect(f"{reverse('profile')}?tab=password")
+
+            user.set_password(new_password)
+            user.save()
+            update_session_auth_hash(request, user)
+            messages.success(request, "Your password has been changed successfully!")
+            return redirect(f"{reverse('profile')}?tab=view")
+
+        elif action == 'toggle_status' and user.role == 'delivery_boy' and courier_profile:
+            new_status = request.POST.get('status', 'available')
+            if new_status in ['available', 'offline', 'on_delivery']:
+                courier_profile.status = new_status
+                courier_profile.save()
+                messages.success(request, f"Availability status updated to '{courier_profile.get_status_display()}'.")
+            return redirect(f"{reverse('profile')}?tab=view")
+
+        elif action == 'edit_profile':
+            email_input = request.POST.get('email', '').strip()
             phone_input = request.POST.get('phone', '').strip()
+            first_name = request.POST.get('first_name', '').strip()
+            last_name = request.POST.get('last_name', '').strip()
+            address = request.POST.get('address', '').strip()
+
+            if email_input and User.objects.filter(email__iexact=email_input).exclude(id=user.id).exists():
+                messages.error(request, "This email address is already in use by another account.")
+                return redirect(f"{reverse('profile')}?tab=edit")
+
             if phone_input:
-                import re
                 clean_phone = re.sub(r'\D', '', phone_input)
                 if not re.match(r'^[6-9]\d{9}$', clean_phone):
                     messages.error(request, "Please enter a valid 10-digit mobile phone number (e.g. 9876543210).")
-                    return redirect('profile')
-                if User.objects.filter(phone=clean_phone).exclude(id=request.user.id).exists():
-                    messages.error(request, "This phone number is already assigned to another Courier / user account.")
-                    return redirect('profile')
-                request.user.phone = clean_phone
+                    return redirect(f"{reverse('profile')}?tab=edit")
+                if User.objects.filter(phone=clean_phone).exclude(id=user.id).exists():
+                    messages.error(request, "This phone number is already assigned to another account.")
+                    return redirect(f"{reverse('profile')}?tab=edit")
+                user.phone = clean_phone
+
+            user.first_name = first_name
+            user.last_name = last_name
+            if email_input:
+                user.email = email_input
+            user.address = address
 
             try:
-                request.user.latitude = float(request.POST.get('latitude', '') or request.user.latitude)
+                user.latitude = float(request.POST.get('latitude', '') or user.latitude)
             except (ValueError, TypeError):
                 pass
             try:
-                request.user.longitude = float(request.POST.get('longitude', '') or request.user.longitude)
+                user.longitude = float(request.POST.get('longitude', '') or user.longitude)
             except (ValueError, TypeError):
                 pass
-            request.user.save()
-            
-            # update coordinates in delivery boy profile if applicable
-            if request.user.role == 'delivery_boy' and hasattr(request.user, 'delivery_boy_profile'):
-                profile = request.user.delivery_boy_profile
-                profile.current_latitude = request.user.latitude
-                profile.current_longitude = request.user.longitude
-                profile.save()
+            user.save()
+
+            # Update Role Specific Details
+            if user.role == 'chef':
+                if not chef_profile:
+                    chef_profile = ChefProfile.objects.create(user=user)
+                chef_profile.specialty = request.POST.get('specialty', chef_profile.specialty or '').strip()
+                chef_profile.kitchen_name = request.POST.get('kitchen_name', chef_profile.kitchen_name or '').strip()
+                chef_profile.kitchen_address = request.POST.get('kitchen_address', chef_profile.kitchen_address or '').strip()
+                chef_profile.bio = request.POST.get('bio', chef_profile.bio or '').strip()
+                try:
+                    chef_profile.experience_years = int(request.POST.get('experience_years', chef_profile.experience_years))
+                except (ValueError, TypeError):
+                    pass
+                chef_profile.save()
+
+            elif user.role == 'delivery_boy':
+                if not courier_profile:
+                    courier_profile = DeliveryBoyProfile.objects.create(user=user)
+                courier_profile.vehicle_number = request.POST.get('vehicle_number', courier_profile.vehicle_number or '').strip()
+                courier_status = request.POST.get('status', courier_profile.status)
+                if courier_status in ['available', 'offline', 'on_delivery']:
+                    courier_profile.status = courier_status
+                courier_profile.current_latitude = user.latitude
+                courier_profile.current_longitude = user.longitude
+                courier_profile.save()
+
+            elif user.role == 'customer' and health_profile:
+                health_profile.has_diabetes = request.POST.get('has_diabetes') == 'on'
+                health_profile.has_hypertension = request.POST.get('has_hypertension') == 'on'
+                health_profile.dietary_preference = request.POST.get('dietary_preference', health_profile.dietary_preference)
+                try:
+                    health_profile.caloric_limit = float(request.POST.get('caloric_limit', health_profile.caloric_limit or 2000.0))
+                except (ValueError, TypeError):
+                    pass
+                health_profile.save()
+
             messages.success(request, "Profile updated successfully.")
-        except Exception as e:
-            messages.error(request, f"Error updating profile: {str(e)}")
-        return redirect('profile')
-        
-    return render(request, 'accounts/profile.html')
+            return redirect(f"{reverse('profile')}?tab=view")
+
+    context = {
+        'user': user,
+        'chef_profile': chef_profile,
+        'courier_profile': courier_profile,
+        'health_profile': health_profile,
+        'active_tab': active_tab,
+    }
+    return render(request, 'accounts/profile.html', context)
+
+@login_required
+@role_required('admin', 'staff')
+def toggle_chef_approval(request, chef_id):
+    """Staff/Admin workflow to approve or revoke a chef's approval status."""
+    chef_profile = get_object_or_404(ChefProfile, pk=chef_id)
+    chef_profile.is_approved = not chef_profile.is_approved
+    chef_profile.save()
+
+    status_str = "Approved" if chef_profile.is_approved else "Revoked Approval for"
+    messages.success(request, f"Chef '{chef_profile.user.username}' status updated: {status_str}.")
+
+    # Send Notification to Chef
+    Notification.objects.create(
+        user=chef_profile.user,
+        message=f"Your Chef account status has been updated to: {'APPROVED' if chef_profile.is_approved else 'PENDING APPROVAL'}.",
+    )
+    
+    referer = request.META.get('HTTP_REFERER')
+    if referer:
+        return redirect(referer)
+    return redirect('admin_dashboard')
+
+@login_required
+@role_required('delivery_boy', 'admin')
+def toggle_courier_status_view(request):
+    """Allows courier to switch availability status (available / offline)."""
+    if hasattr(request.user, 'delivery_boy_profile'):
+        profile = request.user.delivery_boy_profile
+        new_status = request.POST.get('status')
+        if new_status in ['available', 'offline', 'on_delivery']:
+            profile.status = new_status
+            profile.save()
+            messages.success(request, f"Your courier availability status is now '{profile.get_status_display()}'.")
+    return redirect('delivery_boy_dashboard')
 
 @login_required
 def notifications_view(request):
@@ -212,11 +354,6 @@ def mark_notification_read(request, notif_id):
     return redirect('notifications')
 
 def password_reset_view(request):
-    """
-    Forgot Password recovery view using Email Address and Date of Birth (DOB) verification.
-    Step 1: User enters Registered Email Address and Date of Birth.
-    Step 2: If credentials match a registered user, user enters and confirms a new password.
-    """
     step = 'verify'
     verified_user = None
 
@@ -240,7 +377,6 @@ def password_reset_view(request):
                 messages.error(request, "Please enter both your registered email address and Date of Birth.")
                 return render(request, 'accounts/password_reset.html', {'step': 'verify', 'email': email, 'dob': dob_str})
 
-            # Verify registered user using email and DOB
             user = User.objects.filter(email__iexact=email, dob=dob_str).first()
             
             if user:
@@ -272,12 +408,10 @@ def password_reset_view(request):
                 messages.error(request, "Password must be at least 6 characters long.")
                 return render(request, 'accounts/password_reset.html', {'step': 'reset', 'verified_user': verified_user})
 
-            # Securely update user password
             target_username = verified_user.username
             verified_user.set_password(new_password)
             verified_user.save()
 
-            # Clear recovery session key
             request.session.pop('reset_user_id', None)
 
             messages.success(request, f"Password for account '{target_username}' updated successfully! Please sign in with your new password.")
@@ -285,15 +419,11 @@ def password_reset_view(request):
 
     return render(request, 'accounts/password_reset.html', {'step': step, 'verified_user': verified_user})
 
-
 def password_reset_cancel_view(request):
-    """Clears reset session state and returns to verification step."""
     request.session.pop('reset_user_id', None)
     return redirect('password_reset')
 
-
 def csrf_failure_view(request, reason=""):
-    """Custom CSRF failure handler to refresh token and redirect safely without 403 error page."""
     messages.warning(request, "Security token refreshed. Please submit your request again.")
     referer = request.META.get('HTTP_REFERER')
     if referer:
