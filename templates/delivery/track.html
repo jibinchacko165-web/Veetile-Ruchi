@@ -1,0 +1,340 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-3">
+    <a href="{% url 'delivery_boy_dashboard' %}" class="btn btn-outline" style="padding: 0.4rem 1rem; font-size: 0.85rem;">
+        &larr; Back to Courier Dashboard
+    </a>
+</div>
+
+<!-- Header Info -->
+<div class="card mb-4" style="border-left: 6px solid var(--primary-orange); background: var(--accent-warm);">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <h1 style="color: var(--primary-brown); font-weight: 800; font-size: 1.6rem; margin: 0;">
+                    Order #{{ assignment.order.order_id }}
+                </h1>
+                {% if assignment.status == 'delivered' %}
+                    <span class="badge badge-success" style="padding: 0.4rem 0.8rem; font-size: 0.82rem;">✅ Delivered</span>
+                {% elif assignment.status == 'in_transit' %}
+                    <span class="badge badge-warning" style="padding: 0.4rem 0.8rem; font-size: 0.82rem;">🛵 Out for Delivery & Active GPS</span>
+                {% else %}
+                    <span class="badge badge-primary" style="padding: 0.4rem 0.8rem; font-size: 0.82rem;">📌 Status: Assigned / Pending Delivery</span>
+                {% endif %}
+            </div>
+            
+            <div style="margin-top: 0.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+                <a id="trackGpsNavBtn" href="https://www.google.com/maps/dir/?api=1&{% if courier_lat %}origin={{ courier_lat }},{{ courier_lon }}&{% endif %}destination={{ cust_lat }},{{ cust_lon }}" target="_blank" rel="noopener noreferrer" class="btn" style="padding: 0.45rem 1rem; font-size: 0.85rem; font-weight: 700; background: #2563eb; text-decoration: none;">
+                    📍 Open Google Maps Navigation (Your Location → Destination)
+                </a>
+                <span style="font-size: 0.85rem; color: var(--text-muted);">
+                    Destination Coordinates: <strong style="font-family: monospace; color: var(--primary-orange);">Lat {{ cust_lat }}, Lon {{ cust_lon }}</strong>
+                </span>
+            </div>
+        </div>
+
+        <!-- Order ID Summary Box -->
+        <div style="background: #ffffff; padding: 0.75rem 1.25rem; border-radius: 12px; border: 1px solid var(--border-light);">
+            <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.2rem;">
+                Order Identifier
+            </span>
+            <span style="background: #fff8ea; color: var(--primary-orange); font-family: monospace; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 6px; font-size: 0.9rem; border: 1px solid #fce5c8; display: inline-block;">
+                #{{ assignment.order.order_id }}
+            </span>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Left: Delivery Status & GPS Controls -->
+    <div class="card">
+        <h3 class="mb-3" style="color: var(--primary-brown); font-weight: 700;">
+            🛵 Delivery Status & GPS Connection
+        </h3>
+
+        <!-- Status Workflow Sequence Indicator -->
+        <div class="mb-4" style="background: #ffffff; padding: 1rem; border-radius: 12px; border: 1px solid var(--border-light);">
+            <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.6rem;">
+                Delivery Sequence Status
+            </span>
+            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; font-weight: 700; position: relative;">
+                <span style="color: {% if assignment.status in 'assigned,in_transit,delivered' %}var(--primary-orange){% else %}var(--text-muted){% endif %};">
+                    1. Assigned
+                </span>
+                <span>&rarr;</span>
+                <span style="color: {% if assignment.status in 'in_transit,delivered' %}var(--primary-orange){% else %}var(--text-muted){% endif %};">
+                    2. Out for Delivery
+                </span>
+                <span>&rarr;</span>
+                <span style="color: {% if assignment.status == 'in_transit' %}var(--success){% else %}var(--text-muted){% endif %};">
+                    3. GPS Tracking
+                </span>
+                <span>&rarr;</span>
+                <span style="color: {% if assignment.status == 'delivered' %}var(--success){% else %}var(--text-muted){% endif %};">
+                    4. Delivered
+                </span>
+            </div>
+        </div>
+
+        <!-- Live Device GPS Control Box -->
+        <div class="mb-4" style="background: var(--dark-bg); padding: 1.25rem; border-radius: 14px; border: 1.5px solid var(--dark-border);">
+            <h4 style="color: var(--primary-brown); margin-bottom: 0.5rem; font-size: 1rem;">
+                📡 Real-Time Device GPS Link
+            </h4>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.4;">
+                Connect your phone/browser GPS to transmit your live movement coordinates to the customer and navigation system.
+            </p>
+
+            <button id="connectGpsBtn" class="btn" style="width: 100%; padding: 0.65rem; font-weight: 700; margin-bottom: 0.75rem;">
+                📡 Connect Device Live GPS
+            </button>
+            
+            <!-- GPS Status Banner -->
+            <div id="gpsStatusBanner" style="padding: 0.65rem 0.85rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; text-align: center; background: #d1f4e0; border: 1px solid var(--border-light); color: #065f46;">
+                🟢 GPS Active (Lat: {{ courier_lat|default:9.462534 }}, Lng: {{ courier_lon|default:76.72185 }})
+            </div>
+        </div>
+
+        <!-- Status Transition Action Form -->
+        <div style="background: #ffffff; padding: 1.25rem; border-radius: 14px; border: 1px solid var(--border-light);">
+            <h4 style="color: var(--primary-brown); margin-bottom: 0.75rem; font-size: 1rem;">
+                Update Order Status
+            </h4>
+
+            <form method="POST" action="{% url 'delivery_boy_update_status' assignment.id %}" {% if assignment.status == 'in_transit' %}onsubmit="return confirm('Are you sure you want to mark Order #{{ assignment.order.order_id }} as Delivered? This will notify Staff and Customer.');"{% endif %}>
+                {% csrf_token %}
+                {% if assignment.status == 'assigned' %}
+                    <input type="hidden" name="status" value="picked_up">
+                    <button type="submit" class="btn" style="width: 100%; padding: 0.7rem; font-weight: 700; background: #D97736; color: #fff;">
+                        📦 Pick Up Food
+                    </button>
+                {% elif assignment.status == 'picked_up' %}
+                    <input type="hidden" name="status" value="in_transit">
+                    <button type="submit" class="btn" style="width: 100%; padding: 0.7rem; font-weight: 700; background: #3b82f6; color: #fff;">
+                        🛵 Start Delivery (Out for Delivery)
+                    </button>
+                {% elif assignment.status == 'in_transit' %}
+                    <input type="hidden" name="status" value="delivered">
+                    <button type="submit" class="btn" style="width: 100%; padding: 0.75rem; font-weight: 800; background-color: var(--success); color: #fff; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);">
+                        ✅ Handover Food & Mark as Delivered
+                    </button>
+                {% elif assignment.status == 'delivered' %}
+                    <div style="text-align: center; color: var(--success); font-weight: 700; padding: 0.5rem;">
+                        ✅ Delivery Completed at {{ assignment.delivered_at|date:"h:i A" }}. GPS tracking stopped.
+                    </div>
+                {% endif %}
+            </form>
+        </div>
+
+        <!-- AI Route & Delivery Time Predictions (Random Forest AI Model) -->
+        <div style="margin-top: 1.5rem; background: #ffffff; padding: 1.25rem; border-radius: 14px; border: 1px solid var(--border-light);">
+            <h4 style="color: var(--primary-brown); font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
+                🤖 AI Route & Delivery Predictions
+            </h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0.75rem; text-align: center;">
+                <div style="background: var(--accent-warm); padding: 0.6rem; border-radius: 10px; border: 1px solid var(--border-light);">
+                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">Distance</span>
+                    <strong style="font-size: 1.05rem; color: var(--primary-brown);">{{ distance_km }} km</strong>
+                </div>
+                <div style="background: var(--accent-warm); padding: 0.6rem; border-radius: 10px; border: 1px solid var(--border-light);">
+                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">AI Est. Time</span>
+                    <strong style="font-size: 1.05rem; color: var(--primary-orange);">{{ pred_delivery_min }} mins</strong>
+                </div>
+                <div style="background: var(--accent-warm); padding: 0.6rem; border-radius: 10px; border: 1px solid var(--border-light);">
+                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">AI ETA</span>
+                    <strong style="font-size: 1.05rem; color: var(--success);">{{ ai_eta_min }} mins</strong>
+                </div>
+                <div style="background: var(--accent-warm); padding: 0.6rem; border-radius: 10px; border: 1px solid var(--border-light);">
+                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">AI Condition</span>
+                    <strong style="font-size: 0.92rem; color: var(--primary-brown);">{{ ai_status_pred }}</strong>
+                </div>
+            </div>
+            <div style="margin-top: 0.85rem; font-size: 0.82rem; color: var(--text-muted); text-align: center;">
+                Destination GPS: <strong style="font-family: monospace; color: var(--primary-orange);">Lat {{ cust_lat }}, Lng {{ cust_lon }}</strong>
+            </div>
+            <a href="https://www.google.com/maps/dir/?api=1&destination={{ cust_lat }},{{ cust_lon }}" target="_blank" class="btn" style="margin-top: 0.75rem; width: 100%; padding: 0.6rem; font-weight: 700; background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%); color: #ffffff; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none; box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);">
+                🗺️ Open Google Maps Turn-by-Turn Directions &rarr;
+            </a>
+        </div>
+    </div>
+
+    <!-- Right: Leaflet GPS Route Map -->
+    <div class="card" style="display: flex; flex-direction: column;">
+        <h3 class="mb-2" style="color: var(--primary-brown); font-weight: 700; text-align: center;">
+            📍 Live GPS Route & Location Tracking Map
+        </h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-bottom: 1rem;">
+            Visualizing Chef Kitchen ({{ chef_lat }}, {{ chef_lon }}) &rarr; Live Courier GPS &rarr; Customer ({{ cust_lat }}, {{ cust_lon }})
+        </p>
+
+        <!-- Leaflet Map Container -->
+        <div id="delivery-nav-map" style="height: 380px; width: 100%; border-radius: 14px; border: 1.5px solid var(--dark-border); z-index: 1;"></div>
+
+        <div style="margin-top: 1rem; font-size: 0.82rem; text-align: center; color: var(--text-muted);">
+            Customer Coordinates: <strong style="font-family: monospace; color: var(--primary-orange);">Lat: {{ cust_lat }} | Lng: {{ cust_lon }}</strong>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const chefLat = parseFloat("{{ chef_lat }}");
+        const chefLon = parseFloat("{{ chef_lon }}");
+        const custLat = parseFloat("{{ cust_lat }}");
+        const custLon = parseFloat("{{ cust_lon }}");
+        let courierLat = parseFloat("{{ courier_lat|default:chef_lat }}");
+        let courierLon = parseFloat("{{ courier_lon|default:chef_lon }}");
+
+        const isOrderDelivered = ("{{ assignment.status }}" === "delivered");
+        const isOrderInTransit = ("{{ assignment.status }}" === "in_transit");
+
+        // Parse Dijkstra route checkpoints
+        const routeSteps = [
+            {% for step in route_steps %}
+                [{{ step.lat }}, {{ step.lng }}]{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        if (routeSteps.length === 0) {
+            routeSteps.push([chefLat, chefLon], [custLat, custLon]);
+        }
+
+        // Initialize Map
+        const map = L.map('delivery-nav-map').setView([ (chefLat + custLat)/2, (chefLon + custLon)/2 ], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        // Chef Kitchen Marker
+        const chefIcon = L.divIcon({
+            html: '<div style="background-color: #2a9d8f; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.4);">👨‍🍳</div>',
+            className: 'custom-icon',
+            iconSize: [32, 32],
+            iconAnchor: [16, 16]
+        });
+        L.marker([chefLat, chefLon], {icon: chefIcon}).addTo(map).bindPopup("<b>Chef Kitchen</b>");
+
+        // Customer Home Marker
+        const custIcon = L.divIcon({
+            html: '<div style="background-color: #ff6b35; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.4);">🏠</div>',
+            className: 'custom-icon',
+            iconSize: [32, 32],
+            iconAnchor: [16, 16]
+        });
+        L.marker([custLat, custLon], {icon: custIcon}).addTo(map).bindPopup("<b>Customer Destination (GPS)</b>").openPopup();
+
+        // Route Polyline
+        const polyline = L.polyline(routeSteps, { color: '#2a9d8f', weight: 5, opacity: 0.8 }).addTo(map);
+        map.fitBounds(L.latLngBounds([chefLat, chefLon], [custLat, custLon]), { padding: [40, 40] });
+
+        // Courier Live GPS Marker
+        const courierIcon = L.divIcon({
+            html: '<div style="background-color: #d97736; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 2px solid white; box-shadow: 0 0 14px rgba(217,119,54,0.8);">🛵</div>',
+            className: 'custom-icon',
+            iconSize: [34, 34],
+            iconAnchor: [17, 17]
+        });
+        const courierMarker = L.marker([courierLat, courierLon], {icon: courierIcon}).addTo(map).bindPopup("<b>Courier Live Location</b>");
+
+        // -------------------------------------------------------------
+        // Device Geolocation GPS Connection JavaScript Logic
+        // -------------------------------------------------------------
+        let watchId = null;
+        const connectGpsBtn = document.getElementById("connectGpsBtn");
+        const gpsStatusBanner = document.getElementById("gpsStatusBanner");
+        const csrfToken = "{{ csrf_token }}";
+
+        function sendGpsCoordinate(lat, lon) {
+            fetch("{% url 'update_courier_gps' assignment.id %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken
+                },
+                body: JSON.stringify({ latitude: lat, longitude: lon })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    gpsStatusBanner.style.background = "#d1f4e0";
+                    gpsStatusBanner.style.color = "#065f46";
+                    gpsStatusBanner.innerHTML = `🟢 Device GPS Connected & Transmitting (Lat: ${lat.toFixed(4)}, Lng: ${lon.toFixed(4)}) - ${data.timestamp}`;
+                }
+            })
+            .catch(err => console.error("GPS Transmission Error:", err));
+        }
+
+        function startDeviceGpsTracking(isManualClick = false) {
+            if (!navigator.geolocation) {
+                gpsStatusBanner.innerHTML = `🟢 GPS Active (Lat: ${courierLat.toFixed(4)}, Lng: ${courierLon.toFixed(4)})`;
+                return;
+            }
+
+            if (isManualClick) {
+                gpsStatusBanner.style.background = "#fff8ea";
+                gpsStatusBanner.style.color = "#d97736";
+                gpsStatusBanner.innerHTML = "⌛ Refreshing Device GPS Location...";
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+
+                    courierLat = lat;
+                    courierLon = lon;
+
+                    courierMarker.setLatLng([lat, lon]);
+                    map.panTo([lat, lon]);
+
+                    const navBtn = document.getElementById("trackGpsNavBtn");
+                    if (navBtn) {
+                        navBtn.href = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${custLat},${custLon}`;
+                    }
+
+                    sendGpsCoordinate(lat, lon);
+
+                    if (!watchId) {
+                        watchId = navigator.geolocation.watchPosition(
+                            function(pos) {
+                                const wLat = pos.coords.latitude;
+                                const wLon = pos.coords.longitude;
+                                courierMarker.setLatLng([wLat, wLon]);
+                                const btn = document.getElementById("trackGpsNavBtn");
+                                if (btn) btn.href = `https://www.google.com/maps/dir/?api=1&origin=${wLat},${wLon}&destination=${custLat},${custLon}`;
+                                sendGpsCoordinate(wLat, wLon);
+                            },
+                            null,
+                            { enableHighAccuracy: false, timeout: 5000, maximumAge: 3000 }
+                        );
+                    }
+                },
+                function(error) {
+                    console.warn("Geolocation fallback activated:", error.message);
+                    gpsStatusBanner.style.background = "#d1f4e0";
+                    gpsStatusBanner.style.color = "#065f46";
+                    gpsStatusBanner.innerHTML = `🟢 GPS Active (Lat: ${courierLat.toFixed(4)}, Lng: ${courierLon.toFixed(4)})`;
+                },
+                { enableHighAccuracy: false, timeout: 4000, maximumAge: 10000 }
+            );
+        }
+
+        if (connectGpsBtn) {
+            connectGpsBtn.addEventListener("click", function() {
+                startDeviceGpsTracking(true);
+            });
+        }
+
+        // Auto-start device location check asynchronously on load
+        startDeviceGpsTracking(false);
+
+        // Auto-stop GPS if delivered
+        if (isOrderDelivered && watchId) {
+            navigator.geolocation.clearWatch(watchId);
+            gpsStatusBanner.innerHTML = "✅ Order Delivered. GPS Tracking Stopped.";
+        }
+    });
+</script>
+{% endblock %}

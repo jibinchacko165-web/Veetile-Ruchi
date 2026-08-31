@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card mb-4" style="background: linear-gradient(135deg, var(--primary-brown) 0%, var(--primary-orange) 100%); color: #ffffff; padding: 1.5rem; border: none;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1 style="color: #ffffff; font-weight: 800; font-size: 1.7rem; margin: 0;">🔔 Notification Center</h1>
+            <p style="margin: 0.2rem 0 0 0; opacity: 0.9; font-size: 0.9rem;">View all your recent system and delivery alerts.</p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div style="display: flex; flex-direction: column; gap: 1rem;">
+        {% for notif in notifications %}
+            <div style="background: #ffffff; border: 1.5px solid var(--border-light); border-left: 6px solid var(--primary-orange); border-radius: 12px; padding: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+                    <strong style="color: var(--primary-brown); font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <span>🔔</span> {{ notif.title }}
+                    </strong>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">
+                        📅 {{ notif.created_at|date:"N j, Y, h:i A" }}
+                    </span>
+                </div>
+                <p style="font-size: 0.9rem; color: var(--text-main); white-space: pre-line; margin-bottom: 0.75rem; background: var(--accent-warm); padding: 0.75rem; border-radius: 8px; border: 1px dashed var(--border-light);">
+                    {{ notif.message }}
+                </p>
+                {% if notif.order %}
+                    <div style="text-align: right;">
+                        <a href="{% url 'mark_notification_read' notif.id %}" class="btn" style="padding: 0.4rem 1rem; font-size: 0.82rem; font-weight: 700; text-decoration: none;">
+                            View Order Details →
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        {% empty %}
+            <div style="text-align: center; padding: 3rem; background: var(--accent-warm); border-radius: 12px;">
+                <p style="color: var(--text-muted); font-size: 0.95rem; margin: 0;">No notifications found.</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

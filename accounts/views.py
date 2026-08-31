@@ -51,9 +51,25 @@ def register_view(request):
             'longitude': longitude,
         }
 
+        parsed_dob = None
         if not dob:
             messages.error(request, "Date of Birth is required.")
             return render(request, 'accounts/register.html', {'form_data': form_data})
+        else:
+            try:
+                parts = dob.split('-')
+                if len(parts) != 3 or len(parts[0]) != 4:
+                    raise ValueError("Year must be a 4-digit number.")
+                year, month, day = int(parts[0]), int(parts[1]), int(parts[2])
+                from datetime import date
+                parsed_dob = date(year, month, day)
+                today = timezone.now().date()
+                if parsed_dob.year < 1900 or parsed_dob > today:
+                    messages.error(request, "Please enter a valid Date of Birth (between 1900 and today).")
+                    return render(request, 'accounts/register.html', {'form_data': form_data})
+            except (ValueError, TypeError):
+                messages.error(request, "Invalid Date of Birth format. Please select a valid date in YYYY-MM-DD format (e.g. 2003-10-10).")
+                return render(request, 'accounts/register.html', {'form_data': form_data})
 
         if confirm_password and password != confirm_password:
             messages.error(request, "Passwords do not match. Please enter matching passwords.")
@@ -63,8 +79,12 @@ def register_view(request):
             messages.error(request, "Password must be at least 6 characters long.")
             return render(request, 'accounts/register.html', {'form_data': form_data})
 
-        if User.objects.filter(username=username).exists():
+        if User.objects.filter(username__iexact=username).exists():
             messages.error(request, "Username already exists. Please choose a different username.")
+            return render(request, 'accounts/register.html', {'form_data': form_data})
+
+        if email and User.objects.filter(email__iexact=email).exists():
+            messages.error(request, "An account with this email address already exists. Please sign in or use a different email.")
             return render(request, 'accounts/register.html', {'form_data': form_data})
 
         clean_phone = re.sub(r'\D', '', phone)
@@ -81,17 +101,21 @@ def register_view(request):
                 messages.error(request, "This phone number is already assigned to another Courier / user account.")
                 return render(request, 'accounts/register.html', {'form_data': form_data})
 
-        user = User.objects.create_user(
-            username=username,
-            email=email,
-            dob=dob,
-            password=password,
-            role=role,
-            phone=clean_phone if clean_phone else phone,
-            address='',
-            latitude=latitude,
-            longitude=longitude
-        )
+        try:
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                dob=parsed_dob,
+                password=password,
+                role=role,
+                phone=clean_phone if clean_phone else phone,
+                address='',
+                latitude=latitude,
+                longitude=longitude
+            )
+        except Exception as e:
+            messages.error(request, f"Registration could not be completed: {str(e)}")
+            return render(request, 'accounts/register.html', {'form_data': form_data})
 
         # Create role-specific profiles
         if role == 'chef':
@@ -122,29 +146,51 @@ def register_view(request):
     return render(request, 'accounts/register.html')
 
 def login_view(request):
-    prefilled_username = request.GET.get('username', '').strip() or request.session.pop('prefill_username', '')
+    if request.user.is_authenticated:
+        return redirect('dashboard_redirect')
+
+    prefilled_username = request.GET.get('username', '').strip()
 
     if request.method == 'POST':
         identifier = request.POST.get('username', '').strip()
         password = request.POST.get('password', '')
-        
-        user = authenticate(username=identifier, password=password)
-        if user is None and identifier:
-            user_obj = User.objects.filter(Q(username__iexact=identifier) | Q(email__iexact=identifier)).first()
-            if user_obj:
-                user = authenticate(username=user_obj.username, password=password)
-        
+
+        if not identifier or not password:
+            messages.error(request, "Invalid username/email or password.")
+            return render(request, 'accounts/login.html', {'prefilled_username': identifier})
+
+        # 1. Try direct authentication (supports username & backend email matching)
+        user = authenticate(request=request, username=identifier, password=password)
+
+        # 2. If username authentication fails, try looking up by email
+        if user is None:
+            try:
+                existing_user = User.objects.filter(email__iexact=identifier).first()
+                if existing_user:
+                    user = authenticate(
+                        request=request,
+                        username=existing_user.get_username(),
+                        password=password
+                    )
+            except Exception:
+                user = None
+
         if user is not None:
+            if not user.is_active:
+                messages.error(request, "This account is inactive. Please contact support.")
+                return render(request, 'accounts/login.html', {'prefilled_username': identifier})
+
             login(request, user)
-            messages.success(request, f"Welcome back, {user.username}!")
+            messages.success(request, f"Welcome back, {user.get_full_name() or user.username}!")
             return redirect('dashboard_redirect')
         else:
             messages.error(request, "Invalid username/email or password.")
             return render(request, 'accounts/login.html', {'prefilled_username': identifier})
-            
+
     return render(request, 'accounts/login.html', {'prefilled_username': prefilled_username})
 
 def logout_view(request):
+    """Safely logs out the user without modifying credentials or account state."""
     logout(request)
     messages.info(request, "You have been logged out.")
     return redirect('login')

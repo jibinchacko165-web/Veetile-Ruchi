@@ -1,0 +1,436 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="mb-4">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h1 style="color: var(--primary-brown); font-weight: 800; font-size: 2rem; margin-bottom: 0.2rem;">
+                👨‍🍳 Staff Console
+            </h1>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin: 0;">
+                Food Order & Delivery Management System
+            </p>
+        </div>
+        
+        <!-- Navigation Tab Switcher -->
+        <div style="display: flex; background: var(--accent-warm); padding: 5px; border-radius: 50px; border: 1.5px solid var(--border-light); flex-wrap: wrap; gap: 4px;">
+            <a href="{% url 'staff_dashboard' %}?tab=orders" 
+               style="padding: 0.55rem 1.2rem; border-radius: 50px; font-weight: 600; font-size: 0.9rem; text-decoration: none; transition: var(--transition); {% if active_tab != 'tracking' and active_tab != 'chefs' %} background: var(--primary-orange); color: white; box-shadow: 0 4px 12px rgba(210,105,30,0.3); {% else %} color: var(--text-muted); {% endif %}">
+                📋 Customer Orders
+            </a>
+            <a href="{% url 'staff_dashboard' %}?tab=tracking" 
+               style="padding: 0.55rem 1.2rem; border-radius: 50px; font-weight: 600; font-size: 0.9rem; text-decoration: none; transition: var(--transition); {% if active_tab == 'tracking' %} background: var(--primary-orange); color: white; box-shadow: 0 4px 12px rgba(210,105,30,0.3); {% else %} color: var(--text-muted); {% endif %}">
+                🚚 Delivery Tracking
+            </a>
+            <a href="{% url 'staff_dashboard' %}?tab=chefs" 
+               style="padding: 0.55rem 1.2rem; border-radius: 50px; font-weight: 600; font-size: 0.9rem; text-decoration: none; transition: var(--transition); {% if active_tab == 'chefs' %} background: var(--primary-orange); color: white; box-shadow: 0 4px 12px rgba(210,105,30,0.3); {% else %} color: var(--text-muted); {% endif %}">
+                👨‍🍳 Chef Approvals
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if active_tab == 'tracking' %}
+<!-- =========================================================
+     TAB 2: DELIVERY TRACKING & FLEET LOGS
+     ========================================================= -->
+<div class="grid-2">
+    <!-- Active Dispatch & Delivery Logs -->
+    <div class="card" style="grid-column: span 2;">
+        <h3 class="mb-2" style="color: var(--primary-brown); font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+            <span>🚚</span> Live Delivery Tracking & Dispatch Logs
+        </h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+            Monitor assigned delivery boys, real-time dispatch progress, and completed deliveries.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+            {% for assign in assignments %}
+                <div style="background-color: var(--accent-warm); border: 1.5px solid var(--border-light); border-radius: 14px; padding: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-light); padding-bottom: 0.5rem;">
+                        <div>
+                            <span style="font-weight: 700; color: var(--primary-brown); font-size: 1.05rem;">Order #{{ assign.order.order_id }}</span>
+                            <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.5rem;">
+                                Customer: <strong>{{ assign.order.user.username|title }}</strong>
+                            </span>
+                        </div>
+
+                        <div>
+                            {% if assign.status == 'delivered' %}
+                                <span class="badge badge-success" style="padding: 0.35rem 0.8rem; font-size: 0.8rem;">
+                                    ✅ Delivered
+                                </span>
+                            {% elif assign.status == 'in_transit' %}
+                                <span class="badge badge-warning" style="padding: 0.35rem 0.8rem; font-size: 0.8rem;">
+                                    🛵 Out for Delivery
+                                </span>
+                            {% else %}
+                                <span class="badge badge-primary" style="padding: 0.35rem 0.8rem; font-size: 0.8rem;">
+                                    📌 Assigned
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; font-size: 0.9rem;">
+                        <div>
+                            <p style="margin-bottom: 0.3rem;"><strong>Ordered Food Items:</strong></p>
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center;">
+                                {% for item in assign.order.items.all %}
+                                    <span style="display: inline-flex; align-items: center; gap: 0.25rem; background: #ffffff; border: 1px solid var(--border-light); border-radius: 6px; padding: 0.2rem 0.5rem; font-size: 0.82rem; color: var(--primary-brown); font-weight: 600;">
+                                        🍲 {{ item.food_item.name }}
+                                        <strong style="color: var(--primary-orange); font-size: 0.78rem; background: #fce5c8; padding: 0.05rem 0.3rem; border-radius: 4px;">×{{ item.quantity }}</strong>
+                                    </span>
+                                {% empty %}
+                                    <span style="color: var(--text-muted); font-size: 0.82rem;">No items listed</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div>
+                            <p style="margin-bottom: 0.3rem;"><strong>Assigned Delivery Boy:</strong></p>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-size: 1.2rem;">🛵</span>
+                                <div>
+                                    <strong style="color: var(--primary-orange); font-family: monospace; font-size: 0.95rem;">
+                                        Vehicle #{{ assign.delivery_boy.vehicle_number }}
+                                    </strong>
+                                    <div style="font-size: 0.8rem; color: var(--text-muted);">
+                                        Driver: {{ assign.delivery_boy.user.username|title }} ({% if assign.delivery_boy.user.phone %}{{ assign.delivery_boy.user.phone }}{% else %}No Phone{% endif %})
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <p style="margin-bottom: 0.3rem;"><strong>Delivery Destination (GPS):</strong></p>
+                            <p style="color: var(--primary-orange); font-size: 0.85rem; font-weight: 700; margin: 0; font-family: monospace;">
+                                Lat {{ assign.order.latitude }}, Lon {{ assign.order.longitude }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <p style="margin-bottom: 0.3rem;"><strong>Transit Status & Timings:</strong></p>
+                            <p style="margin: 0; font-size: 0.85rem; color: var(--text-muted);">
+                                Assigned: <strong>{{ assign.assigned_at|date:"h:i A" }}</strong><br>
+                                AI Estimated Time: <strong>{{ assign.predicted_delivery_time }} mins</strong>
+                                {% if assign.actual_delivery_time %}
+                                    <br><span style="color: var(--success); font-weight: 700;">Actual Time: {{ assign.actual_delivery_time }} mins</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Live Tracking Link -->
+                    <div style="margin-top: 1rem; display: flex; justify-content: flex-end; align-items: center; gap: 1rem;">
+                        <a href="{% url 'order_tracking' assign.order.order_id %}" class="btn btn-outline" style="padding: 0.4rem 1rem; font-size: 0.82rem;">
+                            📍 Track Live GPS
+                        </a>
+                    </div>
+                </div>
+            {% empty %}
+                <div style="text-align: center; padding: 3rem; background: var(--accent-warm); border-radius: 14px;">
+                    <p style="color: var(--text-muted); font-size: 1rem; margin: 0;">No active delivery dispatches found.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Active Courier Fleet Panel -->
+    <div class="card" style="grid-column: span 2; margin-top: 1.5rem;">
+        <h3 class="mb-2" style="color: var(--primary-brown); font-weight: 700;">🛵 Registered Delivery Fleet</h3>
+        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+            Overview of registered delivery boys and their current availability status.
+        </p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;">
+            {% for c in all_couriers %}
+                <div style="background-color: var(--accent-warm); border: 1.5px solid var(--border-light); border-radius: 12px; padding: 0.85rem; text-align: center;">
+                    <span style="font-size: 1.4rem; display: block; margin-bottom: 0.25rem;">🛵</span>
+                    <strong style="color: var(--primary-orange); font-size: 0.9rem; font-family: monospace; display: block;">{{ c.vehicle_number }}</strong>
+                    <div style="font-size: 0.82rem; color: var(--text-main); font-weight: 600; margin-top: 0.2rem;">{{ c.user.username|title }}</div>
+                    <span class="badge {% if c.status == 'available' %}badge-success{% else %}badge-warning{% endif %}" style="font-size: 0.72rem; margin-top: 0.4rem; padding: 0.2rem 0.6rem;">
+                        {% if c.status == 'available' %}🟢 Available{% else %}🟡 On Delivery{% endif %}
+                    </span>
+                </div>
+            {% empty %}
+                <p style="color: var(--text-muted); grid-column: 1/-1;">No delivery personnel registered.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- =========================================================
+     TAB 1: CUSTOMER FOOD ORDERS MANAGEMENT
+     ========================================================= -->
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+            <h3 style="color: var(--primary-brown); font-weight: 700; margin: 0;">📋 Customer Food Orders</h3>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0.2rem 0 0 0;">
+                Review incoming customer food orders, food items, and assign delivery personnel.
+            </p>
+        </div>
+        <span class="badge badge-primary" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">
+            Total Orders: {{ orders|length }}
+        </span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+        {% for order in orders %}
+            <div style="background-color: var(--accent-warm); border: 1.5px solid var(--border-light); border-radius: 16px; padding: 1.25rem; transition: var(--transition);">
+                
+                <!-- Order Header Info -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem; border-bottom: 1px solid var(--border-light); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 0.6rem;">
+                            <span style="font-weight: 800; font-size: 1.1rem; color: var(--primary-brown);">Order #{{ order.order_id }}</span>
+                            <span style="font-size: 0.82rem; color: var(--text-muted);">
+                                📅 {{ order.created_at|date:"N j, Y, h:i A" }}
+                            </span>
+                        </div>
+                        <div style="font-size: 0.9rem; color: var(--text-main); margin-top: 0.25rem;">
+                            Customer: <strong style="color: var(--primary-orange);">{{ order.user.username|title }}</strong>
+                            {% if order.user.phone %}(Phone: {{ order.user.phone }}){% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Status Badge -->
+                    <div>
+                        {% if order.status == 'delivered' %}
+                            <span class="badge badge-success" style="padding: 0.4rem 0.9rem; font-size: 0.82rem;">
+                                ✅ Delivered
+                            </span>
+                        {% elif order.status == 'in_transit' %}
+                            <span class="badge badge-warning" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; background-color: #3b82f6; color: #fff;">
+                                🛵 In Transit
+                            </span>
+                        {% elif order.delivery_assignment %}
+                            <span class="badge badge-warning" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; background-color: #d97736; color: #fff;">
+                                📡 Transmitted
+                            </span>
+                        {% elif order.status == 'ready_pickup' %}
+                            <span class="badge badge-warning" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; background-color: #f59e0b; color: #fff;">
+                                📦 Ready for Pickup
+                            </span>
+                        {% elif order.status == 'preparing' %}
+                            <span class="badge badge-primary" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; background-color: #8b5cf6; color: #fff;">
+                                🍳 Preparing
+                            </span>
+                        {% else %}
+                            <span class="badge badge-primary" style="padding: 0.4rem 0.9rem; font-size: 0.82rem;">
+                                ⏳ Confirmed
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Order Details & Food Items Grid -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 1rem;">
+                    
+                    <!-- Food Items Ordered -->
+                    <div style="background: #ffffff; padding: 1rem; border-radius: 12px; border: 1px solid var(--border-light);">
+                        <h4 style="font-size: 0.88rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.6rem; letter-spacing: 0.05em;">
+                            🍲 Ordered Food Items
+                        </h4>
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                            {% for item in order.items.all %}
+                                <li style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; margin-bottom: 0.4rem; padding-bottom: 0.3rem; border-bottom: 1px dashed var(--border-light);">
+                                    <span>
+                                        <strong>{{ item.food_item.name }}</strong>
+                                        <span style="color: var(--text-muted); font-size: 0.82rem;">x{{ item.quantity }}</span>
+                                    </span>
+                                    <span style="font-weight: 600; color: var(--primary-brown);">
+                                        ₹{{ item.get_cost }}
+                                    </span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; font-weight: 700; font-size: 0.95rem; color: var(--primary-brown);">
+                            <span>Total Amount:</span>
+                            <span style="color: var(--primary-orange); font-size: 1.1rem;">₹{{ order.total_amount }}</span>
+                        </div>
+                    </div>
+
+                    <!-- Delivery Address & Payment Details -->
+                    <div style="background: #ffffff; padding: 1rem; border-radius: 12px; border: 1px solid var(--border-light);">
+                        <h4 style="font-size: 0.88rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.6rem; letter-spacing: 0.05em;">
+                            📍 Delivery Location & Payment
+                        </h4>
+                        <p style="font-size: 0.88rem; color: var(--primary-orange); font-weight: 700; margin-bottom: 0.6rem; font-family: monospace;">
+                            📍 GPS Destination: Lat {{ order.latitude }}, Lon {{ order.longitude }}
+                        </p>
+                        
+                        <div style="margin-top: 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--border-light);">
+                            {% if order.payment %}
+                                <span style="font-size: 0.85rem;">
+                                    Payment Method: <strong>{{ order.payment.get_payment_method_display }}</strong> | Status: 
+                                    {% if order.payment.status == 'success' %}
+                                        <span style="color: var(--success); font-weight: 700;">Verified</span>
+                                    {% else %}
+                                        <span style="color: var(--danger); font-weight: 700;">Pending</span>
+                                    {% endif %}
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Action Bar: Delivery Assignment & Payment Verification -->
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; background: #ffffff; padding: 1rem; border-radius: 12px; border: 1px solid var(--border-light);">
+                    
+                    <!-- Assigned Delivery Boy Status or Selector -->
+                    {% if order.delivery_assignment %}
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem;">
+                                <span style="font-size: 1.2rem;">🛵</span>
+                                <span>Assigned Courier: 
+                                    <strong style="color: var(--primary-orange); font-family: monospace;">Vehicle #{{ order.delivery_assignment.delivery_boy.vehicle_number }}</strong>
+                                    ({{ order.delivery_assignment.delivery_boy.user.username|title }} - 📞 {{ order.delivery_assignment.delivery_boy.user.phone|default:"Phone number not added" }})
+                                </span>
+                            </div>
+                            <span class="badge" style="font-size: 0.8rem; background-color: {% if order.status == 'delivered' %}var(--success){% elif order.status == 'in_transit' %}#3b82f6{% else %}#d97736{% endif %}; color: #ffffff;">
+                                {% if order.status == 'delivered' %}
+                                    ✅ Delivered
+                                {% elif order.status == 'in_transit' %}
+                                    🛵 In Transit
+                                {% else %}
+                                    📡 Transmitted (Assigned to Courier)
+                                {% endif %}
+                            </span>
+                        </div>
+                    {% elif order.status == 'ready_pickup' %}
+                        <!-- Prominent "Assign Delivery Boy" Section for Ready Orders -->
+                        <div style="background: #FFF3E0; border: 2px solid #D97736; border-radius: 12px; padding: 1rem; width: 100%;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                                <div>
+                                    <strong style="color: #8B4513; font-size: 1rem; display: flex; align-items: center; gap: 0.4rem;">
+                                        <span>📦</span> Food Ready for Pickup – Delivery Assignment
+                                    </strong>
+                                    <span style="font-size: 0.82rem; color: #666; display: block; margin-top: 0.2rem;">
+                                        Select an available delivery boy and click "Assign Delivery Boy".
+                                    </span>
+                                </div>
+
+                                <form method="POST" action="{% url 'staff_assign_delivery' order.order_id %}" style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; flex: 1; max-width: 520px;">
+                                    {% csrf_token %}
+                                    <select name="delivery_boy_id" class="form-control" style="padding: 0.55rem 0.85rem; font-size: 0.88rem; flex: 1; min-width: 220px; font-weight: 600;" required>
+                                        <option value="" disabled selected>-- Select Available Delivery Boy --</option>
+                                        {% for db in delivery_boys %}
+                                            <option value="{{ db.id }}">
+                                                {{ db.user.username|title }} 📱 {{ db.user.phone|default:"No Phone" }} {% if db.status == 'available' %}🟢 Available{% else %}🟡 {{ db.get_status_display }}{% endif %} (Vehicle #{{ db.vehicle_number }})
+                                            </option>
+                                        {% empty %}
+                                            <option value="" disabled>No Registered Delivery Boys</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="btn" style="padding: 0.55rem 1.4rem; font-size: 0.9rem; font-weight: 700; background: #D97736; color: #ffffff; box-shadow: 0 4px 12px rgba(217, 119, 54, 0.35);">
+                                        Assign Delivery Boy
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; font-size: 0.85rem; color: var(--text-muted);">
+                            <span>⏳ Kitchen Preparation in Progress (Status: {{ order.get_status_display }}). Mark as "Food Ready" to enable courier assignment.</span>
+                        </div>
+                    {% endif %}
+
+                    <!-- Additional Staff Actions (Mark Food Ready, Confirm Payment, View Tracking) -->
+                    <div style="display: flex; justify-content: flex-end; gap: 0.6rem; align-items: center; border-top: 1px solid var(--border-light); padding-top: 0.6rem; flex-wrap: wrap;">
+                        {% if order.status in 'pending,preparing' %}
+                            <form method="POST" action="{% url 'staff_update_order_status' order.order_id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="status" value="ready_pickup">
+                                <button type="submit" class="btn btn-outline" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; border-color: #D97736; color: #D97736; font-weight: 700;">
+                                    📦 Mark as Food Ready (Ready for Pickup)
+                                </button>
+                            </form>
+                        {% endif %}
+
+                        {% if order.payment and order.payment.status == 'pending' %}
+                            <form method="POST" action="{% url 'staff_confirm_payment' order.order_id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline" style="padding: 0.4rem 0.9rem; font-size: 0.82rem;">
+                                    Confirm COD Payment
+                                </button>
+                            </form>
+                        {% endif %}
+                        
+                        <a href="{% url 'order_tracking' order.order_id %}" class="btn btn-outline" style="padding: 0.4rem 0.9rem; font-size: 0.82rem;">
+                            View Tracking
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+        {% empty %}
+            <div style="text-align: center; padding: 3rem; background: var(--accent-warm); border-radius: 16px;">
+                <p style="color: var(--text-muted); font-size: 1rem; margin: 0;">No customer food orders found.</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if active_tab == 'chefs' %}
+<!-- TAB 3: CHEF MANAGEMENT & APPROVAL WORKFLOW -->
+<div class="card">
+    <h3 style="color: var(--primary-brown); font-weight: 700; margin-bottom: 0.5rem;">
+        👨‍🍳 Home Chef Verification & Approval Console
+    </h3>
+    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+        Review registered home chefs, verify kitchen details, and approve accounts for menu publishing.
+    </p>
+
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--border-light); color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase;">
+                    <th style="padding: 0.75rem;">Chef User</th>
+                    <th style="padding: 0.75rem;">Kitchen Name</th>
+                    <th style="padding: 0.75rem;">Specialty</th>
+                    <th style="padding: 0.75rem;">Experience</th>
+                    <th style="padding: 0.75rem;">Approval Status</th>
+                    <th style="padding: 0.75rem; text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for chef in chefs %}
+                <tr style="border-bottom: 1px solid var(--border-light); font-size: 0.95rem;">
+                    <td style="padding: 0.85rem 0.75rem;">
+                        <strong>{{ chef.user.username }}</strong><br>
+                        <span style="font-size: 0.8rem; color: var(--text-muted);">{{ chef.user.email }}</span>
+                    </td>
+                    <td style="padding: 0.85rem 0.75rem;">{{ chef.kitchen_name|default:"Home Kitchen" }}</td>
+                    <td style="padding: 0.85rem 0.75rem;">{{ chef.specialty|default:"Kerala Cuisine" }}</td>
+                    <td style="padding: 0.85rem 0.75rem;">{{ chef.experience_years }} yr(s)</td>
+                    <td style="padding: 0.85rem 0.75rem;">
+                        {% if chef.is_approved %}
+                            <span class="badge badge-success" style="background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71;">✓ Approved</span>
+                        {% else %}
+                            <span class="badge badge-warning" style="background: rgba(241, 196, 15, 0.2); color: #d35400; border: 1px solid #d35400;">⏳ Pending Approval</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding: 0.85rem 0.75rem; text-align: right;">
+                        <form method="POST" action="{% url 'toggle_chef_approval' chef.id %}" style="display: inline;">
+                            {% csrf_token %}
+                            {% if chef.is_approved %}
+                                <button type="submit" class="btn btn-outline" style="padding: 0.35rem 0.8rem; font-size: 0.8rem; border-color: #e74c3c; color: #e74c3c;">Revoke Approval</button>
+                            {% else %}
+                                <button type="submit" class="btn" style="padding: 0.35rem 0.8rem; font-size: 0.8rem; background: #2ecc71; color: white;">Approve Chef</button>
+                            {% endif %}
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="padding: 2rem; text-align: center; color: var(--text-muted);">No chefs registered in system.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

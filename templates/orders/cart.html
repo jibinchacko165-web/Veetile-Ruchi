@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1 class="mb-3" style="color: var(--text-light);">My Shopping Basket</h1>
+
+<div class="grid-2" style="grid-template-columns: 1.6fr 1fr;">
+    <!-- Left side: Cart Items -->
+    <div class="card">
+        <h3 class="mb-3" style="color: var(--text-light);">Selected Delicacies</h3>
+        
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+            {% for item in cart_items %}
+                <div style="background-color: var(--dark-bg); border: 1px solid var(--dark-border); border-radius: 12px; padding: 1rem; display: flex; gap: 1rem; align-items: center; justify-content: space-between;">
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <div style="width: 70px; height: 70px; border-radius: 8px; overflow: hidden; background: #2d2d34; flex-shrink: 0;">
+                            <img src="{{ item.food_item.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ item.food_item.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                        <div>
+                            <h4 style="font-size: 1.05rem;">{{ item.food_item.name }}</h4>
+                            <p style="font-size: 0.85rem; color: var(--text-muted);">Quantity: {{ item.quantity }} | Unit: ₹{{ item.food_item.price }}</p>
+                        </div>
+                    </div>
+                    <div style="text-align: right; display: flex; align-items: center; gap: 1rem;">
+                        <strong style="font-size: 1.15rem; color: var(--primary);">₹{% widthratio item.food_item.price 1 item.quantity %}</strong>
+                        <a href="{% url 'cart_remove' item.id %}" style="text-decoration: none; font-size: 1.2rem; color: var(--danger);">&times;</a>
+                    </div>
+                </div>
+            {% empty %}
+                <div style="padding: 3rem; text-align: center; color: var(--text-muted);">
+                    <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">Your basket is empty. Browse the home kitchen menu!</p>
+                    <a href="{% url 'food_catalog' %}" class="btn">View Menu</a>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Right side: Calculation and Coupons -->
+    <div>
+        <!-- AI Smart Coupon Suggestions -->
+        {% if cart_items %}
+            <div class="card mb-3" style="border-top: 4px solid var(--warning);">
+                <h3 class="mb-2" style="color: var(--warning); display: flex; align-items: center; gap: 0.5rem;">
+                    💡 AI Coupon Recommendation
+                </h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    Our K-Means algorithm clustered your purchasing frequency and classified your segment.
+                </p>
+                <div style="background-color: var(--dark-bg); padding: 0.8rem; border-radius: 8px; border: 1px dashed var(--dark-border); margin-bottom: 1rem;">
+                    <p style="font-size: 0.85rem; color: var(--text-light);">
+                        Segment: <strong>{{ user_rec.segment }} Customer</strong>
+                    </p>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">
+                        {{ user_rec.reason }}
+                    </p>
+                    {% if user_rec.coupon %}
+                        <div class="mt-2" style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-family: monospace; font-size: 1rem; color: var(--primary-light); font-weight: 700; background: rgba(255,255,255,0.05); padding: 0.2rem 0.5rem; border-radius: 4px;">
+                                {{ user_rec.coupon.code }}
+                            </span>
+                            <a href="?coupon_code={{ user_rec.coupon.code }}" class="btn" style="padding: 0.2rem 0.6rem; font-size: 0.75rem;">Apply Auto</a>
+                        </div>
+                    {% else %}
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem;">No coupons recommended currently.</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Summary calculations -->
+            <div class="card">
+                <h3 class="mb-3" style="color: var(--text-light);">Receipt Summary</h3>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.75rem; border-bottom: 1px solid var(--dark-border); padding-bottom: 1rem; margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-muted);">Basket Subtotal</span>
+                        <span>₹{{ subtotal|floatformat:2 }}</span>
+                    </div>
+                    {% if discount > 0 %}
+                        <div style="display: flex; justify-content: space-between; color: var(--success);">
+                            <span>Discount Code Applied</span>
+                            <span>- ₹{{ discount|floatformat:2 }}</span>
+                        </div>
+                    {% endif %}
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-muted);">Delivery Charge</span>
+                        <span style="color: var(--success);">FREE</span>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; font-size: 1.3rem; font-weight: 700; margin-bottom: 1.5rem;">
+                    <span>Total Amount</span>
+                    <span style="color: var(--primary);">₹{{ total|floatformat:2 }}</span>
+                </div>
+
+                <!-- Coupon Entry form -->
+                <form method="GET" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
+                    <input type="text" name="coupon_code" placeholder="Enter coupon code" class="form-control" style="text-transform: uppercase;" required>
+                    <button type="submit" class="btn btn-outline" style="padding: 0.5rem 1rem;">Apply</button>
+                </form>
+
+                <a href="{% url 'checkout_view' %}{% if applied_coupon %}?coupon_id={{ applied_coupon.id }}{% endif %}" class="btn" style="width: 100%; padding: 0.8rem; font-size: 1.1rem; border-radius: 8px;">
+                    Proceed to Checkout &rarr;
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

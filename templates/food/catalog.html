@@ -1,0 +1,242 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<!-- Hero Section (Matching Screenshot Palette & Styling) -->
+<div style="background: linear-gradient(180deg, #fdeed9 0%, #fce5c8 100%); padding: 4rem 2rem; border-radius: 28px; border: 1.5px solid #fcdbc2; margin-bottom: 2.5rem; text-align: center; box-shadow: 0 10px 30px rgba(184, 92, 20, 0.05);">
+    <h1 style="font-size: 3rem; font-family: 'Poppins', sans-serif; font-weight: 700; color: #b85c14; margin-bottom: 1.25rem; letter-spacing: -0.02em;">
+        Experience the Authentic Taste of Home
+    </h1>
+    
+    <!-- Time Session Badge -->
+    <div style="display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem; background-color: #ffffff; border: 1.5px solid #fcdbc2; border-radius: 50px; padding: 0.55rem 1.8rem; font-size: 1.05rem; font-weight: 700; color: #b85c14; margin-bottom: 1.25rem; box-shadow: 0 4px 14px rgba(184, 92, 20, 0.08);">
+        <span style="font-size: 1.2rem;">🍳</span>
+        <span>
+            {% if active_session %}
+                Now Serving: <strong>{{ active_session.name }}</strong> ({{ active_session.start_time|time:"g:i A" }} – {{ active_session.end_time|time:"g:i A" }})
+            {% else %}
+                Kitchen Open All Day
+            {% endif %}
+        </span>
+    </div>
+    
+    <p style="font-size: 1.1rem; color: #8c5a3c; max-width: 650px; margin: 0 auto 2rem; font-weight: 600;">
+        Freshly prepared meals made with love and delivered straight to your doorstep.
+    </p>
+
+    <!-- Search Form -->
+    <form method="GET" action="{% url 'food_catalog' %}" style="max-width: 620px; margin: 0 auto; display: flex; gap: 0.5rem; background: #ffffff; padding: 0.45rem; border-radius: 50px; border: 2px solid #fcdbc2; box-shadow: 0 6px 20px rgba(184, 92, 20, 0.08);">
+        <input type="text" name="q" value="{{ query }}" placeholder="Search delicious homemade foods..." style="flex:1; background:transparent; border:none; color:#4a2412; padding:0 1.5rem; outline:none; font-size:1rem; font-family:inherit;">
+        {% if cat_filter %}
+            <input type="hidden" name="category" value="{{ cat_filter }}">
+        {% endif %}
+        {% if session_filter %}
+            <input type="hidden" name="session" value="{{ session_filter }}">
+        {% endif %}
+        <button type="submit" class="btn" style="padding: 0.65rem 2rem; font-size: 0.95rem;">Search</button>
+    </form>
+</div>
+
+<!-- AI Recommendations and Health Banners (If Logged In Customer) -->
+{% if user.is_authenticated and user.role == 'customer' %}
+    <!-- AI Health Profile & Risk Classification -->
+    <div class="card mb-3" style="background: #ffffff; border: 1.5px solid #fcdbc2; border-left: 6px solid #2a9d8f; border-radius: 18px; padding: 1.4rem 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.25rem; box-shadow: 0 6px 22px rgba(184, 92, 20, 0.06);">
+        <div>
+            <h3 style="color: #0d9488; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                🥗 AI Health Profile Summary
+            </h3>
+            <p style="color: #4a2412; font-size: 0.95rem; margin-top: 0.4rem; font-weight: 500;">
+                Based on your selected conditions: 
+                {% if user.health_profile.has_diabetes %}<strong style="color: #b85c14;">Diabetes</strong> | {% endif %}
+                {% if user.health_profile.has_cholesterol %}<strong style="color: #b85c14;">High Cholesterol</strong> | {% endif %}
+                {% if user.health_profile.has_bp %}<strong style="color: #b85c14;">High Blood Pressure</strong> | {% endif %}
+                {% if not user.health_profile.has_diabetes and not user.health_profile.has_cholesterol and not user.health_profile.has_bp %}
+                    <span style="color: #8c5a3c;">No chronic conditions registered.</span>
+                {% endif %}
+                Diet preference: <strong style="color: #b85c14;">{{ user.health_profile.get_dietary_preference_display }}</strong>
+            </p>
+        </div>
+        <div style="text-align: right;">
+            <span style="font-size: 0.82rem; color: #8c5a3c; font-weight: 600; display: block; margin-bottom: 0.3rem;">AI Risk Classification</span>
+            <span class="badge {% if health_risk == 'High' %}badge-danger{% elif health_risk == 'Medium' %}badge-warning{% else %}badge-success{% endif %}" style="font-size: 0.9rem; padding: 0.45rem 1.2rem; font-weight: 700;">
+                {{ health_risk }} Risk Profile
+            </span>
+        </div>
+    </div>
+
+    <!-- AI Health-Profile Based Recommendations -->
+    {% if health_recs %}
+    <div class="mb-3">
+        <h3 style="color: var(--warning); margin-bottom: 1rem; font-family: 'Poppins', sans-serif; display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+            ❤️ Health-Friendly Recommendations
+        </h3>
+        <div class="grid-3">
+            {% for rec in health_recs %}
+            <div class="card" style="border-top: 3px solid var(--warning);">
+                <div style="height: 160px; border-radius: 8px; overflow: hidden; background: #fce5c8; position: relative;">
+                    <img src="{{ rec.food.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ rec.food.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                    <span class="badge badge-warning" style="position: absolute; top: 8px; left: 8px;">
+                        {{ rec.food.meal_session.name|upper }} ({{ rec.food.meal_session.start_time|time:"g:i A" }}–{{ rec.food.meal_session.end_time|time:"g:i A" }})
+                    </span>
+                </div>
+                <h4 class="mt-2">{{ rec.food.name }}</h4>
+                <p style="font-size: 0.8rem; color: var(--success); margin: 0.25rem 0;" class="font-weight: 600;">{{ rec.reason }}</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+                    <span style="font-weight: 700; color: var(--primary); font-size: 1.15rem;">₹{{ rec.food.price }}</span>
+                    <a href="{% url 'food_detail' rec.food.id %}" class="btn btn-outline" style="padding: 0.4rem 1rem; font-size: 0.85rem;">Order Now</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+{% endif %}
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin: 2rem 0 1.5rem; flex-wrap: wrap; gap: 1.5rem;">
+    <h2 style="font-size: 2.2rem; font-weight: 700; color: var(--primary-dark); letter-spacing: -0.02em;">📋 Menu Card</h2>
+</div>
+
+<!-- Session Filters matching exact UI design -->
+<div style="background: rgba(254, 248, 240, 0.05); border: 1px solid var(--dark-border); border-radius: 20px; padding: 1.75rem 1.25rem; margin-bottom: 2.5rem; text-align: center;">
+    
+    <!-- Pills Row -->
+    <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        
+        <!-- All Session Pill -->
+        <a href="?session=All{% if query %}&q={{ query }}{% endif %}{% if cat_filter %}&category={{ cat_filter }}{% endif %}" 
+           style="position: relative; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1.6rem; border-radius: 50px; text-decoration: none; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.95rem; transition: var(--transition);
+           {% if session_filter == 'All' %}
+               background: linear-gradient(135deg, #e07a38 0%, #d97736 100%); color: #ffffff; box-shadow: 0 4px 16px rgba(217, 119, 54, 0.4);
+           {% else %}
+               background-color: #fef5e7; border: 1.5px solid #fcdbb3; color: #b85c14;
+           {% endif %}">
+            <span style="font-size: 1.1rem; display: inline-flex; align-items: center;">⊞</span>
+            <span>All</span>
+        </a>
+
+        <!-- Meal Session Pills -->
+        {% for pill in session_pills %}
+            <a href="?session={{ pill.short_name }}{% if query %}&q={{ query }}{% endif %}{% if cat_filter %}&category={{ cat_filter }}{% endif %}" 
+               style="position: relative; display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.65rem 1.7rem; border-radius: 50px; text-decoration: none; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.95rem; transition: var(--transition);
+               {% if pill.is_selected %}
+                   background: linear-gradient(135deg, #e07a38 0%, #d97736 100%); color: #ffffff; box-shadow: 0 4px 16px rgba(217, 119, 54, 0.4);
+               {% else %}
+                   background-color: #fef5e7; border: 1.5px solid #fcdbb3; color: #b85c14;
+               {% endif %}">
+                
+                <!-- Session Icon -->
+                <span style="font-size: 1.15rem; display: inline-flex; align-items: center;">{{ pill.icon }}</span>
+                <span>{{ pill.short_name }}</span>
+
+                <!-- Active Live Green Indicator Dot for Currently Serving Session -->
+                {% if pill.is_active %}
+                    <span title="Currently Serving Session" style="position: absolute; top: -3px; right: -3px; width: 14px; height: 14px; background-color: #10b981; border: 2.5px solid #ffffff; border-radius: 50%; box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);"></span>
+                {% endif %}
+            </a>
+        {% endfor %}
+    </div>
+
+    <!-- Active Serving Status Banner -->
+    {% if active_session %}
+        <div style="margin-top: 1.25rem;">
+            <div style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; background-color: rgba(16, 185, 129, 0.12); border: 1.5px solid rgba(16, 185, 129, 0.4); border-radius: 30px; padding: 0.45rem 1.4rem; font-size: 0.92rem; font-weight: 600; color: #10b981;">
+                <span style="display: inline-block; width: 9px; height: 9px; border-radius: 50%; background-color: #10b981; box-shadow: 0 0 8px #10b981; animation: pulse 1.5s infinite;"></span>
+                <span>Currently Serving: <strong>{{ active_session.name }}</strong> ({{ active_session.start_time|time:"g:i A" }} – {{ active_session.end_time|time:"g:i A" }})</span>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Food Grid -->
+<div class="grid-3">
+    {% for food in foods %}
+        <div class="card" style="display: flex; flex-direction: column;">
+            <div style="height: 200px; border-radius: 12px; overflow: hidden; background: #fce5c8; position: relative;">
+                <img src="{{ food.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ food.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                <span class="badge badge-accent" style="position: absolute; top: 12px; left: 12px;">{{ food.category.name }}</span>
+                
+                <!-- Dynamic Time-Based Session Badge on Food Item -->
+                {% if active_session and food.meal_session.id == active_session.id %}
+                    <span class="badge badge-success" style="position: absolute; top: 12px; right: 12px; display: flex; align-items: center; gap: 0.3rem; box-shadow: 0 2px 8px rgba(16,185,129,0.4); text-transform: uppercase;">
+                        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #ffffff; animation: pulse 1.5s infinite;"></span>
+                        🟢 {{ food.meal_session.name|upper }} ({{ food.meal_session.start_time|time:"g:i A" }}–{{ food.meal_session.end_time|time:"g:i A" }})
+                    </span>
+                {% else %}
+                    <span class="badge badge-primary" style="position: absolute; top: 12px; right: 12px; opacity: 0.9; text-transform: uppercase;">
+                        {{ food.meal_session.name|upper }} ({{ food.meal_session.start_time|time:"g:i A" }}–{{ food.meal_session.end_time|time:"g:i A" }})
+                    </span>
+                {% endif %}
+            </div>
+            
+            <div style="padding: 1rem 0; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.25rem;">
+                        <div>
+                            <h3 style="font-size: 1.25rem; font-weight: 700;">{{ food.name }}</h3>
+                        </div>
+                        <a href="{% url 'wishlist_toggle' food.id %}" style="text-decoration: none; display: inline-flex; align-items: center; transition: transform 0.2s ease;" title="Save to Favorites" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
+                            {% if food.id in wish_ids %}
+                                <img src="/static/images/wishlist-heart.svg" alt="Favorited" style="width: 28px; height: 28px;">
+                            {% else %}
+                                <img src="/static/images/wishlist-heart-outline.svg" alt="Add to Favorites" style="width: 28px; height: 28px;">
+                            {% endif %}
+                        </a>
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                        {{ food.description|default:"Delectable fresh homemade preparation." }}
+                    </p>
+                    
+                    {% if food.stock_quantity <= 0 %}
+                        <p style="font-size: 0.8rem; color: var(--danger); font-weight: 600; margin-bottom: 0.5rem;">⚠️ Sold Out (Out of Stock)</p>
+                    {% else %}
+                        <p style="font-size: 0.8rem; color: var(--success); font-weight: 500; margin-bottom: 0.5rem;">🟢 Stock Available: {{ food.stock_quantity }} portions</p>
+                    {% endif %}
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--dark-border); padding-top: 1rem; margin-top: 0.5rem;">
+                    <span style="font-weight: 700; color: var(--primary); font-size: 1.4rem;">₹{{ food.price }}</span>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="{% url 'food_detail' food.id %}" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.85rem;">Details</a>
+                        {% if food.stock_quantity > 0 %}
+                            <a href="{% url 'cart_add' food.id %}" class="btn" style="padding: 0.5rem 1.2rem; font-size: 0.85rem;">Add +</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div style="grid-column: 1 / -1; padding: 4rem 2rem; text-align: center; color: var(--text-muted);">
+            <p style="font-size: 1.25rem;">No homemade food items found matching your filters.</p>
+        </div>
+    {% endfor %}
+</div>
+
+<!-- Auto-refresh script when session boundary is crossed -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let activeSessionName = "{{ active_session.name|default:'' }}";
+        
+        setInterval(function() {
+            const now = new Date();
+            const hours = now.getHours();
+            const mins = now.getMinutes();
+            const totalMins = hours * 60 + mins;
+
+            let expectedActive = "";
+            if (totalMins >= 360 && totalMins < 720) {
+                expectedActive = "Morning Breakfast";
+            } else if (totalMins >= 720 && totalMins < 960) {
+                expectedActive = "Lunch";
+            } else if (totalMins >= 960 && totalMins < 1140) {
+                expectedActive = "Evening Snacks";
+            } else if (totalMins >= 1140 || totalMins < 360) {
+                expectedActive = "Dinner";
+            }
+
+            if (activeSessionName && expectedActive && expectedActive !== activeSessionName) {
+                console.log("Session boundary crossed! Auto-reloading menu for active session:", expectedActive);
+                window.location.reload();
+            }
+        }, 30000);
+    });
+</script>
+{% endblock %}

@@ -1,7 +1,14 @@
 *.pyc
 __pycache__/
 *.sqlite3
+*.log
 venv/
+.venv/
 .vscode/
 .idea/
 .DS_Store
+.env
+.codeatlas/
+media/
+staticfiles/
+scratch/

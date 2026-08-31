@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veetile Ruchi - AI Homemade Food Ordering</title>
+    
+    <!-- Google Fonts Poppins & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Leaflet OpenStreetMap CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        :root {
+            --nav-height: 72px;
+            --nav-bg: #ffffff;
+            --nav-bg-glass: rgba(255, 255, 255, 0.95);
+            --accent-warm: #F8F4ED;
+            --primary-brown: #8B4513;
+            --primary-dark: #663300;
+            --primary-orange: #D2691E;
+            --primary-orange-hover: #B85714;
+            --primary-orange-light: #FFF3E0;
+            --text-main: #2D1E18;
+            --text-muted: #7A685D;
+            --border-light: #F0E6DF;
+            --success: #10b981;
+            --warning: #d97736;
+            --danger: #e63946;
+            --shadow-nav: 0 4px 20px rgba(139, 69, 19, 0.05);
+            --shadow-scroll: 0 10px 30px rgba(139, 69, 19, 0.12);
+            --shadow-dropdown: 0 14px 40px rgba(45, 30, 24, 0.12);
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            
+            /* Page legacy compat vars */
+            --primary: #D2691E;
+            --primary-light: #fce5c8;
+            --accent: #2a9d8f;
+            --dark-bg: #fff8ea;
+            --dark-surface: #fff0dd;
+            --dark-border: #fcdbc2;
+            --text-light: #2D1E18;
+            --glass: rgba(255, 255, 255, 0.95);
+            --shadow: 0 8px 25px rgba(184, 92, 20, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', 'Inter', sans-serif;
+            background-color: var(--dark-bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            padding-top: var(--nav-height);
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            color: var(--primary-brown);
+            letter-spacing: -0.02em;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--dark-bg);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--dark-border);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-orange);
+        }
+
+        /* =========================================================
+           ZOMATO & SWIGGY INSPIRED PREMIUM NAVBAR 
+           ========================================================= */
+        .navbar-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--nav-height);
+            background: var(--nav-bg-glass);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-bottom: 1px solid var(--border-light);
+            z-index: 1000;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar-wrapper.scrolled {
+            box-shadow: var(--shadow-scroll);
+            border-bottom-color: rgba(212, 105, 30, 0.15);
+            background: rgba(255, 255, 255, 0.98);
+        }
+
+        .navbar-container {
+            width: 100%;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 1.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+        }
+
+        /* --- Left Section: Logo --- */
+        .navbar-brand-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+        }
+
+        .brand-logo-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-size: 1.35rem;
+            box-shadow: 0 4px 14px rgba(210, 105, 30, 0.3);
+            transition: var(--transition);
+        }
+
+        .navbar-brand-group:hover .brand-logo-icon {
+            transform: rotate(-6deg) scale(1.05);
+            box-shadow: 0 6px 18px rgba(139, 69, 19, 0.4);
+        }
+
+        .brand-text-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.45rem;
+            font-weight: 800;
+            color: var(--primary-brown);
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+        }
+
+        .brand-title span {
+            color: var(--primary-orange);
+        }
+
+        .brand-subtitle {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        /* --- Center Section: Navigation Links --- */
+        .nav-center-menu {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .nav-item-link {
+            color: var(--text-main);
+            text-decoration: none;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
+            font-size: 0.92rem;
+            padding: 0.55rem 0.95rem;
+            border-radius: 50px;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+            position: relative;
+        }
+
+        .nav-item-link i {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            transition: var(--transition);
+        }
+
+        .nav-item-link:hover {
+            color: var(--primary-orange);
+            background-color: var(--accent-warm);
+            transform: translateY(-2px);
+        }
+
+        .nav-item-link:hover i {
+            color: var(--primary-orange);
+            transform: scale(1.1);
+        }
+
+        /* Active Menu Item Style (Zomato/Swiggy Pill + Indicator) */
+        .nav-item-link.active {
+            color: var(--primary-orange);
+            background-color: var(--primary-orange-light);
+            font-weight: 600;
+        }
+
+        .nav-item-link.active i {
+            color: var(--primary-orange);
+        }
+
+        .nav-item-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 16px;
+            height: 3px;
+            background-color: var(--primary-orange);
+            border-radius: 3px;
+        }
+
+        /* Badge for Cart & Favorites */
+        .nav-badge {
+            background: linear-gradient(135deg, #D2691E, #E63946);
+            color: #ffffff;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 0.15rem 0.45rem;
+            border-radius: 50px;
+            min-width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(210, 105, 30, 0.3);
+            margin-left: 0.1rem;
+        }
+
+        /* --- Right Section: Actions, Notifications & Profile --- */
+        .nav-right-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        /* Notification Icon & Dropdown */
+        .notification-dropdown-wrapper {
+            position: relative;
+        }
+
+        .icon-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background-color: var(--accent-warm);
+            border: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .icon-btn:hover {
+            background-color: var(--primary-orange-light);
+            color: var(--primary-orange);
+            transform: translateY(-2px);
+            border-color: rgba(210, 105, 30, 0.3);
+        }
+
+        .notification-indicator {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 10px;
+            height: 10px;
+            background-color: #E63946;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.5); }
+            70% { box-shadow: 0 0 0 6px rgba(230, 57, 70, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0); }
+        }
+
+        .dropdown-menu-card {
+            position: absolute;
+            top: calc(100% + 12px);
+            right: 0;
+            width: 320px;
+            background: #ffffff;
+            border-radius: 18px;
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-dropdown);
+            padding: 1rem;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: var(--transition);
+            z-index: 1050;
+        }
+
+        .dropdown-menu-card.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 0.75rem;
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .dropdown-header h5 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--primary-brown);
+            margin: 0;
+        }
+
+        .notification-item {
+            display: flex;
+            gap: 0.75rem;
+            padding: 0.65rem;
+            border-radius: 12px;
+            transition: var(--transition);
+            text-decoration: none;
+            color: var(--text-main);
+            margin-bottom: 0.4rem;
+        }
+
+        .notification-item:hover {
+            background-color: var(--accent-warm);
+        }
+
+        .notification-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: var(--primary-orange-light);
+            color: var(--primary-orange);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+        }
+
+        .notification-content p {
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin: 0;
+            line-height: 1.3;
+        }
+
+        .notification-content span {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+
+        /* Profile Avatar Dropdown */
+        .profile-dropdown-wrapper {
+            position: relative;
+        }
+
+        .profile-avatar-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            background-color: var(--accent-warm);
+            border: 1.5px solid var(--border-light);
+            padding: 0.35rem 0.85rem 0.35rem 0.45rem;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .profile-avatar-btn:hover {
+            border-color: var(--primary-orange);
+            background-color: #ffffff;
+            box-shadow: 0 4px 12px rgba(210, 105, 30, 0.12);
+        }
+
+        .avatar-circle {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #8B4513, #D2691E);
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .user-name-text {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-main);
+            max-width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .profile-menu-card {
+            width: 250px;
+            padding: 0.75rem;
+        }
+
+        .profile-info-box {
+            padding: 0.75rem 0.5rem;
+            margin-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-light);
+            text-align: center;
+        }
+
+        .profile-info-box .name {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--primary-brown);
+        }
+
+        .profile-info-box .role-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            background: var(--primary-orange-light);
+            color: var(--primary-orange);
+            padding: 0.2rem 0.6rem;
+            border-radius: 50px;
+            display: inline-block;
+            margin-top: 0.25rem;
+        }
+
+        .menu-link-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.6rem 0.85rem;
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 0.88rem;
+            font-weight: 500;
+            border-radius: 10px;
+            transition: var(--transition);
+        }
+
+        .menu-link-item i {
+            font-size: 1rem;
+            color: var(--text-muted);
+            width: 20px;
+            text-align: center;
+            transition: var(--transition);
+        }
+
+        .menu-link-item:hover {
+            background-color: var(--accent-warm);
+            color: var(--primary-orange);
+        }
+
+        .menu-link-item:hover i {
+            color: var(--primary-orange);
+        }
+
+        /* Logout Outline Button with Hover Inversion */
+        .logout-btn-item {
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .btn-logout-outline {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.55rem 1rem;
+            border: 1.5px solid var(--primary-orange);
+            background: transparent;
+            color: var(--primary-orange);
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.88rem;
+            border-radius: 50px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .btn-logout-outline:hover {
+            background: var(--primary-orange);
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(210, 105, 30, 0.3);
+        }
+
+        /* Buttons for Auth */
+        .btn-auth-login {
+            color: var(--primary-brown);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.92rem;
+            padding: 0.5rem 1rem;
+            transition: var(--transition);
+        }
+
+        .btn-auth-login:hover {
+            color: var(--primary-orange);
+        }
+
+        .btn-auth-register {
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%);
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 0.92rem;
+            padding: 0.55rem 1.4rem;
+            border-radius: 50px;
+            text-decoration: none;
+            box-shadow: 0 4px 14px rgba(210, 105, 30, 0.3);
+            transition: var(--transition);
+        }
+
+        .btn-auth-register:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(139, 69, 19, 0.4);
+            color: #ffffff;
+        }
+
+        /* Mobile Hamburger & Drawer */
+        .mobile-toggle-btn {
+            display: none;
+            background: var(--accent-warm);
+            border: 1px solid var(--border-light);
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            color: var(--primary-brown);
+            font-size: 1.2rem;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .mobile-toggle-btn:hover {
+            background-color: var(--primary-orange-light);
+            color: var(--primary-orange);
+        }
+
+        /* Sliding Mobile Drawer Overlay */
+        .mobile-drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(45, 30, 24, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 1100;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--transition);
+        }
+
+        .mobile-drawer-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .mobile-drawer-content {
+            position: fixed;
+            top: 0;
+            right: -320px;
+            width: 300px;
+            height: 100%;
+            background: #ffffff;
+            z-index: 1200;
+            padding: 1.75rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.15);
+            transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+        }
+
+        .mobile-drawer-overlay.show .mobile-drawer-content {
+            right: 0;
+        }
+
+        .drawer-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .drawer-close-btn {
+            background: var(--accent-warm);
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            font-size: 1.1rem;
+            color: var(--primary-brown);
+            cursor: pointer;
+        }
+
+        .drawer-nav-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* --- Responsiveness Media Queries --- */
+        @media (max-width: 1024px) {
+            .nav-center-menu {
+                gap: 0.25rem;
+            }
+            .nav-item-link {
+                padding: 0.45rem 0.7rem;
+                font-size: 0.85rem;
+            }
+        }
+
+        @media (max-width: 991px) {
+            .nav-center-menu {
+                display: none;
+            }
+            .mobile-toggle-btn {
+                display: flex;
+            }
+        }
+
+        /* =========================================================
+           PAGE COMMON UTILITIES
+           ========================================================= */
+        .btn {
+            background-color: var(--primary-orange);
+            color: white;
+            border: none;
+            padding: 0.65rem 1.6rem;
+            border-radius: 50px;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 14px rgba(210, 105, 30, 0.35);
+        }
+
+        .btn:hover {
+            background-color: var(--primary-brown);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(139, 69, 19, 0.45);
+            color: white;
+        }
+
+        .btn-outline {
+            background: #fef5e7;
+            border: 1.5px solid #fcdbb3;
+            color: #b85c14;
+            box-shadow: none;
+        }
+
+        .btn-outline:hover {
+            background: var(--primary-orange);
+            color: white;
+            border-color: var(--primary-orange);
+            box-shadow: 0 4px 14px rgba(210, 105, 30, 0.3);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+            flex: 1;
+        }
+
+        .messages-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+            animation: slideIn 0.3s ease;
+        }
+
+        .alert-success { background-color: #d1f4e0; border-left: 5px solid #10b981; color: #065f46; }
+        .alert-error, .alert-danger { background-color: #fee2e2; border-left: 5px solid #dc2626; color: #991b1b; }
+        .alert-warning { background-color: #fef3c7; border-left: 5px solid #d97736; color: #92400e; }
+        .alert-info { background-color: #e0f2fe; border-left: 5px solid #0284c7; color: #075985; }
+
+        footer {
+            background-color: var(--dark-surface);
+            border-top: 1.5px solid var(--dark-border);
+            padding: 2rem;
+            text-align: center;
+            color: var(--text-muted);
+            margin-top: auto;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        footer span {
+            color: var(--primary-brown);
+            font-weight: 700;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .card {
+            background: #ffffff;
+            border: 1.5px solid var(--dark-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            border-color: var(--primary-orange);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(184, 92, 20, 0.12);
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .badge {
+            display: inline-flex;
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-primary { background-color: #fce5c8; color: #b85c14; }
+        .badge-accent { background-color: #e6f6f4; color: #2a9d8f; }
+        .badge-success { background-color: #d1f4e0; color: #16a34a; }
+        .badge-warning { background-color: #fef3c7; color: #d97736; }
+        .badge-danger { background-color: #fee2e2; color: #dc2626; }
+
+        .form-group { margin-bottom: 1.25rem; }
+        .form-label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-main); font-size: 0.9rem; }
+        .form-control {
+            width: 100%; padding: 0.75rem 1rem; background-color: #ffffff;
+            border: 1.5px solid var(--dark-border); border-radius: 10px;
+            color: var(--text-main); font-family: inherit; font-size: 0.95rem; transition: var(--transition);
+        }
+        .form-control:focus { outline: none; border-color: var(--primary-orange); box-shadow: 0 0 0 3px rgba(210, 105, 30, 0.2); }
+
+        .text-center { text-align: center; }
+        .mt-1 { margin-top: 0.5rem; } .mt-2 { margin-top: 1rem; } .mt-3 { margin-top: 1.5rem; }
+        .mb-1 { margin-bottom: 0.5rem; } .mb-2 { margin-bottom: 1rem; } .mb-3 { margin-bottom: 1.5rem; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+    <!-- =========================================================
+         ZOMATO / SWIGGY STYLE NAVBAR
+         ========================================================= -->
+    <header class="navbar-wrapper" id="mainNavbar">
+        <div class="navbar-container">
+            
+            <!-- Left: Brand Logo & Title -->
+            <a href="{% url 'food_catalog' %}" class="navbar-brand-group">
+                <div class="brand-logo-icon">
+                    <i class="fa-solid fa-utensils"></i>
+                </div>
+                <div class="brand-text-wrapper">
+                    <div class="brand-title">Veetile<span>Ruchi</span></div>
+                    <div class="brand-subtitle">AI Homemade Food</div>
+                </div>
+            </a>
+
+            <!-- Center: Horizontal Navigation Menu -->
+            <ul class="nav-center-menu">
+                {% if request.resolver_match.url_name != 'login' and user.role != 'delivery_boy' %}
+                <li>
+                    <a href="{% url 'food_catalog' %}" class="nav-item-link {% if request.resolver_match.url_name == 'food_catalog' %}active{% endif %}">
+                        <i class="fa-solid fa-book-open"></i>
+                        <span>Menu</span>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% if user.is_authenticated %}
+                    {% if user.role == 'customer' %}
+                        <li>
+                            <a href="{% url 'wishlist_view' %}" class="nav-item-link {% if request.resolver_match.url_name == 'wishlist_view' %}active{% endif %}">
+                                <i class="fa-solid fa-heart"></i>
+                                <span>Favorites</span>
+                                {% if wishlist_count > 0 %}
+                                    <span class="nav-badge">{{ wishlist_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'cart_view' %}" class="nav-item-link {% if request.resolver_match.url_name == 'cart_view' %}active{% endif %}">
+                                <i class="fa-solid fa-bag-shopping"></i>
+                                <span>Cart</span>
+                                {% if cart_count > 0 %}
+                                    <span class="nav-badge">{{ cart_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'meal_planner' %}" class="nav-item-link {% if request.resolver_match.url_name == 'meal_planner' %}active{% endif %}">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                <span>Meal Planner</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'health_profile' %}" class="nav-item-link {% if request.resolver_match.url_name == 'health_profile' %}active{% endif %}">
+                                <i class="fa-solid fa-heart-pulse"></i>
+                                <span>Health</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'order_history' %}" class="nav-item-link {% if request.resolver_match.url_name == 'order_history' or request.resolver_match.url_name == 'order_tracking' %}active{% endif %}">
+                                <i class="fa-solid fa-truck-fast"></i>
+                                <span>Track Order</span>
+                            </a>
+                        </li>
+                    {% elif user.role == 'chef' %}
+                        <li>
+                            <a href="{% url 'chef_dashboard' %}" class="nav-item-link {% if request.resolver_match.url_name == 'chef_dashboard' %}active{% endif %}">
+                                <i class="fa-solid fa-kitchen-set"></i>
+                                <span>Chef Dashboard</span>
+                            </a>
+                        </li>
+                    {% elif user.role == 'staff' %}
+                        <li>
+                            <a href="{% url 'staff_dashboard' %}?tab=orders" class="nav-item-link {% if request.resolver_match.url_name == 'staff_dashboard' and request.GET.tab != 'tracking' %}active{% endif %}">
+                                <i class="fa-solid fa-clipboard-list"></i>
+                                <span>Customer Orders</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'staff_dashboard' %}?tab=tracking" class="nav-item-link {% if request.resolver_match.url_name == 'staff_dashboard' and request.GET.tab == 'tracking' %}active{% endif %}">
+                                <i class="fa-solid fa-truck-fast"></i>
+                                <span>Delivery Tracking</span>
+                            </a>
+                        </li>
+                    {% elif user.role == 'delivery_boy' %}
+                        <li>
+                            <a href="{% url 'delivery_boy_dashboard' %}" class="nav-item-link {% if request.resolver_match.url_name == 'delivery_boy_dashboard' %}active{% endif %}">
+                                <i class="fa-solid fa-motorcycle"></i>
+                                <span>Delivery Portal</span>
+                            </a>
+                        </li>
+                    {% elif user.role == 'admin' %}
+                        <li>
+                            <a href="{% url 'admin_dashboard' %}" class="nav-item-link {% if request.resolver_match.url_name == 'admin_dashboard' %}active{% endif %}">
+                                <i class="fa-solid fa-user-shield"></i>
+                                <span>Admin Panel</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'ai_analytics_dashboard' %}" class="nav-item-link {% if request.resolver_match.url_name == 'ai_analytics_dashboard' %}active{% endif %}">
+                                <i class="fa-solid fa-brain"></i>
+                                <span>AI Reports</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                {% endif %}
+            </ul>
+
+            <!-- Right Actions: Notifications & Profile / Auth -->
+            <div class="nav-right-actions">
+                {% if user.is_authenticated %}
+                    {% if user.role != 'chef' %}
+                    <!-- Notification Bell Dropdown -->
+                    <div class="notification-dropdown-wrapper">
+                        <button class="icon-btn" id="notifBellBtn" title="Notifications" style="position: relative; {% if unread_notif_count > 0 or current_count > 0 %}background-color: #E63946 !important; color: #ffffff !important; border-color: #B71C1C !important; box-shadow: 0 0 18px rgba(230, 57, 70, 0.7); animation: pulse-ring 1.5s infinite;{% endif %}">
+                            <i class="fa-solid fa-bell" style="{% if unread_notif_count > 0 or current_count > 0 %}color: #ffffff !important;{% else %}color: var(--text-main);{% endif %}"></i>
+                            {% if unread_notif_count > 0 %}
+                                <span class="nav-badge" style="position: absolute; top: -6px; right: -6px; background: #dc2626; color: #ffffff; font-size: 0.72rem; font-weight: 800; border-radius: 50px; padding: 0.15rem 0.45rem; min-width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #ffffff; box-shadow: 0 2px 8px rgba(220, 38, 38, 0.6); animation: pulse 1.2s infinite;">{{ unread_notif_count }}</span>
+                            {% elif current_count > 0 %}
+                                <span class="nav-badge" style="position: absolute; top: -6px; right: -6px; background: #dc2626; color: #ffffff; font-size: 0.72rem; font-weight: 800; border-radius: 50px; padding: 0.15rem 0.45rem; min-width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #ffffff; box-shadow: 0 2px 8px rgba(220, 38, 38, 0.6); animation: pulse 1.2s infinite;">{{ current_count }}</span>
+                            {% endif %}
+                        </button>
+                        
+                        <div class="dropdown-menu-card" id="notifDropdown">
+                            <div class="dropdown-header">
+                                <h5>Notifications</h5>
+                                {% if unread_notif_count > 0 %}
+                                    <span class="badge badge-primary" style="background: #e63946; color: #ffffff;">{{ unread_notif_count }} New</span>
+                                {% endif %}
+                            </div>
+                            
+                            {% if unread_notifications %}
+                                {% for notif in unread_notifications %}
+                                    <a href="{% url 'mark_notification_read' notif.id %}" class="notification-item" style="display: flex; gap: 0.75rem; padding: 0.65rem; text-decoration: none; border-bottom: 1px solid var(--border-light);">
+                                        <div class="notification-icon" style="background: #fff8ea; color: var(--primary-orange); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                            <i class="fa-solid {% if notif.notification_type == 'order_confirmed' %}fa-utensils{% elif notif.notification_type == 'out_for_delivery' or user.role == 'delivery_boy' %}fa-motorcycle{% else %}fa-bell{% endif %}"></i>
+                                        </div>
+                                        <div class="notification-content" style="flex: 1;">
+                                            <p style="font-weight: 700; font-size: 0.88rem; color: var(--primary-brown); margin: 0 0 0.15rem 0;">{{ notif.title }}</p>
+                                            <span style="font-size: 0.78rem; color: var(--text-main); display: block; line-height: 1.3;">{{ notif.message|truncatechars:65 }}</span>
+                                            <span style="font-size: 0.75rem; color: var(--primary-orange); font-weight: 700; margin-top: 0.25rem; display: inline-block;">[View Delivery] →</span>
+                                        </div>
+                                    </a>
+                                {% endfor %}
+                            {% else %}
+                                <div class="notification-item" style="justify-content: center;">
+                                    <div class="notification-content text-center" style="width: 100%;">
+                                        <span style="color: var(--text-muted); font-size: 0.85rem;">No new notifications</span>
+                                    </div>
+                                </div>
+                            {% endif %}
+                            <div style="text-align: center; margin-top: 10px;">
+                                <a href="{% url 'notifications' %}" style="font-size: 0.8rem; font-weight: 600; color: var(--primary-orange); text-decoration: none;">View All</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Profile Dropdown -->
+                    <div class="profile-dropdown-wrapper">
+                        <button class="profile-avatar-btn" id="profileAvatarBtn">
+                            <div class="avatar-circle">
+                                {{ user.username|first|upper }}
+                            </div>
+                            <span class="user-name-text">{{ user.username }}</span>
+                            <i class="fa-solid fa-chevron-down" style="font-size: 0.75rem; color: var(--text-muted);"></i>
+                        </button>
+
+                        <div class="dropdown-menu-card profile-menu-card" id="profileDropdown">
+                            <div class="profile-info-box">
+                                <div class="name">{{ user.get_full_name|default:user.username }}</div>
+                                <span class="role-badge">{{ user.role|default:"Customer" }}</span>
+                            </div>
+
+                            <a href="{% url 'profile' %}" class="menu-link-item">
+                                <i class="fa-regular fa-user"></i>
+                                <span>My Profile</span>
+                            </a>
+                            
+                            {% if user.role == 'customer' %}
+                                <a href="{% url 'order_history' %}" class="menu-link-item">
+                                    <i class="fa-solid fa-box"></i>
+                                    <span>My Orders</span>
+                                </a>
+                                <a href="{% url 'profile' %}" class="menu-link-item">
+                                    <i class="fa-solid fa-location-dot"></i>
+                                    <span>Saved Location</span>
+                                </a>
+                                <a href="{% url 'health_profile' %}" class="menu-link-item">
+                                    <i class="fa-solid fa-notes-medical"></i>
+                                    <span>Health Profile</span>
+                                </a>
+                            {% endif %}
+                            
+
+
+                            <div class="logout-btn-item">
+                                <a href="{% url 'logout' %}" class="btn-logout-outline">
+                                    <i class="fa-solid fa-right-from-bracket"></i>
+                                    <span>Logout</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- Auth Links for Guest -->
+                    <a href="{% url 'login' %}" class="btn-auth-login">Login</a>
+                    <a href="{% url 'register' %}" class="btn-auth-register">Register</a>
+                {% endif %}
+
+                <!-- Mobile Hamburger Button -->
+                <button class="mobile-toggle-btn" id="mobileToggleBtn" aria-label="Toggle Navigation">
+                    <i class="fa-solid fa-bars"></i>
+                </button>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- Mobile Drawer Overlay -->
+    <div class="mobile-drawer-overlay" id="mobileDrawerOverlay">
+        <div class="mobile-drawer-content">
+            <div class="drawer-header">
+                <div class="brand-title" style="font-size: 1.2rem;">Veetile<span>Ruchi</span></div>
+                <button class="drawer-close-btn" id="drawerCloseBtn">&times;</button>
+            </div>
+
+            <ul class="drawer-nav-list">
+                {% if request.resolver_match.url_name != 'login' and user.role != 'delivery_boy' %}
+                <li>
+                    <a href="{% url 'food_catalog' %}" class="menu-link-item">
+                        <i class="fa-solid fa-book-open"></i>
+                        <span>Menu</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% if user.is_authenticated %}
+                    {% if user.role == 'customer' %}
+                        <li>
+                            <a href="{% url 'wishlist_view' %}" class="menu-link-item">
+                                <i class="fa-solid fa-heart"></i>
+                                <span>Favorites</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'cart_view' %}" class="menu-link-item">
+                                <i class="fa-solid fa-bag-shopping"></i>
+                                <span>Cart</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'meal_planner' %}" class="menu-link-item">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                <span>Meal Planner</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'health_profile' %}" class="menu-link-item">
+                                <i class="fa-solid fa-heart-pulse"></i>
+                                <span>Health Profile</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'order_history' %}" class="menu-link-item">
+                                <i class="fa-solid fa-truck-fast"></i>
+                                <span>Track Order</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    <li>
+                        <a href="{% url 'profile' %}" class="menu-link-item">
+                            <i class="fa-regular fa-user"></i>
+                            <span>My Profile</span>
+                        </a>
+                    </li>
+                    <li style="margin-top: 1rem;">
+                        <a href="{% url 'logout' %}" class="btn-logout-outline">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                            <span>Logout</span>
+                        </a>
+                    </li>
+                {% else %}
+                    <li style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                        <a href="{% url 'login' %}" class="btn-logout-outline" style="text-align: center;">Login</a>
+                        <a href="{% url 'register' %}" class="btn-auth-register" style="text-align: center;">Register</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <main class="container">
+        <!-- Message Toasts -->
+        {% if messages %}
+            <div class="messages-container">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        <span>{{ message }}</span>
+                        <span style="cursor:pointer;" onclick="this.parentElement.remove();">&times;</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2026 <span>Veetile Ruchi</span>. AI-Powered Homemade Food Delivery. All Rights Reserved.</p>
+    </footer>
+
+    <!-- Interactive Navigation Scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const navbar = id('mainNavbar');
+            const notifBtn = id('notifBellBtn');
+            const notifDropdown = id('notifDropdown');
+            const profileBtn = id('profileAvatarBtn');
+            const profileDropdown = id('profileDropdown');
+            const mobileToggle = id('mobileToggleBtn');
+            const drawerOverlay = id('mobileDrawerOverlay');
+            const drawerClose = id('drawerCloseBtn');
+
+            function id(elemId) { return document.getElementById(elemId); }
+
+            // Scroll effect for navbar shadow & background
+            window.addEventListener('scroll', function() {
+                if (window.scrollY > 20) {
+                    navbar.classList.add('scrolled');
+                } else {
+                    navbar.classList.remove('scrolled');
+                }
+            });
+
+            // Notification Dropdown Toggle
+            if (notifBtn && notifDropdown) {
+                notifBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (profileDropdown) profileDropdown.classList.remove('show');
+                    notifDropdown.classList.toggle('show');
+                });
+            }
+
+            // Profile Dropdown Toggle
+            if (profileBtn && profileDropdown) {
+                profileBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    if (notifDropdown) notifDropdown.classList.remove('show');
+                    profileDropdown.classList.toggle('show');
+                });
+            }
+
+            // Close dropdowns on outside click
+            document.addEventListener('click', function() {
+                if (notifDropdown) notifDropdown.classList.remove('show');
+                if (profileDropdown) profileDropdown.classList.remove('show');
+            });
+
+            // Prevent dropdown closure when clicking inside dropdown content
+            if (notifDropdown) notifDropdown.addEventListener('click', e => e.stopPropagation());
+            if (profileDropdown) profileDropdown.addEventListener('click', e => e.stopPropagation());
+
+            // Mobile Drawer Controls
+            if (mobileToggle && drawerOverlay) {
+                mobileToggle.addEventListener('click', function() {
+                    drawerOverlay.classList.add('show');
+                });
+            }
+
+            if (drawerClose && drawerOverlay) {
+                drawerClose.addEventListener('click', function() {
+                    drawerOverlay.classList.remove('show');
+                });
+            }
+
+            if (drawerOverlay) {
+                drawerOverlay.addEventListener('click', function(e) {
+                    if (e.target === drawerOverlay) {
+                        drawerOverlay.classList.remove('show');
+                    }
+                });
+            }
+        });
+    </script>
+
+</body>
+</html>

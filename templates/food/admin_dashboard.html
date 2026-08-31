@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veetile-Ruchi Admin Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #F5F6FA; color: #1A1A2E; min-height: 100vh; display: flex; }
+
+        /* ═══════════════════════════════ SIDEBAR ═══════════════════════════════ */
+        .sidebar {
+            width: 260px;
+            min-height: 100vh;
+            background: #1E293B;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            left: 0; top: 0; bottom: 0;
+            z-index: 100;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-brand {
+            padding: 1.4rem 1.2rem;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .brand-icon { font-size: 1.8rem; }
+        .brand-text { font-size: 1.05rem; font-weight: 800; color: #F8FAFC; line-height: 1.2; }
+        .brand-sub { font-size: 0.7rem; color: #94A3B8; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; }
+
+        .nav-section-title {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #64748B;
+            padding: 1.1rem 1.2rem 0.4rem;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            padding: 0.6rem 1.2rem;
+            color: #94A3B8;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 0;
+            transition: all 0.15s ease;
+            cursor: pointer;
+        }
+        .nav-item:hover { background: rgba(255,255,255,0.06); color: #F8FAFC; }
+        .nav-item.active { background: rgba(210, 105, 30, 0.15); color: #F97316; border-left: 3px solid #F97316; }
+        .nav-item i { width: 16px; text-align: center; font-size: 0.82rem; }
+        .nav-badge { margin-left: auto; background: #E63946; color: white; font-size: 0.68rem; font-weight: 700; padding: 0.1rem 0.5rem; border-radius: 20px; }
+
+        /* ═══════════════════════════════ MAIN LAYOUT ═══════════════════════════ */
+        .main-content {
+            margin-left: 260px;
+            flex: 1;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ═══════════════════════════════ HEADER ═══════════════════════════════ */
+        .topbar {
+            background: #FFFFFF;
+            border-bottom: 1px solid #E2E8F0;
+            padding: 0 1.8rem;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 90;
+            box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+        }
+        .topbar-left { display: flex; align-items: center; gap: 1rem; }
+        .page-title { font-size: 1.15rem; font-weight: 700; color: #1E293B; }
+        .page-breadcrumb { font-size: 0.8rem; color: #94A3B8; }
+        .topbar-right { display: flex; align-items: center; gap: 1rem; }
+        .topbar-date { font-size: 0.82rem; color: #64748B; font-weight: 500; }
+        .topbar-search { background: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 8px; padding: 0.45rem 1rem 0.45rem 2.2rem; font-size: 0.85rem; color: #1E293B; outline: none; width: 200px; position: relative; }
+        .search-wrapper { position: relative; }
+        .search-wrapper i { position: absolute; left: 0.7rem; top: 50%; transform: translateY(-50%); color: #94A3B8; font-size: 0.8rem; }
+        .icon-btn { width: 38px; height: 38px; border-radius: 50%; background: #F1F5F9; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #64748B; font-size: 0.9rem; position: relative; transition: background 0.15s; }
+        .icon-btn:hover { background: #E2E8F0; }
+        .notif-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; background: #E63946; border-radius: 50%; border: 2px solid #fff; }
+        .admin-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #F97316, #D2691E); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+        .logout-btn { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; border-radius: 8px; padding: 0.4rem 0.9rem; font-size: 0.82rem; font-weight: 600; text-decoration: none; transition: all 0.15s; }
+        .logout-btn:hover { background: #DC2626; color: white; }
+
+        /* ═══════════════════════════════ CONTENT ═══════════════════════════════ */
+        .content-area { padding: 1.8rem; flex: 1; }
+
+        /* ═══════════════════════════════ CARDS ═══════════════════════════════ */
+        .card {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 14px;
+            padding: 1.4rem;
+            box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+        }
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #1E293B;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .card-title span { font-size: 0.78rem; font-weight: 500; color: #94A3B8; }
+
+        /* ═══════════════════════════════ KPI GRID ═══════════════════════════════ */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .kpi-card {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            border-radius: 14px;
+            padding: 1.2rem 1.4rem;
+            box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+        .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--accent, #F97316); }
+        .kpi-label { font-size: 0.73rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #64748B; margin-bottom: 0.5rem; }
+        .kpi-value { font-size: 1.85rem; font-weight: 800; color: #1E293B; line-height: 1; }
+        .kpi-sub { font-size: 0.75rem; color: #94A3B8; margin-top: 0.4rem; display: flex; align-items: center; gap: 0.3rem; }
+        .kpi-icon { position: absolute; top: 1rem; right: 1.2rem; font-size: 1.6rem; opacity: 0.12; }
+
+        /* ═══════════════════════════════ SECTION GRIDS ═══════════════════════ */
+        .section-2col { display: grid; grid-template-columns: 2fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+        .section-equal { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem; }
+        .section-title { font-size: 1rem; font-weight: 700; color: #1E293B; margin-bottom: 1.2rem; padding-bottom: 0.7rem; border-bottom: 1px solid #F1F5F9; display: flex; align-items: center; gap: 0.5rem; }
+
+        /* ═══════════════════════════════ BADGES ═══════════════════════════════ */
+        .badge { display: inline-flex; align-items: center; padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.72rem; font-weight: 700; }
+        .badge-success { background: #DCFCE7; color: #16A34A; }
+        .badge-warning { background: #FEF3C7; color: #D97706; }
+        .badge-danger { background: #FEE2E2; color: #DC2626; }
+        .badge-info { background: #DBEAFE; color: #2563EB; }
+        .badge-orange { background: #FFEDD5; color: #EA580C; }
+        .badge-purple { background: #F3E8FF; color: #7C3AED; }
+
+        /* ═══════════════════════════════ TABLES ═══════════════════════════════ */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        .data-table thead th { padding: 0.7rem 1rem; background: #F8FAFC; color: #64748B; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #E2E8F0; text-align: left; }
+        .data-table tbody td { padding: 0.85rem 1rem; border-bottom: 1px solid #F1F5F9; color: #374151; }
+        .data-table tbody tr:hover { background: #FAFAFA; }
+        .data-table tbody tr:last-child td { border-bottom: none; }
+
+        /* ═══════════════════════════════ AI ALERTS ═══════════════════════════ */
+        .ai-alert { background: #FFFBF5; border: 1px solid #FDE8CC; border-left: 4px solid #F97316; border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; }
+        .ai-alert.danger { border-color: #FECACA; border-left-color: #DC2626; background: #FFF5F5; }
+        .ai-alert.info { border-color: #BFDBFE; border-left-color: #2563EB; background: #F0F7FF; }
+        .ai-alert.success { border-color: #BBF7D0; border-left-color: #16A34A; background: #F0FDF4; }
+        .ai-alert-title { font-size: 0.84rem; font-weight: 700; color: #1E293B; }
+        .ai-alert-sub { font-size: 0.76rem; color: #64748B; margin-top: 0.2rem; }
+
+        /* ═══════════════════════════════ STAT ROW ═══════════════════════════ */
+        .stat-row { display: flex; justify-content: space-between; padding: 0.65rem 0; border-bottom: 1px solid #F1F5F9; font-size: 0.85rem; }
+        .stat-row:last-child { border-bottom: none; }
+        .stat-label { color: #64748B; font-weight: 500; }
+        .stat-val { font-weight: 700; color: #1E293B; }
+
+        /* ═══════════════════════════════ PROGRESS BAR ═══════════════════════ */
+        .progress-bar { height: 6px; background: #F1F5F9; border-radius: 20px; overflow: hidden; margin-top: 0.3rem; }
+        .progress-fill { height: 100%; border-radius: 20px; }
+
+        /* ═══════════════════════════════ DELIVERY MONITOR ════════════════════ */
+        .delivery-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1rem 1.2rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 1rem; }
+        .delivery-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #F97316, #D2691E); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 0.85rem; flex-shrink: 0; }
+        .delivery-info { flex: 1; }
+        .delivery-order { font-size: 0.83rem; font-weight: 700; color: #F97316; }
+        .delivery-name { font-size: 0.88rem; font-weight: 600; color: #1E293B; }
+        .delivery-loc { font-size: 0.77rem; color: #94A3B8; }
+
+        /* ═══════════════════════════════ CHART CONTAINER ════════════════════ */
+        .chart-container { position: relative; }
+
+        /* ═══════════════════════════════ RESPONSIVE ═════════════════════════ */
+        @media (max-width: 1200px) {
+            .section-2col { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 900px) {
+            .section-equal { grid-template-columns: 1fr; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-260px); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .kpi-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        /* ═══════════════════════════════ SCROLLBAR ═════════════════════════ */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
+<nav class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <span class="brand-icon">🍲</span>
+        <div>
+            <div class="brand-text">Veetile-Ruchi</div>
+            <div class="brand-sub">Admin Control Panel</div>
+        </div>
+    </div>
+
+    <div class="nav-section-title">Main</div>
+    <a href="/dashboard/" class="nav-item {% if active_section == 'overview' or not active_section %}active{% endif %}"><i class="fa-solid fa-gauge-high"></i> Dashboard Overview</a>
+
+    <div class="nav-section-title">User Management</div>
+    <a href="/dashboard/users/" class="nav-item {% if active_section == 'users' %}active{% endif %}"><i class="fa-solid fa-users"></i> Customer Management</a>
+    <a href="/dashboard/chef-profiles/" class="nav-item {% if active_section == 'chef-profiles' %}active{% endif %}"><i class="fa-solid fa-hat-chef"></i> Chef Management</a>
+    <a href="/dashboard/staff/" class="nav-item {% if active_section == 'staff' %}active{% endif %}"><i class="fa-solid fa-id-badge"></i> Staff Management</a>
+    <a href="/dashboard/delivery-boys/" class="nav-item {% if active_section == 'delivery-boys' %}active{% endif %}"><i class="fa-solid fa-motorcycle"></i> Delivery Boy Management</a>
+    <a href="/dashboard/groups/" class="nav-item {% if active_section == 'groups' %}active{% endif %}"><i class="fa-solid fa-user-group"></i> User Roles &amp; Groups</a>
+
+    <div class="nav-section-title">Food Management</div>
+    <a href="/dashboard/food/" class="nav-item {% if active_section == 'food' %}active{% endif %}"><i class="fa-solid fa-bowl-food"></i> Food Management</a>
+    <a href="/dashboard/categories/" class="nav-item {% if active_section == 'categories' %}active{% endif %}"><i class="fa-solid fa-layer-group"></i> Category Management</a>
+    <a href="/dashboard/meal-sessions/" class="nav-item {% if active_section == 'meal-sessions' %}active{% endif %}"><i class="fa-solid fa-clock"></i> Meal Session Management</a>
+    <a href="/dashboard/nutrition/" class="nav-item {% if active_section == 'nutrition' %}active{% endif %}"><i class="fa-solid fa-leaf"></i> Nutrition Management</a>
+    <a href="/dashboard/health-recommendations/" class="nav-item {% if active_section == 'health-recommendations' %}active{% endif %}"><i class="fa-solid fa-heart-pulse"></i> Health Recommendations</a>
+
+    <div class="nav-section-title">Order Management</div>
+    <a href="/dashboard/orders/" class="nav-item {% if active_section == 'orders' %}active{% endif %}">
+        <i class="fa-solid fa-receipt"></i> Order Management
+        {% if pending_orders > 0 %}<span class="nav-badge">{{ pending_orders }}</span>{% endif %}
+    </a>
+    <a href="/dashboard/payments/" class="nav-item {% if active_section == 'payments' %}active{% endif %}"><i class="fa-solid fa-credit-card"></i> Payment Management</a>
+    <a href="/dashboard/delivery/" class="nav-item {% if active_section == 'delivery' %}active{% endif %}"><i class="fa-solid fa-truck-fast"></i> Delivery Management</a>
+
+    <div class="nav-section-title">AI &amp; Delivery</div>
+    <a href="{% url 'staff_dashboard' %}" class="nav-item"><i class="fa-solid fa-location-crosshairs"></i> AI GPS Tracking</a>
+    <a href="{% url 'ai_analytics_dashboard' %}" class="nav-item"><i class="fa-solid fa-brain"></i> AI Analytics Dashboard</a>
+
+    <div class="nav-section-title">AI Analytics</div>
+    <a href="/dashboard/food-demand/" class="nav-item {% if active_section == 'food-demand' %}active{% endif %}"><i class="fa-solid fa-chart-line"></i> AI Demand Forecast</a>
+    <a href="/dashboard/food-waste/" class="nav-item {% if active_section == 'food-waste' %}active{% endif %}"><i class="fa-solid fa-recycle"></i> AI Waste Prediction</a>
+    <a href="/dashboard/stock-predictions/" class="nav-item {% if active_section == 'stock-predictions' %}active{% endif %}"><i class="fa-solid fa-boxes-stacked"></i> AI Stock Prediction</a>
+    <a href="/dashboard/customer-behaviors/" class="nav-item {% if active_section == 'customer-behaviors' %}active{% endif %}"><i class="fa-solid fa-chart-pie"></i> AI Customer Behaviour</a>
+    <a href="/dashboard/review-sentiments/" class="nav-item {% if active_section == 'review-sentiments' %}active{% endif %}"><i class="fa-solid fa-face-smile"></i> AI Sentiment Analysis</a>
+
+    <div class="nav-section-title">Live Store</div>
+    <a href="{% url 'food_catalog' %}" class="nav-item"><i class="fa-solid fa-store"></i> View Live Storefront</a>
+
+    <div style="padding: 1.2rem; margin-top: auto; border-top: 1px solid rgba(255,255,255,0.08);">
+        <a href="{% url 'logout' %}" style="display: flex; align-items: center; gap: 0.6rem; color: #F87171; text-decoration: none; font-size: 0.85rem; font-weight: 600; padding: 0.6rem 0.5rem; border-radius: 8px; transition: background 0.15s;" onmouseover="this.style.background='rgba(248,113,113,0.1)'" onmouseout="this.style.background='transparent'">
+            <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+        </a>
+    </div>
+</nav>
+
+<!-- ═══════════════════════════ MAIN CONTENT ═══════════════════════════ -->
+<div class="main-content">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <button onclick="document.getElementById('sidebar').classList.toggle('open')" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:#64748B;display:none;" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
+            <div>
+                <div class="page-title">Admin Dashboard</div>
+                <div class="page-breadcrumb">Veetile-Ruchi &rsaquo; Control Panel</div>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div class="topbar-date"><i class="fa-regular fa-calendar fa-sm"></i> <span id="current-date"></span></div>
+            <div class="search-wrapper">
+                <i class="fa-solid fa-search"></i>
+                <input type="text" class="topbar-search" placeholder="Search anything…">
+            </div>
+
+            <div class="admin-avatar" title="{{ request.user.username }}">{{ request.user.username|slice:":2"|upper }}</div>
+            <a href="{% url 'logout' %}" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+        </div>
+    </header>
+
+    <!-- CONTENT AREA -->
+    <div class="content-area">
+
+        <!-- ── WELCOME BANNER ── -->
+        <div style="background: linear-gradient(135deg, #F97316 0%, #D2691E 100%); border-radius: 16px; padding: 1.4rem 2rem; margin-bottom: 1.8rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; color: white;">
+            <div>
+                <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 0.3rem;">Welcome back, {{ request.user.username|title }}! 👋</h2>
+                <p style="font-size: 0.88rem; opacity: 0.88;">Here's a real-time overview of your Veetile-Ruchi operations.</p>
+            </div>
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                <a href="{% url 'ai_analytics_dashboard' %}" style="background: white; color: #D2691E; text-decoration: none; padding: 0.5rem 1.2rem; border-radius: 8px; font-size: 0.82rem; font-weight: 700;">🧠 AI Analytics</a>
+            </div>
+        </div>
+
+        {% if active_section == 'overview' or not active_section %}
+        <!-- ── KPI CARDS ROW 1: Users & Catalog ── -->
+        <div class="kpi-grid">
+            <div class="kpi-card" style="--accent: #3B82F6;">
+                <div class="kpi-icon"><i class="fa-solid fa-users"></i></div>
+                <div class="kpi-label">Total Customers</div>
+                <div class="kpi-value">{{ customers_count }}</div>
+                <div class="kpi-sub">
+                    <span style="color:#16A34A; font-weight:700;">▲ {{ active_customers }} Active</span>
+                    <span>/ {{ inactive_customers }} Inactive</span>
+                </div>
+            </div>
+            <div class="kpi-card" style="--accent: #D2691E;">
+                <div class="kpi-icon"><i class="fa-solid fa-hat-chef"></i></div>
+                <div class="kpi-label">Kitchen Chefs</div>
+                <div class="kpi-value">{{ chefs_count }}</div>
+                <div class="kpi-sub"><span>Active kitchen partners</span></div>
+            </div>
+            <div class="kpi-card" style="--accent: #7C3AED;">
+                <div class="kpi-icon"><i class="fa-solid fa-id-badge"></i></div>
+                <div class="kpi-label">Staff Members</div>
+                <div class="kpi-value">{{ total_staff }}</div>
+                <div class="kpi-sub"><span>Operations support team</span></div>
+            </div>
+            <div class="kpi-card" style="--accent: #0891B2;">
+                <div class="kpi-icon"><i class="fa-solid fa-motorcycle"></i></div>
+                <div class="kpi-label">Delivery Boys</div>
+                <div class="kpi-value">{{ delivery_boys_count }}</div>
+                <div class="kpi-sub">
+                    <span style="color:#16A34A; font-weight:700;">{{ active_delivery_boys }} Available</span>
+                    <span>/ {{ busy_delivery_boys }} On Route</span>
+                </div>
+            </div>
+            <div class="kpi-card" style="--accent: #16A34A;">
+                <div class="kpi-icon"><i class="fa-solid fa-bowl-food"></i></div>
+                <div class="kpi-label">Food Items</div>
+                <div class="kpi-value">{{ total_foods }}</div>
+                <div class="kpi-sub">
+                    <span style="color:#16A34A; font-weight:700;">{{ available_foods }} Live</span>
+                    {% if out_of_stock_foods > 0 %}<span style="color:#DC2626; font-weight:600;">/ {{ out_of_stock_foods }} OOS</span>{% endif %}
+                </div>
+            </div>
+            <div class="kpi-card" style="--accent: #F59E0B;">
+                <div class="kpi-icon"><i class="fa-solid fa-layer-group"></i></div>
+                <div class="kpi-label">Food Categories</div>
+                <div class="kpi-value">{{ total_categories }}</div>
+                <div class="kpi-sub"><span>Top: {{ popular_category }}</span></div>
+            </div>
+        </div>
+
+        <!-- ── KPI CARDS ROW 2: Orders & Revenue ── -->
+        <div class="kpi-grid" style="margin-bottom: 1.8rem;">
+            <div class="kpi-card" style="--accent: #9333EA;">
+                <div class="kpi-icon"><i class="fa-solid fa-receipt"></i></div>
+                <div class="kpi-label">Today's Orders</div>
+                <div class="kpi-value">{{ today_orders }}</div>
+                <div class="kpi-sub"><span>Total all-time: {{ orders_count }}</span></div>
+            </div>
+            <div class="kpi-card" style="--accent: #F59E0B;">
+                <div class="kpi-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+                <div class="kpi-label">Pending Orders</div>
+                <div class="kpi-value" style="color: #D97706;">{{ pending_orders }}</div>
+                <div class="kpi-sub"><span style="color:#D97706; font-weight:600;">Awaiting kitchen</span></div>
+            </div>
+            <div class="kpi-card" style="--accent: #2563EB;">
+                <div class="kpi-icon"><i class="fa-solid fa-fire-burner"></i></div>
+                <div class="kpi-label">Processing</div>
+                <div class="kpi-value" style="color: #2563EB;">{{ processing_orders }}</div>
+                <div class="kpi-sub"><span>Preparing + Ready</span></div>
+            </div>
+            <div class="kpi-card" style="--accent: #16A34A;">
+                <div class="kpi-icon"><i class="fa-solid fa-circle-check"></i></div>
+                <div class="kpi-label">Completed</div>
+                <div class="kpi-value" style="color: #16A34A;">{{ completed_orders }}</div>
+                <div class="kpi-sub"><span style="color:#DC2626;">{{ cancelled_orders }} Cancelled</span></div>
+            </div>
+            <div class="kpi-card" style="--accent: #D2691E;">
+                <div class="kpi-icon"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+                <div class="kpi-label">Total Revenue</div>
+                <div class="kpi-value" style="color: #D2691E;">₹{{ total_revenue|floatformat:0 }}</div>
+                <div class="kpi-sub"><span style="color:#16A34A; font-weight:700;">Today ₹{{ today_revenue|floatformat:0 }}</span></div>
+            </div>
+            <div class="kpi-card" style="--accent: #06B6D4;">
+                <div class="kpi-icon"><i class="fa-solid fa-truck-fast"></i></div>
+                <div class="kpi-label">Active Deliveries</div>
+                <div class="kpi-value" style="color: #06B6D4;">{{ active_deliveries }}</div>
+                <div class="kpi-sub">
+                    <span>{{ out_for_delivery }} in transit</span>
+                    <a href="{% url 'staff_dashboard' %}" style="color:#D2691E; font-weight:700; text-decoration:none; margin-left:auto;">Track →</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── CHARTS ROW ── -->
+        <div class="section-2col">
+            <!-- Revenue & Orders Trend -->
+            <div class="card">
+                <div class="card-title">
+                    <span style="font-size:0.95rem; font-weight:700; color:#1E293B; display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-chart-line" style="color:#F97316;"></i> Revenue & Order Trend</span>
+                    <span>Past 7 Days</span>
+                </div>
+                <div class="chart-container" style="height: 260px;">
+                    <canvas id="revenueTrendChart"></canvas>
+                </div>
+            </div>
+            <!-- Order Status Doughnut -->
+            <div class="card">
+                <div class="card-title">
+                    <span style="font-size:0.95rem; font-weight:700; color:#1E293B; display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-chart-pie" style="color:#7C3AED;"></i> Order Status</span>
+                </div>
+                <div class="chart-container" style="height: 220px;">
+                    <canvas id="orderStatusChart"></canvas>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.75rem;">
+                    <div class="stat-row" style="border:none; padding:0.3rem 0;">
+                        <span class="stat-label"><span style="color:#F59E0B;">●</span> Pending</span>
+                        <span class="stat-val">{{ pending_orders }}</span>
+                    </div>
+                    <div class="stat-row" style="border:none; padding:0.3rem 0;">
+                        <span class="stat-label"><span style="color:#3B82F6;">●</span> Processing</span>
+                        <span class="stat-val">{{ processing_orders }}</span>
+                    </div>
+                    <div class="stat-row" style="border:none; padding:0.3rem 0;">
+                        <span class="stat-label"><span style="color:#16A34A;">●</span> Delivered</span>
+                        <span class="stat-val">{{ completed_orders }}</span>
+                    </div>
+                    <div class="stat-row" style="border:none; padding:0.3rem 0;">
+                        <span class="stat-label"><span style="color:#DC2626;">●</span> Cancelled</span>
+                        <span class="stat-val">{{ cancelled_orders }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── CHARTS ROW 2 ── -->
+        <div class="section-equal">
+            <!-- Category Sales -->
+            <div class="card">
+                <div class="card-title">
+                    <span style="font-size:0.95rem; font-weight:700; color:#1E293B; display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-chart-bar" style="color:#D2691E;"></i> Sales by Category</span>
+                </div>
+                <div class="chart-container" style="height: 200px;">
+                    <canvas id="categorySalesChart"></canvas>
+                </div>
+            </div>
+            <!-- Sentiment Polar -->
+            <div class="card">
+                <div class="card-title">
+                    <span style="font-size:0.95rem; font-weight:700; color:#1E293B; display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-face-smile" style="color:#16A34A;"></i> AI Sentiment Analysis</span>
+                </div>
+                <div class="chart-container" style="height: 200px;">
+                    <canvas id="sentimentChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── REVENUE SUMMARY CARDS ── -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+            {% with rev_pct=weekly_revenue|add:"0" %}
+            <div class="card" style="text-align:center;">
+                <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94A3B8; margin-bottom:0.4rem;">Today</div>
+                <div style="font-size:1.6rem; font-weight:800; color:#D2691E;">₹{{ today_revenue|floatformat:0 }}</div>
+            </div>
+            <div class="card" style="text-align:center;">
+                <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94A3B8; margin-bottom:0.4rem;">This Week</div>
+                <div style="font-size:1.6rem; font-weight:800; color:#2563EB;">₹{{ weekly_revenue|floatformat:0 }}</div>
+            </div>
+            <div class="card" style="text-align:center;">
+                <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94A3B8; margin-bottom:0.4rem;">This Month</div>
+                <div style="font-size:1.6rem; font-weight:800; color:#7C3AED;">₹{{ monthly_revenue|floatformat:0 }}</div>
+            </div>
+            <div class="card" style="text-align:center;">
+                <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94A3B8; margin-bottom:0.4rem;">Total Revenue</div>
+                <div style="font-size:1.6rem; font-weight:800; color:#16A34A;">₹{{ total_revenue|floatformat:0 }}</div>
+            </div>
+            {% endwith %}
+        </div>
+
+        <!-- ── AI INSIGHTS & ACTIVE DELIVERIES ── -->
+        <div class="section-2col">
+            <!-- AI Insights -->
+            <div class="card">
+                <div class="section-title"><i class="fa-solid fa-robot" style="color:#F97316;"></i> AI Operational Insights & Alerts</div>
+
+                {% for item in low_stock_items %}
+                <div class="ai-alert danger">
+                    <div>
+                        <div class="ai-alert-title">⚠️ Low Stock Alert: {{ item.name }}</div>
+                        <div class="ai-alert-sub">Only {{ item.stock_quantity }} portion(s) remaining. Chef should prepare more.</div>
+                    </div>
+                    <span class="badge badge-danger">Urgent</span>
+                </div>
+                {% empty %}
+                <div class="ai-alert success">
+                    <div>
+                        <div class="ai-alert-title">✅ Kitchen Inventory Healthy</div>
+                        <div class="ai-alert-sub">All menu items have sufficient portions.</div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                {% for fore in high_demand_items %}
+                <div class="ai-alert">
+                    <div>
+                        <div class="ai-alert-title">🔥 High Demand Forecast: {{ fore.food_item.name }}</div>
+                        <div class="ai-alert-sub">Predicted demand: {{ fore.predicted_quantity }} portions — Score {{ fore.confidence_score|floatformat:2 }}</div>
+                    </div>
+                    <span class="badge badge-warning">Prepare Extra</span>
+                </div>
+                {% endfor %}
+
+                {% for waste in waste_predictions %}
+                <div class="ai-alert">
+                    <div>
+                        <div class="ai-alert-title">♻️ Waste Risk: {{ waste.food_item.name }}</div>
+                        <div class="ai-alert-sub">Estimated {{ waste.predicted_waste_quantity }} portions may be wasted. Optimize prep size.</div>
+                    </div>
+                    <span class="badge badge-orange">Reduce Prep</span>
+                </div>
+                {% endfor %}
+
+                {% for rev in negative_reviews %}
+                <div class="ai-alert danger">
+                    <div>
+                        <div class="ai-alert-title">💬 Negative Sentiment: {{ rev.food_item.name }}</div>
+                        <div class="ai-alert-sub">"{{ rev.review_text|truncatechars:60 }}"</div>
+                    </div>
+                    <span class="badge badge-danger">Review</span>
+                </div>
+                {% empty %}
+                    {% if not high_demand_items and not low_stock_items %}
+                    <div class="ai-alert success">
+                        <div>
+                            <div class="ai-alert-title">⭐ High Customer Satisfaction</div>
+                            <div class="ai-alert-sub">No negative reviews detected by AI Sentiment model.</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+
+                <!-- Health Signals -->
+                <div class="ai-alert info" style="margin-top: 0.5rem;">
+                    <div>
+                        <div class="ai-alert-title">🩺 Customer Health Profile Summary</div>
+                        <div class="ai-alert-sub">Diabetic: {{ diab_count }} | High Cholesterol: {{ chol_count }} | High BP: {{ bp_count }}</div>
+                    </div>
+                    <span class="badge badge-info">AI Tailored</span>
+                </div>
+            </div>
+
+            <!-- Active Delivery Monitor -->
+            <div class="card">
+                <div class="section-title" style="justify-content: space-between;">
+                    <span><i class="fa-solid fa-location-dot" style="color:#06B6D4;"></i> Active Delivery Monitor</span>
+                    <a href="{% url 'staff_dashboard' %}" style="font-size:0.78rem; color:#D2691E; text-decoration:none; font-weight:700;">GPS Map →</a>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:1rem;">
+                    <div style="background:#F0FDF4; border-radius:8px; padding:0.6rem 0.9rem; text-align:center;">
+                        <div style="font-size:1.4rem; font-weight:800; color:#16A34A;">{{ active_deliveries }}</div>
+                        <div style="font-size:0.72rem; color:#64748B; font-weight:600;">Active Routes</div>
+                    </div>
+                    <div style="background:#EFF6FF; border-radius:8px; padding:0.6rem 0.9rem; text-align:center;">
+                        <div style="font-size:1.4rem; font-weight:800; color:#2563EB;">{{ active_delivery_boys }}</div>
+                        <div style="font-size:0.72rem; color:#64748B; font-weight:600;">Available Boys</div>
+                    </div>
+                    <div style="background:#FFFBEB; border-radius:8px; padding:0.6rem 0.9rem; text-align:center;">
+                        <div style="font-size:1.4rem; font-weight:800; color:#D97706;">{{ waiting_deliveries }}</div>
+                        <div style="font-size:0.72rem; color:#64748B; font-weight:600;">Awaiting Pickup</div>
+                    </div>
+                    <div style="background:#F0FDF4; border-radius:8px; padding:0.6rem 0.9rem; text-align:center;">
+                        <div style="font-size:1.4rem; font-weight:800; color:#16A34A;">{{ completed_deliveries }}</div>
+                        <div style="font-size:0.72rem; color:#64748B; font-weight:600;">Completed Today</div>
+                    </div>
+                </div>
+
+                {% for da in active_delivery_assignments %}
+                <div class="delivery-card">
+                    <div class="delivery-avatar">{{ da.delivery_boy.user.username|slice:":2"|upper }}</div>
+                    <div class="delivery-info">
+                        <div class="delivery-order">#{{ da.order.order_id }}</div>
+                        <div class="delivery-name">{{ da.delivery_boy.user.username|title }} → {{ da.order.user.username|title }}</div>
+                        <div class="delivery-loc"><i class="fa-solid fa-location-dot"></i> Lat: {{ da.order.user.latitude|floatformat:4 }}, Lng: {{ da.order.user.longitude|floatformat:4 }}</div>
+                    </div>
+                    <div>
+                        {% if da.status == 'in_transit' %}
+                            <span class="badge badge-info">In Transit</span>
+                        {% elif da.status == 'picked_up' %}
+                            <span class="badge badge-warning">Picked Up</span>
+                        {% else %}
+                            <span class="badge badge-orange">Assigned</span>
+                        {% endif %}
+                        <div style="font-size:0.72rem; color:#94A3B8; margin-top:0.3rem;">~{{ da.predicted_delivery_time|floatformat:0 }}min</div>
+                    </div>
+                </div>
+                {% empty %}
+                <div style="text-align: center; padding: 2rem 0; color: #94A3B8;">
+                    <i class="fa-solid fa-truck-fast" style="font-size: 2rem; opacity:0.3; margin-bottom: 0.5rem; display:block;"></i>
+                    No active deliveries right now
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- ── RECENT ORDERS TABLE ── -->
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="section-title" style="justify-content: space-between;">
+                <span><i class="fa-solid fa-receipt" style="color:#D2691E;"></i> Recent Orders</span>
+                <a href="/dashboard/orders/" style="font-size:0.78rem; color:#D2691E; text-decoration:none; font-weight:700;">View All →</a>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Customer</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                            <th>Payment</th>
+                            <th>Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in recent_orders %}
+                        <tr>
+                            <td style="font-weight:700; color:#D2691E;">#{{ order.order_id }}</td>
+                            <td style="font-weight:600;">{{ order.user.username|title }}</td>
+                            <td style="font-weight:700;">₹{{ order.total_amount }}</td>
+                            <td>
+                                {% if order.status == 'delivered' %}
+                                    <span class="badge badge-success">Delivered</span>
+                                {% elif order.status == 'cancelled' %}
+                                    <span class="badge badge-danger">Cancelled</span>
+                                {% elif order.status == 'pending' %}
+                                    <span class="badge badge-warning">Pending</span>
+                                {% elif order.status == 'in_transit' %}
+                                    <span class="badge badge-info">In Transit</span>
+                                {% else %}
+                                    <span class="badge badge-orange">{{ order.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if order.payment_method == 'upi' %}
+                                    <span class="badge badge-purple">UPI</span>
+                                {% else %}
+                                    <span class="badge badge-info">{{ order.payment_method|upper }}</span>
+                                {% endif %}
+                            </td>
+                            <td style="color:#94A3B8; font-size:0.8rem;">{{ order.created_at|date:"M d, Y g:i A" }}</td>
+                            <td>
+                                <a href="{% url 'order_tracking' order.order_id %}" style="color:#D2691E; font-size:0.78rem; font-weight:700; text-decoration:none; background:#FFEDD5; padding:0.25rem 0.65rem; border-radius:6px;">Track</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" style="text-align:center; padding:2.5rem; color:#94A3B8;">No orders recorded in the system yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ── ADVANCED BUSINESS ANALYTICS ── -->
+        <div class="section-title" style="margin-top: 1.5rem;"><i class="fa-solid fa-chart-pie" style="color:#D2691E;"></i> Advanced Business Analytics</div>
+        
+        <div class="section-2col" style="margin-bottom: 1.5rem;">
+            <!-- Most Ordered Foods -->
+            <div class="card">
+                <div class="card-title">
+                    <span style="font-size:0.95rem; font-weight:700; color:#1E293B; display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-ranking-star" style="color:#F59E0B;"></i> Most Ordered Foods (Top 10)</span>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Food Item</th>
+                                <th>Category</th>
+                                <th>Qty Sold</th>
+                                <th>Revenue</th>
+                                <th>% of Total Sales</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for f in most_ordered_foods %}
+                            <tr>
+                                <td style="font-weight:600; color:#1E293B;">{{ f.name }}</td>
+                                <td style="color:#64748B;">{{ f.category }}</td>
+                                <td style="font-weight:700;">{{ f.qty_sold }}</td>
+                                <td style="color:#16A34A; font-weight:600;">₹{{ f.revenue|floatformat:0 }}</td>
+                                <td>
+                                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                                        <div class="progress-bar" style="width: 50px; margin: 0;"><div class="progress-fill" style="width: {{ f.percentage }}%; background: #3B82F6;"></div></div>
+                                        <span style="font-size:0.75rem; color:#64748B;">{{ f.percentage }}%</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" style="text-align:center; padding:1.5rem; color:#94A3B8;">No sales data available.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Meal Session Performance -->
+            <div class="card">
+                <div class="card-title">
+                    <span style="font-size:0.95rem; font-weight:700; color:#1E293B; display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-clock" style="color:#7C3AED;"></i> Meal Session Performance</span>
+                </div>
+                
+                <div style="margin-bottom: 1rem; padding: 0.8rem; background: #F8FAFC; border-radius: 8px; border-left: 3px solid #7C3AED;">
+                    <div style="font-size: 0.75rem; font-weight: 700; color: #64748B; text-transform: uppercase;">Top Performers</div>
+                    <div style="display:flex; justify-content:space-between; margin-top:0.4rem; font-size:0.85rem;">
+                        <span><strong style="color:#1E293B;">Most Orders:</strong> {{ highest_session_orders|default:"N/A" }}</span>
+                        <span><strong style="color:#1E293B;">Most Deliveries:</strong> {{ highest_session_deliveries|default:"N/A" }}</span>
+                    </div>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:0.8rem;">
+                    {% for ms in meal_session_stats %}
+                    <div style="border-bottom: 1px solid #F1F5F9; padding-bottom: 0.5rem;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:0.3rem;">
+                            <span style="font-weight:600; color:#1E293B; font-size:0.88rem;">{{ ms.name }}</span>
+                            <span style="font-weight:700; color:#7C3AED; font-size:0.88rem;">{{ ms.percentage }}%</span>
+                        </div>
+                        <div class="progress-bar" style="margin-bottom:0.5rem;"><div class="progress-fill" style="width: {{ ms.percentage }}%; background: #7C3AED;"></div></div>
+                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#64748B;">
+                            <span>Orders: <strong style="color:#333;">{{ ms.orders_count }}</strong></span>
+                            <span>Qty: <strong style="color:#333;">{{ ms.qty_sold }}</strong></span>
+                            <span>Rev: <strong style="color:#16A34A;">₹{{ ms.revenue|floatformat:0 }}</strong></span>
+                            <span>Deliv: <strong style="color:#333;">{{ ms.deliveries }}</strong></span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-title">
+                <span style="font-size:0.95rem; font-weight:700; color:#1E293B; display:flex; align-items:center; gap:0.5rem;"><i class="fa-solid fa-list" style="color:#0891B2;"></i> Popular Categories</span>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Category Name</th>
+                            <th>Total Orders</th>
+                            <th>Total Qty Sold</th>
+                            <th>Revenue</th>
+                            <th>% of Total Sales</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in popular_categories_stats %}
+                        <tr>
+                            <td style="font-weight:600; color:#1E293B;">{{ c.name }}</td>
+                            <td style="color:#64748B;">{{ c.orders_count }}</td>
+                            <td style="font-weight:700;">{{ c.qty_sold }}</td>
+                            <td style="color:#16A34A; font-weight:600;">₹{{ c.revenue|floatformat:0 }}</td>
+                            <td>
+                                <div style="display:flex; align-items:center; gap:0.5rem;">
+                                    <div class="progress-bar" style="width: 50px; margin: 0;"><div class="progress-fill" style="width: {{ c.percentage }}%; background: #0891B2;"></div></div>
+                                    <span style="font-size:0.75rem; color:#64748B;">{{ c.percentage }}%</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" style="text-align:center; padding:1.5rem; color:#94A3B8;">No sales data available.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ── OTHER INSIGHTS BOTTOM ── -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; margin-bottom: 1.5rem;">
+            <!-- Health Demographics -->
+            <div class="card">
+                <div class="section-title"><i class="fa-solid fa-heart-pulse" style="color:#E63946;"></i> Health Demographics</div>
+                <div class="stat-row"><span class="stat-label">🍬 Diabetic Customers</span><span class="stat-val" style="color:#E63946;">{{ diab_count }}</span></div>
+                <div class="stat-row"><span class="stat-label">🫀 High Cholesterol</span><span class="stat-val" style="color:#F97316;">{{ chol_count }}</span></div>
+                <div class="stat-row"><span class="stat-label">💊 High Blood Pressure</span><span class="stat-val" style="color:#7C3AED;">{{ bp_count }}</span></div>
+                <div class="stat-row"><span class="stat-label">✅ General Health</span><span class="stat-val" style="color:#16A34A;">{{ customers_count|add:"-1" }}</span></div>
+            </div>
+
+            <!-- Review Sentiments -->
+            <div class="card">
+                <div class="section-title"><i class="fa-solid fa-comments" style="color:#16A34A;"></i> Review Sentiment Summary</div>
+                <div class="stat-row"><span class="stat-label">😊 Positive Reviews</span><span class="stat-val" style="color:#16A34A;">{{ sentiment_data.positive }}</span></div>
+                <div class="stat-row"><span class="stat-label">😐 Neutral Reviews</span><span class="stat-val" style="color:#D97706;">{{ sentiment_data.neutral }}</span></div>
+                <div class="stat-row"><span class="stat-label">😞 Negative Reviews</span><span class="stat-val" style="color:#DC2626;">{{ sentiment_data.negative }}</span></div>
+                <div style="margin-top: 0.75rem;">
+                    {% with total_sent=sentiment_data.positive|add:sentiment_data.neutral|add:sentiment_data.negative %}
+                    <div style="font-size:0.78rem; color:#64748B; margin-bottom:0.3rem;">Positivity Rate</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {% if total_sent > 0 %}{% widthratio sentiment_data.positive total_sent 100 %}%{% else %}0%{% endif %}; background: #16A34A;"></div>
+                    </div>
+                    {% endwith %}
+                </div>
+            </div>
+
+            <!-- System Quick Links -->
+            <div class="card">
+                <div class="section-title"><i class="fa-solid fa-link" style="color:#2563EB;"></i> Quick Admin Links</div>
+                <a href="/dashboard/orders/" class="stat-row" style="text-decoration:none; display:flex;">
+                    <span class="stat-label" style="color:#1E293B;">📋 Pending Orders</span>
+                    <span class="stat-val" style="color:#D97706;">{{ pending_orders }}</span>
+                </a>
+                <a href="/dashboard/users/" class="stat-row" style="text-decoration:none; display:flex;">
+                    <span class="stat-label" style="color:#1E293B;">👥 All Users</span>
+                    <span class="stat-val">→</span>
+                </a>
+                <a href="/dashboard/food/" class="stat-row" style="text-decoration:none; display:flex;">
+                    <span class="stat-label" style="color:#1E293B;">🍲 Food Catalog</span>
+                    <span class="stat-val">→</span>
+                </a>
+                <a href="{% url 'staff_dashboard' %}" class="stat-row" style="text-decoration:none; display:flex;">
+                    <span class="stat-label" style="color:#1E293B;">📍 GPS Tracking</span>
+                    <span class="stat-val" style="color:#06B6D4;">Live</span>
+                </a>
+            </div>
+        </div>
+        {% else %}
+        <!-- ── CUSTOM MANAGEMENT SECTION VIEW ── -->
+        <div class="card" style="margin-bottom: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h3 style="font-size: 1.3rem; font-weight: 800; color: #1E293B; margin-bottom: 0.2rem;">
+                        {% if active_section == 'users' %}👥 Customer Accounts Management
+                        {% elif active_section == 'chef-profiles' %}👨‍🍳 Chef Profiles &amp; Kitchen Management
+                        {% elif active_section == 'staff' %}🪪 Staff Members Management
+                        {% elif active_section == 'delivery-boys' %}🛵 Delivery Boy Fleet Management
+                        {% elif active_section == 'food' %}🍲 Food Catalog Management
+                        {% elif active_section == 'categories' %}📁 Food Categories Management
+                        {% elif active_section == 'meal-sessions' %}⏰ Meal Sessions Management
+                        {% elif active_section == 'nutrition' %}🥗 Nutrition Information Management
+                        {% elif active_section == 'health-recommendations' %}❤️ Health Recommendations
+                        {% elif active_section == 'orders' %}🧾 Order Transactions Management
+                        {% elif active_section == 'payments' %}💳 Payment Transactions Management
+                        {% elif active_section == 'delivery' %}🚚 Delivery Assignments
+                        {% elif active_section == 'food-demand' %}📈 AI Food Demand Forecasts
+                        {% elif active_section == 'food-waste' %}♻️ AI Food Waste Predictions
+                        {% elif active_section == 'stock-predictions' %}📦 AI Stock Inventory Predictions
+                        {% elif active_section == 'customer-behaviors' %}📊 AI Customer Behavior Analytics
+                        {% elif active_section == 'review-sentiments' %}😊 AI Review Sentiment Analysis
+                        {% elif active_section == 'groups' %}👥 User Roles &amp; Groups Distribution
+                        {% else %}{{ active_section|title }} Management
+                        {% endif %}
+                    </h3>
+                    <p style="font-size: 0.85rem; color: #64748B;">Viewing live application data inside your custom admin dashboard.</p>
+                </div>
+                <div style="display: flex; gap: 0.75rem;">
+                    <a href="/dashboard/" class="btn" style="background: #F1F5F9; color: #475569; padding: 0.5rem 1rem; font-size: 0.82rem; border-radius: 8px; text-decoration: none; font-weight: 600;">← Back to Overview</a>
+                </div>
+            </div>
+
+            <!-- DATA TABLE -->
+            <div style="overflow-x: auto;">
+                <table class="dashboard-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #F8FAFC; text-align: left; font-size: 0.8rem; color: #64748B; border-bottom: 2px solid #E2E8F0;">
+                            {% if active_section == 'users' or active_section == 'staff' %}
+                                <th style="padding: 0.8rem 1rem;">ID</th>
+                                <th style="padding: 0.8rem 1rem;">Username</th>
+                                <th style="padding: 0.8rem 1rem;">Email</th>
+                                <th style="padding: 0.8rem 1rem;">Phone</th>
+                                <th style="padding: 0.8rem 1rem;">Role</th>
+                                <th style="padding: 0.8rem 1rem;">Status</th>
+                                <th style="padding: 0.8rem 1rem;">Date Joined</th>
+                            {% elif active_section == 'chef-profiles' %}
+                                <th style="padding: 0.8rem 1rem;">ID</th>
+                                <th style="padding: 0.8rem 1rem;">Chef Name</th>
+                                <th style="padding: 0.8rem 1rem;">Specialty</th>
+                                <th style="padding: 0.8rem 1rem;">Approval Status</th>
+                                <th style="padding: 0.8rem 1rem;">Contact Email</th>
+                            {% elif active_section == 'delivery-boys' %}
+                                <th style="padding: 0.8rem 1rem;">ID</th>
+                                <th style="padding: 0.8rem 1rem;">Courier Name</th>
+                                <th style="padding: 0.8rem 1rem;">Vehicle Number</th>
+                                <th style="padding: 0.8rem 1rem;">Status</th>
+                                <th style="padding: 0.8rem 1rem;">Location (Lat, Lng)</th>
+                            {% elif active_section == 'food' %}
+                                <th style="padding: 0.8rem 1rem;">ID</th>
+                                <th style="padding: 0.8rem 1rem;">Food Item</th>
+                                <th style="padding: 0.8rem 1rem;">Category</th>
+                                <th style="padding: 0.8rem 1rem;">Price</th>
+                                <th style="padding: 0.8rem 1rem;">Stock</th>
+                                <th style="padding: 0.8rem 1rem;">Status</th>
+                            {% elif active_section == 'categories' %}
+                                <th style="padding: 0.8rem 1rem;">ID</th>
+                                <th style="padding: 0.8rem 1rem;">Category Name</th>
+                                <th style="padding: 0.8rem 1rem;">Total Items</th>
+                            {% elif active_section == 'orders' %}
+                                <th style="padding: 0.8rem 1rem;">Order ID</th>
+                                <th style="padding: 0.8rem 1rem;">Customer</th>
+                                <th style="padding: 0.8rem 1rem;">Total Amount</th>
+                                <th style="padding: 0.8rem 1rem;">Payment Method</th>
+                                <th style="padding: 0.8rem 1rem;">Status</th>
+                                <th style="padding: 0.8rem 1rem;">Date</th>
+                            {% elif active_section == 'groups' %}
+                                <th style="padding: 0.8rem 1rem;">User Group / Role</th>
+                                <th style="padding: 0.8rem 1rem;">Total Assigned Users</th>
+                                <th style="padding: 0.8rem 1rem;">Access Level</th>
+                            {% elif active_section == 'health-recommendations' %}
+                                <th style="padding: 0.8rem 1rem;">ID</th>
+                                <th style="padding: 0.8rem 1rem;">Customer Name</th>
+                                <th style="padding: 0.8rem 1rem;">Recommended Food</th>
+                                <th style="padding: 0.8rem 1rem;">Reason / Notes</th>
+                            {% elif active_section == 'food-demand' %}
+                                <th style="padding: 0.8rem 1rem;">ID</th>
+                                <th style="padding: 0.8rem 1rem;">Food Item</th>
+                                <th style="padding: 0.8rem 1rem;">Predicted Demand Quantity</th>
+                            {% elif active_section == 'food-waste' %}
+                                <th style="padding: 0.8rem 1rem;">ID</th>
+                                <th style="padding: 0.8rem 1rem;">Food Item</th>
+                                <th style="padding: 0.8rem 1rem;">Predicted Waste Quantity</th>
+                            {% elif active_section == 'stock-predictions' %}
+                                <th style="padding: 0.8rem 1rem;">ID</th>
+                                <th style="padding: 0.8rem 1rem;">Food Item</th>
+                                <th style="padding: 0.8rem 1rem;">Estimated Stockout Days</th>
+                            {% elif active_section == 'customer-behaviors' %}
+                                <th style="padding: 0.8rem 1rem;">ID</th>
+                                <th style="padding: 0.8rem 1rem;">Customer</th>
+                                <th style="padding: 0.8rem 1rem;">Segment &amp; Metrics</th>
+                            {% elif active_section == 'review-sentiments' %}
+                                <th style="padding: 0.8rem 1rem;">ID</th>
+                                <th style="padding: 0.8rem 1rem;">Food Item</th>
+                                <th style="padding: 0.8rem 1rem;">Sentiment</th>
+                                <th style="padding: 0.8rem 1rem;">Review Text</th>
+                            {% elif active_section == 'payments' %}
+                                <th style="padding: 0.8rem 1rem;">Transaction ID</th>
+                                <th style="padding: 0.8rem 1rem;">Order Reference</th>
+                                <th style="padding: 0.8rem 1rem;">Amount</th>
+                                <th style="padding: 0.8rem 1rem;">Payment Method</th>
+                                <th style="padding: 0.8rem 1rem;">Status</th>
+                            {% elif active_section == 'delivery' %}
+                                <th style="padding: 0.8rem 1rem;">ID</th>
+                                <th style="padding: 0.8rem 1rem;">Order ID</th>
+                                <th style="padding: 0.8rem 1rem;">Assigned Courier</th>
+                                <th style="padding: 0.8rem 1rem;">Delivery Status</th>
+                            {% elif active_section == 'meal-sessions' %}
+                                <th style="padding: 0.8rem 1rem;">ID</th>
+                                <th style="padding: 0.8rem 1rem;">Session Name</th>
+                                <th style="padding: 0.8rem 1rem;">Timing</th>
+                            {% elif active_section == 'nutrition' %}
+                                <th style="padding: 0.8rem 1rem;">ID</th>
+                                <th style="padding: 0.8rem 1rem;">Food Item</th>
+                                <th style="padding: 0.8rem 1rem;">Nutritional Metrics</th>
+                            {% else %}
+                                <th style="padding: 0.8rem 1rem;">Record ID</th>
+                                <th style="padding: 0.8rem 1rem;">Details / Information</th>
+                                <th style="padding: 0.8rem 1rem;">Status</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in table_data %}
+                        <tr style="border-bottom: 1px solid #E2E8F0; font-size: 0.85rem;">
+                            {% if active_section == 'users' or active_section == 'staff' %}
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600; color: #1E293B;">{{ item.username }}</td>
+                                <td style="padding: 0.75rem 1rem; color: #64748B;">{{ item.email }}</td>
+                                <td style="padding: 0.75rem 1rem; color: #64748B;">{{ item.phone|default:"N/A" }}</td>
+                                <td style="padding: 0.75rem 1rem;"><span class="badge badge-primary">{{ item.role|title }}</span></td>
+                                <td style="padding: 0.75rem 1rem;">
+                                    {% if item.is_active %}<span class="badge badge-success">Active</span>{% else %}<span class="badge badge-danger">Inactive</span>{% endif %}
+                                </td>
+                                <td style="padding: 0.75rem 1rem; color: #64748B;">{{ item.date_joined|date:"Y-m-d H:i" }}</td>
+                            {% elif active_section == 'chef-profiles' %}
+                                <td style="padding: 0.75rem 1rem;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">👨‍🍳 {{ item.user.username|title }}</td>
+                                <td style="padding: 0.75rem 1rem;">{{ item.specialty }}</td>
+                                <td style="padding: 0.75rem 1rem;">
+                                    {% if item.is_approved %}<span class="badge badge-success">Approved Chef</span>{% else %}<span class="badge badge-warning">Pending Approval</span>{% endif %}
+                                </td>
+                                <td style="padding: 0.75rem 1rem; color: #64748B;">{{ item.user.email }}</td>
+                            {% elif active_section == 'delivery-boys' %}
+                                <td style="padding: 0.75rem 1rem;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">🛵 {{ item.user.username|title }}</td>
+                                <td style="padding: 0.75rem 1rem;">{{ item.vehicle_number|default:"KL-07-AB-1234" }}</td>
+                                <td style="padding: 0.75rem 1rem;">
+                                    {% if item.status == 'available' %}<span class="badge badge-success">Available</span>
+                                    {% elif item.status == 'busy' %}<span class="badge badge-warning">On Delivery</span>
+                                    {% else %}<span class="badge badge-secondary">Offline</span>{% endif %}
+                                </td>
+                                <td style="padding: 0.75rem 1rem; color: #64748B;">{{ item.current_latitude|floatformat:4 }}, {{ item.current_longitude|floatformat:4 }}</td>
+                            {% elif active_section == 'food' %}
+                                <td style="padding: 0.75rem 1rem;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">🍲 {{ item.name }}</td>
+                                <td style="padding: 0.75rem 1rem;">{{ item.category.name|default:"General" }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 700; color: #D2691E;">₹{{ item.price }}</td>
+                                <td style="padding: 0.75rem 1rem;">{{ item.stock_quantity }} units</td>
+                                <td style="padding: 0.75rem 1rem;">
+                                    {% if item.is_available and item.stock_quantity > 0 %}<span class="badge badge-success">Available</span>{% else %}<span class="badge badge-danger">Out of Stock</span>{% endif %}
+                                </td>
+                            {% elif active_section == 'categories' %}
+                                <td style="padding: 0.75rem 1rem;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">📁 {{ item.name }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 700;">{{ item.food_count|default:0 }} Items</td>
+                            {% elif active_section == 'orders' %}
+                                <td style="padding: 0.75rem 1rem; font-weight: 700; color: #D2691E;">#{{ item.order_id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">{{ item.user.username|title }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 700;">₹{{ item.total_amount }}</td>
+                                <td style="padding: 0.75rem 1rem;">{{ item.get_payment_method_display }}</td>
+                                <td style="padding: 0.75rem 1rem;">
+                                    <span class="badge badge-primary">{{ item.get_status_display }}</span>
+                                </td>
+                                <td style="padding: 0.75rem 1rem; color: #64748B;">{{ item.created_at|date:"Y-m-d H:i" }}</td>
+                            {% elif active_section == 'health-recommendations' %}
+                                <td style="padding: 0.75rem 1rem;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">❤️ {{ item.user.username|title }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600; color: #D2691E;">{{ item.recommended_food.name }}</td>
+                                <td style="padding: 0.75rem 1rem; color: #64748B;">{{ item.reason }}</td>
+                            {% elif active_section == 'food-demand' %}
+                                <td style="padding: 0.75rem 1rem;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">📈 {{ item.food_item.name }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 700; color: #3B82F6;">{{ item.predicted_quantity }} Servings</td>
+                            {% elif active_section == 'food-waste' %}
+                                <td style="padding: 0.75rem 1rem;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">♻️ {{ item.food_item.name }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 700; color: #EF4444;">{{ item.predicted_waste_quantity }} Waste Units</td>
+                            {% elif active_section == 'stock-predictions' %}
+                                <td style="padding: 0.75rem 1rem;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">📦 {{ item.food_item.name }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 700; color: #F59E0B;">{{ item.predicted_days_until_out_of_stock }} Days Stockout Estimate</td>
+                            {% elif active_section == 'customer-behaviors' %}
+                                <td style="padding: 0.75rem 1rem;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">📊 {{ item.user.username|title }}</td>
+                                <td style="padding: 0.75rem 1rem; color: #64748B;">Segment: {{ item.segment }} | Total Orders: {{ item.total_orders_placed }}</td>
+                            {% elif active_section == 'review-sentiments' %}
+                                <td style="padding: 0.75rem 1rem;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">🍲 {{ item.food_item.name }}</td>
+                                <td style="padding: 0.75rem 1rem;"><span class="badge badge-primary">{{ item.sentiment|title }}</span></td>
+                                <td style="padding: 0.75rem 1rem; color: #64748B;">{{ item.review_text }}</td>
+                            {% elif active_section == 'payments' %}
+                                <td style="padding: 0.75rem 1rem;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 700; color: #D2691E;">Order #{{ item.order.order_id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 700;">₹{{ item.amount }}</td>
+                                <td style="padding: 0.75rem 1rem;">{{ item.payment_method }}</td>
+                                <td style="padding: 0.75rem 1rem;"><span class="badge badge-success">{{ item.status|title }}</span></td>
+                            {% elif active_section == 'delivery' %}
+                                <td style="padding: 0.75rem 1rem;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 700;">Order #{{ item.order.order_id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">🛵 {{ item.delivery_boy.user.username|title }}</td>
+                                <td style="padding: 0.75rem 1rem;"><span class="badge badge-primary">{{ item.status|title }}</span></td>
+                            {% elif active_section == 'meal-sessions' %}
+                                <td style="padding: 0.75rem 1rem;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">⏰ {{ item.name }}</td>
+                                <td style="padding: 0.75rem 1rem; color: #64748B;">{{ item.start_time }} - {{ item.end_time }}</td>
+                            {% elif active_section == 'nutrition' %}
+                                <td style="padding: 0.75rem 1rem;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">🥗 {{ item.food_item.name }}</td>
+                                <td style="padding: 0.75rem 1rem; color: #64748B;">Calories: {{ item.calories }} kcal | Protein: {{ item.protein }}g</td>
+                            {% elif active_section == 'groups' %}
+                                <td style="padding: 0.75rem 1rem; font-weight: 600; text-transform: uppercase;">🛡️ {{ item.role }}</td>
+                                <td style="padding: 0.75rem 1rem; font-weight: 700;">{{ item.count }} Users</td>
+                                <td style="padding: 0.75rem 1rem;"><span class="badge badge-success">Application Role</span></td>
+                            {% else %}
+                                <td style="padding: 0.75rem 1rem; font-weight: 600;">#{{ item.id }}</td>
+                                <td style="padding: 0.75rem 1rem; color: #64748B;">System Record</td>
+                                <td style="padding: 0.75rem 1rem;"><span class="badge badge-primary">Active</span></td>
+                            {% endif %}
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 2.5rem; color: #94A3B8;">No records found for {{ active_section|title }}.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+    </div><!-- /content-area -->
+</div><!-- /main-content -->
+
+<script>
+    // Current date display
+    document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'short', day:'numeric', month:'long', year:'numeric'});
+
+    document.addEventListener('DOMContentLoaded', function() {
+
+        // 1. Revenue & Order Trend Chart
+        const revCtx = document.getElementById('revenueTrendChart').getContext('2d');
+        new Chart(revCtx, {
+            type: 'line',
+            data: {
+                labels: {{ chart_days|safe }},
+                datasets: [
+                    {
+                        label: 'Revenue (₹)',
+                        data: {{ chart_revenue|safe }},
+                        borderColor: '#F97316',
+                        backgroundColor: 'rgba(249, 115, 22, 0.07)',
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#F97316',
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Orders',
+                        data: {{ chart_orders|safe }},
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [5, 4],
+                        pointRadius: 3,
+                        fill: false,
+                        tension: 0.4,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 11 } } } },
+                scales: {
+                    y: { type: 'linear', position: 'left', grid: { color: '#F1F5F9' }, ticks: { font: { size: 10 }, color: '#94A3B8' } },
+                    y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { size: 10 }, color: '#94A3B8' } },
+                    x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94A3B8' } }
+                }
+            }
+        });
+
+        // 2. Order Status Doughnut
+        const statusCtx = document.getElementById('orderStatusChart').getContext('2d');
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Pending', 'Processing', 'In-Transit', 'Delivered', 'Cancelled'],
+                datasets: [{
+                    data: [{{ pending_orders }}, {{ processing_orders }}, {{ in_transit_orders }}, {{ completed_orders }}, {{ cancelled_orders }}],
+                    backgroundColor: ['#F59E0B', '#3B82F6', '#06B6D4', '#16A34A', '#DC2626'],
+                    borderWidth: 2, borderColor: '#FFFFFF'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw}` } } },
+                cutout: '68%'
+            }
+        });
+
+        // 3. Category Sales Bar
+        const catCtx = document.getElementById('categorySalesChart').getContext('2d');
+        new Chart(catCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ cat_labels|safe }},
+                datasets: [{
+                    label: 'Portions Sold',
+                    data: {{ cat_data|safe }},
+                    backgroundColor: ['#F97316', '#D2691E', '#F59E0B', '#16A34A', '#3B82F6', '#7C3AED'],
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#94A3B8', maxRotation: 30 } },
+                    y: { grid: { color: '#F1F5F9' }, ticks: { font: { size: 10 }, color: '#94A3B8' }, beginAtZero: true }
+                }
+            }
+        });
+
+        // 4. Sentiment Polar Chart
+        const sentCtx = document.getElementById('sentimentChart').getContext('2d');
+        new Chart(sentCtx, {
+            type: 'polarArea',
+            data: {
+                labels: ['Positive', 'Neutral', 'Negative'],
+                datasets: [{
+                    data: [{{ sentiment_data.positive|default:10 }}, {{ sentiment_data.neutral|default:3 }}, {{ sentiment_data.negative|default:1 }}],
+                    backgroundColor: ['rgba(22,163,74,0.7)', 'rgba(245,158,11,0.7)', 'rgba(220,38,38,0.7)']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
+                scales: { r: { ticks: { display: false } } }
+            }
+        });
+    });
+</script>
+</body>
+</html>

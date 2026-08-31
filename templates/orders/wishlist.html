@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+        <h1 style="font-size: 2.2rem; font-weight: 700; color: var(--primary-dark);">❤️ My Saved Favorites & Wishlist</h1>
+        <p style="color: var(--text-muted); font-size: 1rem;">Easily access your favorite homemade dishes and add them to your cart.</p>
+    </div>
+    <a href="{% url 'food_catalog' %}" class="btn btn-outline">&larr; Back to Menu Card</a>
+</div>
+
+<div class="grid-3">
+    {% for wish in wishes %}
+        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div style="height: 180px; border-radius: 12px; overflow: hidden; background: #fce5c8; position: relative; margin-bottom: 1rem;">
+                    <img src="{{ wish.food_item.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ wish.food_item.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                    <span class="badge badge-accent" style="position: absolute; top: 10px; left: 10px; font-weight: 700;">
+                        FOOD{{ wish.food_item.id|stringformat:"04d" }} | {{ wish.food_item.category.name }}
+                    </span>
+                    <a href="{% url 'wishlist_toggle' wish.food_item.id %}" style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.92); padding: 0.35rem 0.75rem; border-radius: 50px; text-decoration: none; font-size: 0.82rem; font-weight: 700; color: #ef4444; box-shadow: 0 2px 8px rgba(0,0,0,0.15);" title="Remove from Wishlist">
+                        ❌ Remove
+                    </a>
+                </div>
+
+                <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--primary-brown); margin-bottom: 0.4rem;">{{ wish.food_item.name }}</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                    {{ wish.food_item.description|default:"Delectable fresh homemade preparation." }}
+                </p>
+
+                {% if wish.food_item.stock_quantity <= 0 %}
+                    <p style="font-size: 0.8rem; color: var(--danger); font-weight: 600; margin-bottom: 0.5rem;">⚠️ Sold Out (Out of Stock)</p>
+                {% else %}
+                    <p style="font-size: 0.8rem; color: var(--success); font-weight: 500; margin-bottom: 0.5rem;">🟢 Stock Available: {{ wish.food_item.stock_quantity }} portions</p>
+                {% endif %}
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-light); padding-top: 1rem; margin-top: 1rem;">
+                <span style="font-weight: 700; color: var(--primary-orange); font-size: 1.4rem;">₹{{ wish.food_item.price }}</span>
+                <div style="display: flex; gap: 0.5rem;">
+                    <a href="{% url 'food_detail' wish.food_item.id %}" class="btn btn-outline" style="padding: 0.45rem 0.9rem; font-size: 0.85rem;">Details</a>
+                    {% if wish.food_item.stock_quantity > 0 %}
+                        <a href="{% url 'cart_add' wish.food_item.id %}" class="btn" style="padding: 0.45rem 1.1rem; font-size: 0.85rem;">Add to Cart 🛒</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div style="grid-column: 1 / -1; padding: 4rem 2rem; text-align: center; color: var(--text-muted); background: white; border-radius: 20px; border: 1.5px solid var(--border-light);">
+            <p style="font-size: 1.3rem; font-weight: 700; color: var(--primary-brown); margin-bottom: 0.5rem;">Your wishlist is currently empty.</p>
+            <p style="font-size: 0.95rem; margin-bottom: 1.5rem;">Browse our kitchen menu card and click the ❤️ icon on any dish to save it here!</p>
+            <a href="{% url 'food_catalog' %}" class="btn">Explore Menu Card</a>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

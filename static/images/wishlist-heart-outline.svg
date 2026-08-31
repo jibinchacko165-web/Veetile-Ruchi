@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="outlineGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E63946"/>
+      <stop offset="100%" stop-color="#FF6B6B"/>
+    </linearGradient>
+  </defs>
+  <!-- Outlined heart (not favorited state) -->
+  <path d="M32 56 C32 56 6 40 6 22 C6 12 14 6 22 6 C26.5 6 30.5 8.5 32 12 C33.5 8.5 37.5 6 42 6 C50 6 58 12 58 22 C58 40 32 56 32 56Z"
+        stroke="url(#outlineGrad)" stroke-width="3" fill="none" stroke-linejoin="round"/>
+</svg>

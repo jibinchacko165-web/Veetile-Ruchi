@@ -38,8 +38,12 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8002',
 ]
 CSRF_COOKIE_HTTPONLY = False
-CSRF_USE_SESSIONS = True
 CSRF_FAILURE_VIEW = 'accounts.views.csrf_failure_view'
+
+# Session Configuration
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SESSION_COOKIE_AGE = 1209600  # 2 weeks
+SESSION_SAVE_EVERY_REQUEST = False
 
 
 # Application definition
@@ -101,11 +105,11 @@ WSGI_APPLICATION = 'veetile_ruchi_project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'veetile_ruchi',
-        'USER': 'root',
-        'PASSWORD': '',
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
+        'NAME': os.getenv('DB_NAME', 'veetile_ruchi'),
+        'USER': os.getenv('DB_USER', 'root'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+        'PORT': os.getenv('DB_PORT', '3306'),
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
             'charset': 'utf8mb4',
@@ -179,12 +183,14 @@ else:
 
 AUTH_USER_MODEL = 'accounts.User'
 
-# Email Configuration (Console backend for development)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-DEFAULT_FROM_EMAIL = 'Veetile Ruchi <noreply@veetileruchi.com>'
+AUTHENTICATION_BACKENDS = [
+    'accounts.backends.EmailOrUsernameModelBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
 
 # Authentication Redirect Configurations
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/accounts/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
+
 

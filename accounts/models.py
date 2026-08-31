@@ -13,8 +13,8 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='customer', db_index=True)
     phone = models.CharField(max_length=15, blank=True, null=True, db_index=True)
     address = models.TextField(blank=True, null=True, default='')
-    latitude = models.FloatField(default=10.0)
-    longitude = models.FloatField(default=76.0)
+    latitude = models.FloatField(default=9.462534)
+    longitude = models.FloatField(default=76.72185)
     dob = models.DateField(blank=True, null=True, verbose_name="Date of Birth")
 
     @property
