@@ -1,6 +1,8 @@
 from django.test import TestCase, Client
 from django.urls import reverse
-from accounts.models import User, ChefProfile, DeliveryBoyProfile
+from django.utils import timezone
+from datetime import timedelta
+from accounts.models import User, ChefProfile, DeliveryBoyProfile, PasswordResetOTP
 from health.models import HealthProfile
 
 class AccountsModuleTests(TestCase):
@@ -339,4 +341,86 @@ class AccountsModuleTests(TestCase):
         self.assertRedirects(response, reverse('profile') + '?tab=view')
         self.customer.refresh_from_db()
         self.assertTrue(self.customer.check_password('newpassword456'))
+
+    def test_otp_forgot_password_and_reset_workflow(self):
+        """Test full OTP flow: request OTP -> verify OTP -> reset password -> login with new password"""
+        # 1. Request OTP using email
+        req_resp = self.client.post(reverse('password_reset'), {
+            'action': 'request_otp',
+            'identifier': 'customer@test.com'
+        })
+        self.assertEqual(req_resp.status_code, 200)
+        self.assertEqual(self.client.session.get('otp_pending_user_id'), self.customer.id)
+
+        otp_record = PasswordResetOTP.objects.filter(user=self.customer).first()
+        self.assertIsNotNone(otp_record)
+        self.assertFalse(otp_record.is_expired())
+
+        # For test verification, manually set known OTP hash
+        from django.contrib.auth.hashers import make_password
+        otp_record.otp_hash = make_password('654321')
+        otp_record.save()
+
+        # 2. Verify OTP
+        verify_resp = self.client.post(reverse('password_reset'), {
+            'action': 'verify_otp',
+            'otp': '654321'
+        })
+        self.assertEqual(verify_resp.status_code, 200)
+        self.assertEqual(self.client.session.get('reset_user_id'), self.customer.id)
+        self.assertNotIn('otp_pending_user_id', self.client.session)
+
+        # 3. Reset password
+        reset_resp = self.client.post(reverse('password_reset'), {
+            'action': 'reset',
+            'new_password': 'BrandNewCustomerPass@789',
+            'confirm_password': 'BrandNewCustomerPass@789'
+        })
+        self.assertEqual(reset_resp.status_code, 302)
+        self.assertNotIn('reset_user_id', self.client.session)
+
+        # 4. Login using new password
+        login_resp = self.client.post(reverse('login'), {
+            'username': 'test_customer',
+            'password': 'BrandNewCustomerPass@789'
+        })
+        self.assertEqual(login_resp.status_code, 302)
+        self.assertEqual(int(self.client.session['_auth_user_id']), self.customer.id)
+
+    def test_invalid_and_expired_otp_handling(self):
+        """Test error cases: invalid OTP incrementing attempts & expired OTP rejection"""
+        from django.contrib.auth.hashers import make_password
+
+        # Create active OTP
+        otp_record = PasswordResetOTP.objects.create(
+            user=self.customer,
+            otp_hash=make_password('112233'),
+            expires_at=timezone.now() + timedelta(minutes=10),
+            attempts=0
+        )
+
+        session = self.client.session
+        session['otp_pending_user_id'] = self.customer.id
+        session.save()
+
+        # Invalid OTP attempt
+        bad_resp = self.client.post(reverse('password_reset'), {
+            'action': 'verify_otp',
+            'otp': '999999'
+        })
+        self.assertEqual(bad_resp.status_code, 200)
+        otp_record.refresh_from_db()
+        self.assertEqual(otp_record.attempts, 1)
+
+        # Expired OTP
+        otp_record.expires_at = timezone.now() - timedelta(minutes=5)
+        otp_record.save()
+
+        exp_resp = self.client.post(reverse('password_reset'), {
+            'action': 'verify_otp',
+            'otp': '112233'
+        })
+        self.assertEqual(exp_resp.status_code, 200)
+        self.assertFalse(PasswordResetOTP.objects.filter(id=otp_record.id).exists())
+
 

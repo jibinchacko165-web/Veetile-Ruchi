@@ -292,7 +292,7 @@
                 </div>
                 <div class="info-item">
                     <div class="info-label">Hypertension / BP</div>
-                    <div class="info-value">{% if health_profile.has_hypertension %}⚠️ Yes{% else %}No{% endif %}</div>
+                    <div class="info-value">{% if health_profile.has_bp or health_profile.has_hypertension %}⚠️ Yes{% else %}No{% endif %}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Dietary Preference</div>
@@ -300,7 +300,7 @@
                 </div>
                 <div class="info-item">
                     <div class="info-label">Daily Caloric Target</div>
-                    <div class="info-value">{{ health_profile.caloric_limit }} kcal</div>
+                    <div class="info-value">{{ health_profile.daily_calorie_target }} kcal</div>
                 </div>
             </div>
         {% endif %}
@@ -423,7 +423,7 @@
                     </div>
                     <div>
                         <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem;">
-                            <input type="checkbox" name="has_hypertension" {% if health_profile.has_hypertension %}checked{% endif %}>
+                            <input type="checkbox" name="has_bp" {% if health_profile.has_bp %}checked{% endif %}>
                             Hypertension / High BP
                         </label>
                     </div>
@@ -439,8 +439,8 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="caloric_limit">Daily Caloric Limit (kcal)</label>
-                        <input type="number" name="caloric_limit" id="caloric_limit" class="form-control" value="{{ health_profile.caloric_limit|default:2000.0 }}" step="50">
+                        <label class="form-label" for="daily_calorie_target">Daily Caloric Target (kcal)</label>
+                        <input type="number" name="daily_calorie_target" id="daily_calorie_target" class="form-control" value="{{ health_profile.daily_calorie_target|default:2000.0 }}" step="50">
                     </div>
                 </div>
             {% endif %}

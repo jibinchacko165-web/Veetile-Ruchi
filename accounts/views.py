@@ -14,7 +14,7 @@ from django.core.mail import send_mail
 from django.urls import reverse
 from django.conf import settings
 from django.db.models import Q
-from .models import User, ChefProfile, DeliveryBoyProfile
+from .models import User, ChefProfile, DeliveryBoyProfile, PasswordResetOTP
 from .decorators import role_required
 from health.models import HealthProfile
 from orders.models import Notification
@@ -327,12 +327,15 @@ def profile_view(request):
 
             elif user.role == 'customer' and health_profile:
                 health_profile.has_diabetes = request.POST.get('has_diabetes') == 'on'
-                health_profile.has_hypertension = request.POST.get('has_hypertension') == 'on'
+                health_profile.has_bp = (request.POST.get('has_bp') == 'on' or request.POST.get('has_hypertension') == 'on')
+                health_profile.has_cholesterol = request.POST.get('has_cholesterol') == 'on'
                 health_profile.dietary_preference = request.POST.get('dietary_preference', health_profile.dietary_preference)
-                try:
-                    health_profile.caloric_limit = float(request.POST.get('caloric_limit', health_profile.caloric_limit or 2000.0))
-                except (ValueError, TypeError):
-                    pass
+                cal_val = request.POST.get('daily_calorie_target') or request.POST.get('caloric_limit')
+                if cal_val:
+                    try:
+                        health_profile.daily_calorie_target = float(cal_val)
+                    except (ValueError, TypeError):
+                        pass
                 health_profile.save()
 
             messages.success(request, "Profile updated successfully.")
@@ -400,8 +403,16 @@ def mark_notification_read(request, notif_id):
     return redirect('notifications')
 
 def password_reset_view(request):
-    step = 'verify'
+    """
+    Comprehensive Password Reset workflow supporting:
+    1. Forgot Password -> Enter Email/Username -> Generate & Dispatch 6-digit OTP
+    2. OTP Verification -> Verify OTP with expiry check & brute-force prevention
+    3. Password Reset -> Set strong new password using Django password hashing
+    4. Backward-compatible Date of Birth verification support
+    """
+    step = 'request'
     verified_user = None
+    pending_user = None
 
     reset_user_id = request.session.get('reset_user_id')
     if reset_user_id:
@@ -412,19 +423,127 @@ def password_reset_view(request):
             request.session.pop('reset_user_id', None)
             reset_user_id = None
 
-    if request.method == 'POST':
-        action = request.POST.get('action', '')
+    if not verified_user:
+        otp_pending_id = request.session.get('otp_pending_user_id')
+        if otp_pending_id:
+            try:
+                pending_user = User.objects.get(pk=otp_pending_id)
+                step = 'otp_verify'
+            except User.DoesNotExist:
+                request.session.pop('otp_pending_user_id', None)
+                pending_user = None
 
-        if action == 'verify' or 'dob' in request.POST:
+    if request.method == 'POST':
+        action = request.POST.get('action', '').strip()
+
+        # ───── STEP 1: REQUEST OTP (Forgot Password) ─────
+        if action == 'request_otp' or (not action and 'identifier' in request.POST) or (not action and 'email' in request.POST and 'dob' not in request.POST and 'otp' not in request.POST and 'new_password' not in request.POST):
+            identifier = (request.POST.get('identifier') or request.POST.get('email') or request.POST.get('username') or '').strip()
+
+            if not identifier:
+                messages.error(request, "Please enter your registered email address or username.")
+                return render(request, 'accounts/password_reset.html', {'step': 'request', 'identifier': identifier})
+
+            user = User.objects.filter(Q(email__iexact=identifier) | Q(username__iexact=identifier)).first()
+            if not user:
+                messages.error(request, "No account found with this email address or username. Please check your credentials and try again.")
+                return render(request, 'accounts/password_reset.html', {'step': 'request', 'identifier': identifier})
+
+            # Generate 6-digit numeric OTP
+            otp_code = f"{secrets.randbelow(900000) + 100000}"
+
+            # Invalidate any older OTPs for this user
+            PasswordResetOTP.objects.filter(user=user).delete()
+
+            # Store OTP with 10-minute expiry
+            PasswordResetOTP.objects.create(
+                user=user,
+                otp_hash=make_password(otp_code),
+                expires_at=timezone.now() + timedelta(minutes=10),
+                attempts=0
+            )
+
+            # Send OTP email
+            try:
+                send_mail(
+                    subject="Veetile-Ruchi — Password Reset OTP",
+                    message=(
+                        f"Hello {user.username},\n\n"
+                        f"Your 6-digit OTP for resetting your Veetile-Ruchi password is: {otp_code}\n\n"
+                        f"This code is valid for 10 minutes. If you did not request this, please ignore this email.\n\n"
+                        f"Best regards,\nVeetile-Ruchi Team"
+                    ),
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@veetileruchi.com'),
+                    recipient_list=[user.email] if user.email else [],
+                    fail_silently=True
+                )
+            except Exception:
+                pass
+
+            request.session['otp_pending_user_id'] = user.id
+            request.session['otp_target_email'] = user.email or user.username
+            messages.success(request, f"A 6-digit OTP has been sent to '{user.email or user.username}'. Please enter it below to verify.")
+            return render(request, 'accounts/password_reset.html', {
+                'step': 'otp_verify',
+                'pending_user': user,
+                'otp_code_dev': otp_code if settings.DEBUG else None
+            })
+
+        # ───── STEP 2: VERIFY OTP ─────
+        elif action == 'verify_otp' or (not action and 'otp' in request.POST):
+            pending_user_id = request.session.get('otp_pending_user_id')
+            user = User.objects.filter(pk=pending_user_id).first() if pending_user_id else None
+
+            if not user:
+                messages.error(request, "Session expired or verification required. Please request a new OTP.")
+                return render(request, 'accounts/password_reset.html', {'step': 'request'})
+
+            entered_otp = request.POST.get('otp', '').strip()
+            if not entered_otp:
+                messages.error(request, "Please enter the 6-digit OTP sent to your email.")
+                return render(request, 'accounts/password_reset.html', {'step': 'otp_verify', 'pending_user': user})
+
+            otp_record = PasswordResetOTP.objects.filter(user=user).order_by('-created_at').first()
+            if not otp_record:
+                messages.error(request, "No active OTP found. Please request a new OTP.")
+                return render(request, 'accounts/password_reset.html', {'step': 'request'})
+
+            if otp_record.is_expired():
+                otp_record.delete()
+                request.session.pop('otp_pending_user_id', None)
+                messages.error(request, "OTP has expired. Please request a new OTP.")
+                return render(request, 'accounts/password_reset.html', {'step': 'request'})
+
+            if otp_record.attempts >= 5:
+                otp_record.delete()
+                request.session.pop('otp_pending_user_id', None)
+                messages.error(request, "Maximum OTP verification attempts exceeded. Please request a new OTP.")
+                return render(request, 'accounts/password_reset.html', {'step': 'request'})
+
+            if check_password(entered_otp, otp_record.otp_hash) or entered_otp == otp_record.otp_hash:
+                # OTP is valid!
+                otp_record.delete()
+                request.session.pop('otp_pending_user_id', None)
+                request.session['reset_user_id'] = user.id
+                messages.success(request, f"OTP verified successfully for account '{user.username}'! Please enter your new password below.")
+                return render(request, 'accounts/password_reset.html', {'step': 'reset', 'verified_user': user})
+            else:
+                otp_record.attempts += 1
+                otp_record.save()
+                remaining = max(0, 5 - otp_record.attempts)
+                messages.error(request, f"Invalid OTP entered. Please try again. ({remaining} attempt(s) remaining)")
+                return render(request, 'accounts/password_reset.html', {'step': 'otp_verify', 'pending_user': user})
+
+        # ───── STEP 1B: VERIFY DATE OF BIRTH (Backward Compatibility) ─────
+        elif action == 'verify' or 'dob' in request.POST:
             email = request.POST.get('email', '').strip()
             dob_str = request.POST.get('dob', '').strip()
 
             if not email or not dob_str:
                 messages.error(request, "Please enter both your registered email address and Date of Birth.")
-                return render(request, 'accounts/password_reset.html', {'step': 'verify', 'email': email, 'dob': dob_str})
+                return render(request, 'accounts/password_reset.html', {'step': 'request', 'email': email, 'dob': dob_str})
 
             user = User.objects.filter(email__iexact=email, dob=dob_str).first()
-            
             if user:
                 request.session['reset_user_id'] = user.id
                 messages.success(request, f"Identity verified for account '{user.username}'! Please enter your new password below.")
@@ -432,12 +551,13 @@ def password_reset_view(request):
             else:
                 request.session.pop('reset_user_id', None)
                 messages.error(request, "Invalid Email Address or Date of Birth. Verification failed. Please check your details and try again.")
-                return render(request, 'accounts/password_reset.html', {'step': 'verify', 'email': email, 'dob': dob_str})
+                return render(request, 'accounts/password_reset.html', {'step': 'request', 'email': email, 'dob': dob_str})
 
+        # ───── STEP 3: SET NEW PASSWORD ─────
         elif action == 'reset' or ('new_password' in request.POST and 'confirm_password' in request.POST):
             if not verified_user:
                 messages.error(request, "Session expired or verification required. Please verify your details first.")
-                return render(request, 'accounts/password_reset.html', {'step': 'verify'})
+                return render(request, 'accounts/password_reset.html', {'step': 'request'})
 
             new_password = request.POST.get('new_password', '')
             confirm_password = request.POST.get('confirm_password', '')
@@ -459,14 +579,21 @@ def password_reset_view(request):
             verified_user.save()
 
             request.session.pop('reset_user_id', None)
+            request.session.pop('otp_pending_user_id', None)
 
             messages.success(request, f"Password for account '{target_username}' updated successfully! Please sign in with your new password.")
             return redirect(f"{reverse('login')}?username={target_username}")
 
-    return render(request, 'accounts/password_reset.html', {'step': step, 'verified_user': verified_user})
+    context = {
+        'step': step,
+        'verified_user': verified_user,
+        'pending_user': pending_user,
+    }
+    return render(request, 'accounts/password_reset.html', context)
 
 def password_reset_cancel_view(request):
     request.session.pop('reset_user_id', None)
+    request.session.pop('otp_pending_user_id', None)
     return redirect('password_reset')
 
 def csrf_failure_view(request, reason=""):

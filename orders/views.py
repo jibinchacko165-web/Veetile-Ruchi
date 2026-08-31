@@ -410,16 +410,8 @@ def staff_assign_delivery(request, order_id):
             notification_type='general'
         )
         
-        # Build detailed food items list with quantities and food IDs
-        first_item = order.items.first()
-        food_id_str = f"FOOD{first_item.food_item.id:04d}" if first_item else "FOOD0000"
-        items_list = [f"{item.food_item.name} (x{item.quantity})" for item in order.items.all()]
-        items_str = ", ".join(items_list) if items_list else "Food Item"
-
         courier_msg = (
             f"Order ID: #{order.order_id}\n"
-            f"Food ID: {food_id_str}\n"
-            f"Food: {items_str}\n"
             f"Delivery Location: Lat {order.latitude}, Lon {order.longitude}\n"
             f"Status: Assigned / Ready for Pickup"
         )

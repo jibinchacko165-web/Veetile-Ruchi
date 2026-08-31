@@ -312,17 +312,17 @@
                             <!-- Details Grid: Food ID, Food Name, Quantity, Delivery Location -->
                             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; margin-bottom: 1rem;">
                                 
-                                <!-- Ordered Food Items List with Food ID & Quantity -->
+                                <!-- Delivery Package Details -->
                                 <div style="background: #ffffff; padding: 1rem; border-radius: 12px; border: 1px solid var(--border-light);">
                                     <h4 style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.6rem; letter-spacing: 0.05em;">
-                                        🍲 Ordered Food Items
+                                        📦 Delivery Package Items
                                     </h4>
                                     <ul style="list-style: none; padding: 0; margin: 0;">
                                         {% for item in assign.order.items.all %}
                                             <li style="display: flex; justify-content: space-between; align-items: center; font-size: 0.92rem; margin-bottom: 0.5rem; padding-bottom: 0.4rem; border-bottom: 1px dashed var(--border-light);">
                                                 <div>
-                                                    <span style="font-weight: 700; color: var(--text-main); display: block;">{{ item.food_item.name }}</span>
-                                                    <span style="font-size: 0.78rem; color: var(--text-muted); font-family: monospace;">Food ID: FOOD{{ item.food_item.id|stringformat:"04d" }}</span>
+                                                    <span style="font-weight: 700; color: var(--text-main); display: block;">Packed Dish Package #{{ forloop.counter }}</span>
+                                                    <span style="font-size: 0.78rem; color: var(--text-muted);">Secure Food Package</span>
                                                 </div>
                                                 <div style="display: flex; align-items: center; gap: 0.6rem;">
                                                     <span style="font-size: 0.82rem; color: var(--text-muted);">₹{{ item.price }}</span>
