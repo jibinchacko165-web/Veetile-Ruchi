@@ -143,82 +143,80 @@ def place_order(request):
         # Payment setup
         payment_method = request.POST.get('payment_method', 'cod')
         
-        # Create Order
-        order = Order.objects.create(
-            user=request.user,
-            total_amount=total_amount,
-            coupon=coupon,
-            status='pending',
-            latitude=latitude,
-            longitude=longitude,
-            delivery_address=''
-        )
-        
-        # Create Order Items & Decrement Stock
-        for item in cart_items:
-            OrderItem.objects.create(
-                order=order,
-                food_item=item.food_item,
-                quantity=item.quantity,
-                price=item.food_item.price
+        with transaction.atomic():
+            # Create Order
+            order = Order.objects.create(
+                user=request.user,
+                total_amount=total_amount,
+                coupon=coupon,
+                status='pending',
+                latitude=latitude,
+                longitude=longitude,
+                delivery_address=''
             )
-            food = item.food_item
-            food.stock_quantity = max(0, food.stock_quantity - item.quantity)
-            food.save()
             
-        # Create Payment record
-        upi_ref = request.POST.get('upi_ref', '').strip()
-        if payment_method == 'upi' and upi_ref:
-            tx_id = f"UPI-{upi_ref}"
-        else:
-            tx_id = f"TXN-{timezone.now().strftime('%Y%m%d%H%M%S')}-{order.order_id.split('-')[-1]}"
+            # Create Order Items & Decrement Stock
+            for item in cart_items:
+                OrderItem.objects.create(
+                    order=order,
+                    food_item=item.food_item,
+                    quantity=item.quantity,
+                    price=item.food_item.price
+                )
+                food = item.food_item
+                food.stock_quantity = max(0, food.stock_quantity - item.quantity)
+                food.save()
+                
+            # Create Payment record
+            upi_ref = request.POST.get('upi_ref', '').strip()
+            if payment_method == 'upi' and upi_ref:
+                tx_id = f"UPI-{upi_ref}"
+            else:
+                tx_id = f"TXN-{timezone.now().strftime('%Y%m%d%H%M%S')}-{order.order_id.split('-')[-1]}"
+                
+            pay_status = 'pending'
+            if payment_method == 'upi':
+                pay_status = 'success' # Simulate successful instant UPI
+                
+            Payment.objects.create(
+                order=order,
+                payment_method=payment_method,
+                transaction_id=tx_id,
+                status=pay_status,
+                amount=total_amount
+            )
             
-        pay_status = 'pending'
-        if payment_method == 'upi':
-            pay_status = 'success' # Simulate successful instant UPI
+            # AI Behavioral tracking updates
+            behavior, _ = CustomerBehavior.objects.get_or_create(user=request.user)
+            behavior.total_orders_count += 1
+            user_orders = Order.objects.filter(user=request.user)
+            behavior.average_order_value = user_orders.aggregate(models.Avg('total_amount'))['total_amount__avg'] or 0.00
             
-        Payment.objects.create(
-            order=order,
-            payment_method=payment_method,
-            transaction_id=tx_id,
-            status=pay_status,
-            amount=total_amount
-        )
-        
-        # AI Behavioral tracking updates
-        behavior, _ = CustomerBehavior.objects.get_or_create(user=request.user)
-        behavior.total_orders_count += 1
-        # Recalculate average spend
-        user_orders = Order.objects.filter(user=request.user)
-        behavior.average_order_value = user_orders.aggregate(models.Avg('total_amount'))['total_amount__avg'] or 0.00
-        
-        # Guess peak session
-        sessions_grouped = user_orders.values('items__food_item__meal_session').annotate(count=models.Count('order_id')).order_by('-count')
-        if sessions_grouped and sessions_grouped[0]['items__food_item__meal_session']:
-            from food.models import MealSession
-            behavior.most_ordered_session = MealSession.objects.filter(id=sessions_grouped[0]['items__food_item__meal_session']).first()
+            sessions_grouped = user_orders.values('items__food_item__meal_session').annotate(count=models.Count('order_id')).order_by('-count')
+            if sessions_grouped and sessions_grouped[0]['items__food_item__meal_session']:
+                from food.models import MealSession
+                behavior.most_ordered_session = MealSession.objects.filter(id=sessions_grouped[0]['items__food_item__meal_session']).first()
+                
+            if behavior.total_orders_count >= 5:
+                behavior.behavior_segment = 'high_value'
+            elif behavior.total_orders_count >= 2:
+                behavior.behavior_segment = 'regular'
+            else:
+                behavior.behavior_segment = 'occasional'
+            behavior.save()
             
-        # Guess behavior segment
-        if behavior.total_orders_count >= 5:
-            behavior.behavior_segment = 'high_value'
-        elif behavior.total_orders_count >= 2:
-            behavior.behavior_segment = 'regular'
-        else:
-            behavior.behavior_segment = 'occasional'
-        behavior.save()
-        
-        # Clear Cart
-        cart_items.delete()
-        
-        # Create Customer notification for Order Confirmed
-        Notification.objects.create(
-            user=request.user,
-            order=order,
-            title="Order Confirmed",
-            message=f"Order Confirmed – #{order.order_id} has been received.",
-            notification_type='order_confirmed'
-        )
-        
+            # Clear Cart
+            cart_items.delete()
+            
+            # Create Customer notification for Order Confirmed
+            Notification.objects.create(
+                user=request.user,
+                order=order,
+                title="Order Confirmed",
+                message=f"Order Confirmed – #{order.order_id} has been received.",
+                notification_type='order_confirmed'
+            )
+            
         messages.success(request, f"Order placed successfully! Order ID: {order.order_id}")
         return redirect('order_tracking', order_id=order.order_id)
         
