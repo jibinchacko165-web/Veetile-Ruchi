@@ -1,10 +1,12 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from .models import HealthProfile, HealthRecommendation
 from food.models import FoodItem
 from ai_models.ml_engine import plan_meals
 
+@never_cache
 @login_required
 def health_profile_view(request):
     """Enables customer to manage health details."""
@@ -30,6 +32,7 @@ def health_profile_view(request):
         
     return render(request, 'health/profile.html', {'profile': profile})
 
+@never_cache
 @login_required
 def meal_planner_view(request):
     """Retrieves menu options and builds a daily recommended breakfast/lunch/snack/dinner plan using KNN."""

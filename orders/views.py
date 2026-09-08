@@ -1,16 +1,20 @@
 from django.db import models, transaction
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.utils import timezone
 from .models import CartItem, Coupon, Order, OrderItem, Payment, Wishlist, Notification
 from food.models import FoodItem
-from accounts.models import User, DeliveryBoyProfile, ChefProfile
+from accounts.models import User, DeliveryBoyProfile, ChefProfile, SavedLocation
 from accounts.decorators import role_required
 from delivery.models import DeliveryAssignment, GPSLocationTracking
 from ai_models.models import CustomerBehavior
 from ai_models.ml_engine import predict_delivery_time, recommend_coupons_kmeans, optimize_delivery_route
+from .utils import is_within_delivery_perimeter, KERALA_PRESET_PLACES, get_active_delivery_setting, calculate_distance_km
 
+@never_cache
 @login_required
 def cart_view(request):
     """View shopping cart items and apply AI recommended coupons."""
@@ -35,7 +39,6 @@ def cart_view(request):
             messages.error(request, "Invalid or expired coupon code.")
             
     # AI Smart Coupon Recommendation using K-Means Clustering
-    # Gather database user segments
     coupons = list(Coupon.objects.filter(is_active=True))
     all_users = User.objects.filter(role='customer')
     customers_data = []
@@ -67,13 +70,41 @@ def cart_add(request, food_id):
         
     cart_item, created = CartItem.objects.get_or_create(user=request.user, food_item=food)
     if not created:
-        cart_item.quantity += 1
-        cart_item.save()
+        if cart_item.quantity < food.stock_quantity:
+            cart_item.quantity += 1
+            cart_item.save()
+            messages.success(request, f"Added another {food.name} to cart.")
+        else:
+            messages.warning(request, f"Cannot add more. Only {food.stock_quantity} available in stock.")
     else:
         cart_item.quantity = 1
         cart_item.save()
+        messages.success(request, f"Added {food.name} to cart.")
         
-    messages.success(request, f"Added {food.name} to cart.")
+    return redirect('cart_view')
+
+@login_required
+def cart_update_quantity(request, item_id):
+    """Increments or decrements cart quantity with stock limits."""
+    cart_item = get_object_or_404(CartItem, id=item_id, user=request.user)
+    action = request.POST.get('action') or request.GET.get('action', 'increase')
+    
+    if action == 'increase':
+        if cart_item.food_item.stock_quantity > cart_item.quantity:
+            cart_item.quantity += 1
+            cart_item.save()
+            messages.success(request, f"Updated {cart_item.food_item.name} quantity to {cart_item.quantity}.")
+        else:
+            messages.warning(request, f"Maximum available quantity for {cart_item.food_item.name} is {cart_item.food_item.stock_quantity}.")
+    elif action == 'decrease':
+        if cart_item.quantity > 1:
+            cart_item.quantity -= 1
+            cart_item.save()
+            messages.info(request, f"Updated {cart_item.food_item.name} quantity to {cart_item.quantity}.")
+        else:
+            cart_item.delete()
+            messages.info(request, f"Removed {cart_item.food_item.name} from cart.")
+            
     return redirect('cart_view')
 
 @login_required
@@ -85,7 +116,7 @@ def cart_remove(request, item_id):
 
 @login_required
 def checkout_view(request):
-    """Review screen capturing GPS coordinates (Latitude/Longitude) for navigation routes."""
+    """Review screen supporting saved delivery location selection and perimeter distance check."""
     cart_items = CartItem.objects.filter(user=request.user)
     if not cart_items.exists():
         messages.error(request, "Your cart is empty.")
@@ -101,19 +132,34 @@ def checkout_view(request):
         discount = float(subtotal) * float(coupon.discount_percentage) / 100.0
         
     total = float(subtotal) - discount
+
+    saved_locations = request.user.saved_locations.all() if hasattr(request.user, 'saved_locations') else []
+    default_location = None
+    for loc in saved_locations:
+        if loc.is_default:
+            default_location = loc
+            break
+    if not default_location and saved_locations.exists():
+        default_location = saved_locations.first()
     
+    delivery_setting = get_active_delivery_setting()
+
     context = {
         'cart_items': cart_items,
         'subtotal': subtotal,
         'discount': discount,
         'total': total,
         'coupon': coupon,
+        'saved_locations': saved_locations,
+        'default_location': default_location,
+        'kerala_preset_places': KERALA_PRESET_PLACES,
+        'delivery_setting': delivery_setting,
     }
     return render(request, 'orders/checkout.html', context)
 
 @login_required
 def place_order(request):
-    """Places order, captures customer GPS location and starts payment transaction."""
+    """Places order with Saved Location selection and strict Delivery Perimeter validation."""
     if request.method == 'POST':
         cart_items = CartItem.objects.filter(user=request.user)
         if not cart_items.exists():
@@ -130,15 +176,53 @@ def place_order(request):
             
         total_amount = float(subtotal) - discount
         
-        # Capture customer GPS location coordinates
-        try:
-            latitude = float(request.POST.get('latitude', '') or getattr(request.user, 'latitude', 9.462534))
-        except (ValueError, TypeError):
-            latitude = getattr(request.user, 'latitude', 9.462534)
-        try:
-            longitude = float(request.POST.get('longitude', '') or getattr(request.user, 'longitude', 76.72185))
-        except (ValueError, TypeError):
-            longitude = getattr(request.user, 'longitude', 76.72185)
+        # ───── LOCATION SELECTION & DELIVERY PERIMETER VALIDATION ─────
+        saved_loc_id = request.POST.get('saved_location_id')
+        delivery_address = request.POST.get('delivery_address', '').strip()
+        customer_delivery_notes = request.POST.get('customer_delivery_notes', '').strip()
+        
+        if saved_loc_id:
+            saved_loc = SavedLocation.objects.filter(id=saved_loc_id, user=request.user).first()
+            if saved_loc:
+                latitude = saved_loc.latitude
+                longitude = saved_loc.longitude
+                loc_desc = (saved_loc.description or '').strip()
+                loc_name = (saved_loc.name or '').strip()
+                clean_n = loc_name.split("(")[0].strip() if loc_name else ''
+                if clean_n and loc_desc and clean_n.lower() in loc_desc.lower():
+                    import re
+                    base_addr = re.sub(re.escape(clean_n), loc_name, loc_desc, count=1, flags=re.IGNORECASE)
+                elif loc_name and loc_desc:
+                    base_addr = f"{loc_name}, {loc_desc}"
+                else:
+                    base_addr = loc_name or loc_desc or "Kanjirappally"
+                
+                if saved_loc.landmark and saved_loc.landmark.strip() and saved_loc.landmark.strip().upper() != 'N/A':
+                    delivery_address = f"{base_addr} • Landmark: {saved_loc.landmark.strip()}"
+                else:
+                    delivery_address = base_addr
+            else:
+                try:
+                    latitude = float(request.POST.get('latitude', 9.5564))
+                    longitude = float(request.POST.get('longitude', 76.7909))
+                except (ValueError, TypeError):
+                    latitude = 9.5564
+                    longitude = 76.7909
+        else:
+            try:
+                latitude = float(request.POST.get('latitude', '') or getattr(request.user, 'latitude', 9.5564))
+            except (ValueError, TypeError):
+                latitude = getattr(request.user, 'latitude', 9.5564)
+            try:
+                longitude = float(request.POST.get('longitude', '') or getattr(request.user, 'longitude', 76.7909))
+            except (ValueError, TypeError):
+                longitude = getattr(request.user, 'longitude', 76.7909)
+
+        # Enforce Delivery Perimeter Verification (20 km Kanjirappally Radius)
+        is_serviceable, dist_km, perimeter_msg = is_within_delivery_perimeter(latitude, longitude)
+        if not is_serviceable:
+            messages.error(request, "Sorry, delivery is currently available only within 20 km of Kanjirappally.")
+            return redirect('checkout_view')
         
         # Payment setup
         payment_method = request.POST.get('payment_method', 'cod')
@@ -152,7 +236,8 @@ def place_order(request):
                 status='pending',
                 latitude=latitude,
                 longitude=longitude,
-                delivery_address=''
+                delivery_address=delivery_address,
+                customer_delivery_notes=customer_delivery_notes
             )
             
             # Create Order Items & Decrement Stock
@@ -239,7 +324,7 @@ def order_tracking(request, order_id):
     payment = getattr(order, 'payment', None)
     assignment = getattr(order, 'delivery_assignment', None)
     
-    chef_lat, chef_lon = 10.015, 76.325
+    chef_lat, chef_lon = 9.5564, 76.7909
     cust_lat = order.latitude
     cust_lon = order.longitude
     
@@ -273,10 +358,71 @@ def order_tracking(request, order_id):
     return render(request, 'orders/tracking.html', context)
 
 @login_required
+def api_order_status(request, order_id):
+    """Real-time order status API endpoint for live customer tracking page without page refresh."""
+    from django.http import JsonResponse
+    order = get_object_or_404(Order, order_id=order_id)
+    
+    is_owner = (request.user == order.user)
+    is_staff = (request.user.role in ['staff', 'admin'])
+    is_assigned_courier = (hasattr(order, 'delivery_assignment') and order.delivery_assignment.delivery_boy.user == request.user)
+    
+    if not (is_owner or is_staff or is_assigned_courier):
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
+        
+    assignment = getattr(order, 'delivery_assignment', None)
+    courier_profile = assignment.delivery_boy if assignment else None
+    courier_user = courier_profile.user if courier_profile else None
+    
+    chef_lat, chef_lon = 9.5564, 76.7909
+    cust_lat = order.latitude
+    cust_lon = order.longitude
+    courier_lat = courier_profile.current_latitude if courier_profile else chef_lat
+    courier_lon = courier_profile.current_longitude if courier_profile else chef_lon
+    
+    items_cnt = order.items.count() if hasattr(order, 'items') else 1
+    from ai_models.ml_engine import predict_delivery_time_rf
+    pred_delivery_min, ai_eta_min, dist_km = predict_delivery_time_rf(
+        courier_lat, courier_lon, cust_lat, cust_lon, items_count=items_cnt
+    )
+    
+    status_display_map = {
+        'pending': 'Order Placed (Pending Kitchen Confirmation)',
+        'preparing': 'Food Being Prepared in Kitchen',
+        'ready_pickup': 'Ready for Pickup',
+        'assigned': 'Courier Assigned & Ready for Pickup',
+        'picked_up': 'Picked Up by Courier',
+        'in_transit': 'Out for Delivery',
+        'delivered': 'Delivered',
+        'cancelled': 'Cancelled',
+    }
+    
+    return JsonResponse({
+        'status': 'success',
+        'order_id': order.order_id,
+        'order_status': order.status,
+        'status_display': status_display_map.get(order.status, order.get_status_display()),
+        'customer_name': order.user.get_full_name() or order.user.username,
+        'customer_phone': getattr(order.user, 'phone', '') or 'Phone not provided',
+        'customer_delivery_notes': order.customer_delivery_notes or order.delivery_address or '',
+        'has_courier': courier_user is not None,
+        'courier_name': (courier_user.get_full_name() or courier_user.username) if courier_user else None,
+        'courier_phone': getattr(courier_user, 'phone', '') if courier_user else None,
+        'vehicle_number': courier_profile.vehicle_number if courier_profile else None,
+        'ai_eta_min': ai_eta_min,
+        'pred_delivery_min': pred_delivery_min,
+        'distance_km': dist_km,
+        'courier_lat': courier_lat,
+        'courier_lon': courier_lon,
+    })
+
+@never_cache
+@login_required
 def order_history(request):
     orders = Order.objects.filter(user=request.user).select_related('payment').prefetch_related('items__food_item', 'delivery_assignment__delivery_boy__user', 'delivery_feedback').order_by('-created_at')
     return render(request, 'orders/history.html', {'orders': orders})
 
+@never_cache
 @login_required
 @role_required('staff', 'admin')
 def staff_dashboard(request):
@@ -290,6 +436,8 @@ def staff_dashboard(request):
     # If no available delivery boys, show all couriers so staff can still assign
     delivery_boys = available_boys if available_boys.exists() else all_couriers
         
+    delivery_setting = get_active_delivery_setting()
+
     context = {
         'active_tab': active_tab,
         'orders': orders,
@@ -297,6 +445,8 @@ def staff_dashboard(request):
         'all_couriers': all_couriers,
         'chefs': chefs,
         'assignments': DeliveryAssignment.objects.all().order_by('-assigned_at').select_related('order__user', 'delivery_boy__user').prefetch_related('order__items__food_item'),
+        'delivery_setting': delivery_setting,
+        'kerala_preset_places': KERALA_PRESET_PLACES,
     }
     return render(request, 'orders/staff_dashboard.html', context)
 
@@ -397,8 +547,8 @@ def staff_assign_delivery(request, order_id):
         db_profile.status = 'on_delivery'
         db_profile.save()
         
-        # Update order status: Set status to assigned (Never set to delivered on courier assignment)
-        order.status = 'assigned'
+        # Update order status: Set status to ready_pickup (Never automatically set to in_transit or delivered on courier assignment)
+        order.status = 'ready_pickup'
         order.save()
         
         # Create Customer notification for Courier Assignment
@@ -429,6 +579,41 @@ def staff_assign_delivery(request, order_id):
     messages.success(request, f"Order #{order.order_id} successfully assigned to Courier {db_profile.user.username.title()}.")
     return redirect('staff_dashboard')
 
+@login_required
+@role_required('staff', 'admin')
+def staff_save_delivery_perimeter(request):
+    """Saves Delivery Center and Perimeter Service Area configuration."""
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip() or 'Central Kitchen Hub (Kochi)'
+        address = request.POST.get('address', '').strip() or 'MG Road / Central Hub, Ernakulam, Kerala'
+        try:
+            latitude = float(request.POST.get('latitude', 9.9816))
+            longitude = float(request.POST.get('longitude', 76.2999))
+        except (ValueError, TypeError):
+            latitude = 9.9816
+            longitude = 76.2999
+
+        try:
+            radius_km = float(request.POST.get('max_delivery_radius_km', 15.0))
+            if radius_km <= 0:
+                radius_km = 15.0
+        except (ValueError, TypeError):
+            radius_km = 15.0
+
+        from delivery.models import DeliverySetting
+        setting = DeliverySetting.get_settings()
+        setting.name = name
+        setting.address = address
+        setting.latitude = latitude
+        setting.longitude = longitude
+        setting.max_delivery_radius_km = radius_km
+        setting.save()
+
+        messages.success(
+            request, 
+            f"Delivery Center '{name}' and Service Perimeter ({radius_km} km radius) updated successfully!"
+        )
+    return redirect(f"{reverse('staff_dashboard')}?tab=perimeter")
 
 @login_required
 def wishlist_view(request):

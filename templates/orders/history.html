@@ -1,77 +1,101 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
-    <h1 style="color: var(--primary-dark); font-size: 2.2rem; font-weight: 700;">📦 My Orders & <span style="color: var(--primary);">Track Order</span></h1>
-    
-    <!-- Quick Track Order Search Box -->
-    <form method="GET" onsubmit="event.preventDefault(); var id = document.getElementById('quick_track_id').value.toUpperCase().trim(); if(id) window.location.href='/orders/track/' + id + '/';" style="display: flex; gap: 0.5rem;">
-        <input type="text" id="quick_track_id" placeholder="Enter Order ID to Track..." class="form-control" style="width: 220px; font-size: 0.88rem; font-weight: 600; text-transform: uppercase;">
-        <button type="submit" class="btn" style="font-weight: 600; font-size: 0.85rem; padding: 0.5rem 1.2rem;">🚚 Track Order</button>
-    </form>
-</div>
+{% block title %}My Orders & Order History — Veetile-Ruchi{% endblock %}
 
-<div class="card">
-    <div style="overflow-x: auto;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left;">
-            <thead>
-                <tr style="border-bottom: 2px solid var(--dark-border); color: var(--text-muted); font-size: 0.9rem; font-weight: 700;">
-                    <th style="padding: 1rem 0.75rem;">Order ID</th>
-                    <th style="padding: 1rem 0.75rem;">Ordered Dishes & Food Items</th>
-                    <th style="padding: 1rem 0.75rem;">Amount</th>
-                    <th style="padding: 1rem 0.75rem;">Order Status</th>
-                    <th style="padding: 1rem 0.75rem;">Date</th>
-                    <th style="padding: 1rem 0.75rem; text-align: right;">Track Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for order in orders %}
-                <tr style="border-bottom: 1px solid var(--dark-border); font-size: 0.95rem;">
-                    <td style="padding: 1rem 0.75rem; font-weight: 700; color: var(--primary-dark);">{{ order.order_id }}</td>
-                    <td style="padding: 1rem 0.75rem;">
-                        <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center;">
-                            {% for item in order.items.all %}
-                                <span style="display: inline-flex; align-items: center; gap: 0.3rem; background: #fff8ea; border: 1px solid #fcdbb3; border-radius: 6px; padding: 0.25rem 0.55rem; font-size: 0.85rem; color: var(--primary-brown); font-weight: 600;">
-                                    🍱 {{ item.food_item.name }}
-                                    <strong style="color: var(--primary-orange); font-size: 0.8rem; background: #fce5c8; padding: 0.05rem 0.35rem; border-radius: 4px;">×{{ item.quantity }}</strong>
-                                </span>
-                            {% empty %}
-                                <span style="color: var(--text-muted); font-size: 0.85rem;">{{ order.items.count }} dishes</span>
-                            {% endfor %}
-                        </div>
-                    </td>
-                    <td style="padding: 1rem 0.75rem; font-weight: 700; color: var(--text-light);">₹{{ order.total_amount }}</td>
-                    <td style="padding: 1rem 0.75rem;">
-                        <span class="badge {% if order.status == 'delivered' %}badge-success{% elif order.status == 'cancelled' %}badge-danger{% else %}badge-warning{% endif %}" style="font-weight: 700;">
-                            {{ order.get_status_display }}
-                        </span>
-                    </td>
-                    <td style="padding: 1rem 0.75rem; color: var(--text-muted);">{{ order.created_at|date:"M d, Y" }}</td>
-                    <td style="padding: 1rem 0.75rem; text-align: right;">
-                        {% if order.status == 'delivered' %}
-                            {% if order.delivery_feedback %}
-                                <a href="{% url 'order_tracking' order.order_id %}" class="btn btn-outline" style="padding: 0.45rem 1rem; font-size: 0.82rem; font-weight: 600;">
-                                    ⭐ Rated {{ order.delivery_feedback.rating }}★
-                                </a>
+{% block content %}
+<div style="max-width: 1100px; margin: 1.5rem auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h1 style="color: var(--primary-green); font-size: 2rem; font-weight: 700; margin: 0;">
+                📦 My Orders & Live Tracking
+            </h1>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin: 0.2rem 0 0 0; font-weight: 400;">
+                Track your active food deliveries in real-time or view past meal history
+            </p>
+        </div>
+        
+        <!-- Quick Track Order Search Box -->
+        <form method="GET" onsubmit="event.preventDefault(); var id = document.getElementById('quick_track_id').value.toUpperCase().trim(); if(id) window.location.href='/orders/track/' + id + '/';" style="display: flex; gap: 0.5rem;">
+            <input type="text" id="quick_track_id" placeholder="Enter Order ID (e.g. VR-XXXX)..." class="form-control" style="width: 230px; font-size: 0.9rem; font-weight: 500; text-transform: uppercase;" required>
+            <button type="submit" class="btn btn-sm" style="padding: 0.5rem 1.25rem;">
+                🚚 Track
+            </button>
+        </form>
+    </div>
+
+    <div class="card" style="padding: 1.5rem;">
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 680px;">
+                <thead>
+                    <tr style="border-bottom: 2px solid var(--border-warm); color: var(--text-muted); font-size: 0.9rem; font-weight: 600;">
+                        <th style="padding: 1rem 0.75rem;">Order ID</th>
+                        <th style="padding: 1rem 0.75rem;">Ordered Homemade Dishes</th>
+                        <th style="padding: 1rem 0.75rem;">Total Amount</th>
+                        <th style="padding: 1rem 0.75rem;">Order Status</th>
+                        <th style="padding: 1rem 0.75rem;">Date</th>
+                        <th style="padding: 1rem 0.75rem; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr style="border-bottom: 1px solid var(--border-warm); font-size: 0.95rem;">
+                        <td style="padding: 1rem 0.75rem; font-weight: 600; color: var(--primary-green);">
+                            {{ order.order_id }}
+                        </td>
+                        <td style="padding: 1rem 0.75rem;">
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;">
+                                {% for item in order.items.all %}
+                                    <span style="display: inline-flex; align-items: center; gap: 0.35rem; background: var(--bg-cream); border: 1px solid var(--border-warm); border-radius: 6px; padding: 0.25rem 0.6rem; font-size: 0.88rem; color: var(--text-heading); font-weight: 500;">
+                                        🍲 {{ item.food_item.name }}
+                                        <span style="color: var(--primary-green); font-size: 0.82rem; background: var(--accent-green-bg); padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 600;">×{{ item.quantity }}</span>
+                                    </span>
+                                {% empty %}
+                                    <span style="color: var(--text-muted); font-size: 0.88rem;">{{ order.items.count }} dishes</span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td style="padding: 1rem 0.75rem; font-weight: 700; color: var(--primary-green); font-size: 1.15rem;">
+                            ₹{{ order.total_amount }}
+                        </td>
+                        <td style="padding: 1rem 0.75rem;">
+                            <span class="badge {% if order.status == 'delivered' %}badge-success{% elif order.status == 'cancelled' %}badge-danger{% elif order.status == 'in_transit' %}badge-warning{% else %}badge-primary{% endif %}" style="font-size: 0.85rem;">
+                                {{ order.get_status_display }}
+                            </span>
+                        </td>
+                        <td style="padding: 1rem 0.75rem; color: var(--text-muted); font-size: 0.88rem; font-weight: 400;">
+                            {{ order.created_at|date:"M d, Y • g:i A" }}
+                        </td>
+                        <td style="padding: 1rem 0.75rem; text-align: right;">
+                            {% if order.status == 'delivered' %}
+                                {% if order.delivery_feedback %}
+                                    <a href="{% url 'order_tracking' order.order_id %}" class="btn btn-outline btn-sm">
+                                        ⭐ Rated {{ order.delivery_feedback.rating }}★
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'order_tracking' order.order_id %}" class="btn btn-sm" style="background: var(--primary-orange);">
+                                        ⭐ Review
+                                    </a>
+                                {% endif %}
                             {% else %}
-                                <a href="{% url 'order_tracking' order.order_id %}" class="btn" style="padding: 0.45rem 1rem; font-size: 0.82rem; font-weight: 600; background: #d97736;">
-                                    ⭐ Give Feedback
+                                <a href="{% url 'order_tracking' order.order_id %}" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                                    🚚 Track Live
                                 </a>
                             {% endif %}
-                        {% else %}
-                            <a href="{% url 'order_tracking' order.order_id %}" class="btn" style="padding: 0.45rem 1.1rem; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;">
-                                🚚 Track Order
-                            </a>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" style="padding: 3rem; text-align: center; color: var(--text-muted);">You have not placed any orders yet.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" style="padding: 3.5rem 1rem; text-align: center; color: var(--text-muted);">
+                            <span style="font-size: 3rem; display: block; margin-bottom: 0.5rem;">📦</span>
+                            <span style="color: var(--primary-brown); font-size: 1.15rem; font-weight: 600; display: block; margin-bottom: 0.25rem;">No orders placed yet</span>
+                            <p style="font-size: 0.95rem; margin-bottom: 1.25rem; font-weight: 400;">Order fresh authentic homemade food today!</p>
+                            <a href="{% url 'food_catalog' %}" class="btn">Browse Today's Menu</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}

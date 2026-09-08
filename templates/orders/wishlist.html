@@ -1,56 +1,85 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-    <div>
-        <h1 style="font-size: 2.2rem; font-weight: 700; color: var(--primary-dark);">❤️ My Saved Favorites & Wishlist</h1>
-        <p style="color: var(--text-muted); font-size: 1rem;">Easily access your favorite homemade dishes and add them to your cart.</p>
-    </div>
-    <a href="{% url 'food_catalog' %}" class="btn btn-outline">&larr; Back to Menu Card</a>
-</div>
+{% block title %}My Saved Favorites & Wishlist — Veetile-Ruchi{% endblock %}
 
-<div class="grid-3">
-    {% for wish in wishes %}
-        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between;">
-            <div>
-                <div style="height: 180px; border-radius: 12px; overflow: hidden; background: #fce5c8; position: relative; margin-bottom: 1rem;">
-                    <img src="{{ wish.food_item.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ wish.food_item.name }}" style="width: 100%; height: 100%; object-fit: cover;">
-                    <span class="badge badge-accent" style="position: absolute; top: 10px; left: 10px; font-weight: 700;">
-                        FOOD{{ wish.food_item.id|stringformat:"04d" }} | {{ wish.food_item.category.name }}
+{% block content %}
+<div style="max-width: 1100px; margin: 1.5rem auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h1 style="color: var(--primary-green); font-size: 2rem; font-weight: 700; margin: 0;">
+                ❤️ My Saved Favorites & Wishlist
+            </h1>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin: 0.2rem 0 0 0; font-weight: 400;">
+                Easily access your favorite Kerala home-cooked dishes and add them to your shopping basket with 1 click.
+            </p>
+        </div>
+        <a href="{% url 'food_catalog' %}" class="btn btn-outline btn-sm">
+            + Explore More Dishes
+        </a>
+    </div>
+
+    <div class="grid-3">
+        {% for wish in wishes %}
+            <div class="food-card">
+                <div class="food-card-media">
+                    <img src="{{ wish.food_item.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ wish.food_item.name }}">
+                    <span class="badge badge-green" style="position: absolute; top: 12px; left: 12px;">
+                        {{ wish.food_item.category.name }}
                     </span>
-                    <a href="{% url 'wishlist_toggle' wish.food_item.id %}" style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.92); padding: 0.35rem 0.75rem; border-radius: 50px; text-decoration: none; font-size: 0.82rem; font-weight: 700; color: #ef4444; box-shadow: 0 2px 8px rgba(0,0,0,0.15);" title="Remove from Wishlist">
+                    <a href="{% url 'wishlist_toggle' wish.food_item.id %}" style="position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.95); padding: 0.35rem 0.75rem; border-radius: 50px; text-decoration: none; font-size: 0.8rem; font-weight: 500; color: #ef4444; box-shadow: var(--shadow-sm);" title="Remove from favorites">
                         ❌ Remove
                     </a>
                 </div>
 
-                <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--primary-brown); margin-bottom: 0.4rem;">{{ wish.food_item.name }}</h3>
-                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem;">
-                    {{ wish.food_item.description|default:"Delectable fresh homemade preparation." }}
-                </p>
+                <div class="food-card-body">
+                    <div>
+                        <h3 class="food-card-title">{{ wish.food_item.name }}</h3>
+                        <p class="food-card-desc">
+                            {{ wish.food_item.description|default:"Authentic Kerala homemade preparation." }}
+                        </p>
 
-                {% if wish.food_item.stock_quantity <= 0 %}
-                    <p style="font-size: 0.8rem; color: var(--danger); font-weight: 600; margin-bottom: 0.5rem;">⚠️ Sold Out (Out of Stock)</p>
-                {% else %}
-                    <p style="font-size: 0.8rem; color: var(--success); font-weight: 500; margin-bottom: 0.5rem;">🟢 Stock Available: {{ wish.food_item.stock_quantity }} portions</p>
-                {% endif %}
-            </div>
+                        <!-- Stock availability -->
+                        <div style="margin-bottom: 0.75rem;">
+                            {% if wish.food_item.stock_quantity <= 0 %}
+                                <span class="badge badge-danger" style="font-size: 0.8rem;">
+                                    ⚠️ Sold Out
+                                </span>
+                            {% else %}
+                                <span class="badge badge-success" style="font-size: 0.8rem;">
+                                    🟢 In Stock: {{ wish.food_item.stock_quantity }} portions
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-light); padding-top: 1rem; margin-top: 1rem;">
-                <span style="font-weight: 700; color: var(--primary-orange); font-size: 1.4rem;">₹{{ wish.food_item.price }}</span>
-                <div style="display: flex; gap: 0.5rem;">
-                    <a href="{% url 'food_detail' wish.food_item.id %}" class="btn btn-outline" style="padding: 0.45rem 0.9rem; font-size: 0.85rem;">Details</a>
-                    {% if wish.food_item.stock_quantity > 0 %}
-                        <a href="{% url 'cart_add' wish.food_item.id %}" class="btn" style="padding: 0.45rem 1.1rem; font-size: 0.85rem;">Add to Cart 🛒</a>
-                    {% endif %}
+                    <!-- Price & Action Buttons -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1.5px solid var(--border-warm); padding-top: 0.85rem; margin-top: 0.5rem;">
+                        <span class="food-card-price">₹{{ wish.food_item.price }}</span>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <a href="{% url 'food_detail' wish.food_item.id %}" class="btn btn-outline btn-sm">
+                                Details
+                            </a>
+                            {% if wish.food_item.stock_quantity > 0 %}
+                                <a href="{% url 'cart_add' wish.food_item.id %}" class="btn btn-sm">
+                                    + Add
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    {% empty %}
-        <div style="grid-column: 1 / -1; padding: 4rem 2rem; text-align: center; color: var(--text-muted); background: white; border-radius: 20px; border: 1.5px solid var(--border-light);">
-            <p style="font-size: 1.3rem; font-weight: 700; color: var(--primary-brown); margin-bottom: 0.5rem;">Your wishlist is currently empty.</p>
-            <p style="font-size: 0.95rem; margin-bottom: 1.5rem;">Browse our kitchen menu card and click the ❤️ icon on any dish to save it here!</p>
-            <a href="{% url 'food_catalog' %}" class="btn">Explore Menu Card</a>
-        </div>
-    {% endfor %}
+        {% empty %}
+            <div style="grid-column: 1 / -1; padding: 4.5rem 2rem; text-align: center; background: #FFFFFF; border-radius: var(--radius-lg); border: 1.5px solid var(--border-warm); box-shadow: var(--shadow-sm);">
+                <span style="font-size: 3.5rem; display: block; margin-bottom: 0.75rem;">❤️</span>
+                <h3 style="color: var(--primary-brown); font-weight: 600; margin-bottom: 0.5rem;">Your Wishlist is Empty</h3>
+                <p style="font-size: 1rem; color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 400;">
+                    Browse our kitchen menu and tap the ❤️ icon on any dish to save it here for quick ordering!
+                </p>
+                <a href="{% url 'food_catalog' %}" class="btn" style="padding: 0.75rem 1.8rem;">
+                    Explore Today's Menu
+                </a>
+            </div>
+        {% endfor %}
+    </div>
 </div>
 {% endblock %}

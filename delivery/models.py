@@ -50,3 +50,38 @@ class DeliveryFeedback(models.Model):
 
     def __str__(self):
         return f"Feedback for Order #{self.order.order_id} - {self.rating}★ by {self.customer.username}"
+
+class DeliverySetting(models.Model):
+    """
+    Configurable Delivery Center & Service Area Perimeter settings managed by Admin/Staff.
+    """
+    name = models.CharField(max_length=120, default='Central Kitchen Hub (Kanjirappally)')
+    address = models.CharField(max_length=255, default='Kanjirappally Town, Kottayam, Kerala')
+    latitude = models.FloatField(default=9.5564)
+    longitude = models.FloatField(default=76.7909)
+    max_delivery_radius_km = models.FloatField(default=20.0)
+    is_active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Delivery Service Area Setting'
+        verbose_name_plural = 'Delivery Service Area Settings'
+
+    @classmethod
+    def get_settings(cls):
+        setting = cls.objects.filter(is_active=True).first()
+        if not setting:
+            setting = cls.objects.first()
+        if not setting:
+            setting = cls.objects.create(
+                name='Central Kitchen Hub (Kanjirappally)',
+                address='Kanjirappally Town, Kottayam, Kerala',
+                latitude=9.5564,
+                longitude=76.7909,
+                max_delivery_radius_km=20.0,
+                is_active=True
+            )
+        return setting
+
+    def __str__(self):
+        return f"{self.name} (Radius: {self.max_delivery_radius_km} km)"

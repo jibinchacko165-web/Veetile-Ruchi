@@ -1,217 +1,212 @@
 {% extends 'base.html' %}
 
+{% block title %}{{ food.name }} — Veetile-Ruchi{% endblock %}
+
 {% block content %}
-<a href="{% url 'food_catalog' %}" class="nav-link mb-3" style="display: inline-block;">&larr; Back to Catalog</a>
+<div style="max-width: 1080px; margin: 1rem auto;">
+    <!-- Back to Catalog Link -->
+    <a href="{% url 'food_catalog' %}" class="btn btn-outline btn-sm" style="margin-bottom: 1.5rem; display: inline-flex; align-items: center; gap: 0.4rem;">
+        &larr; Back to Kitchen Menu
+    </a>
 
-<div class="grid-2">
-    <!-- Left side: Image and details -->
-    <div>
-        <div style="height: 380px; border-radius: 16px; overflow: hidden; background: #2d2d34; border: 1px solid var(--dark-border);">
-            <img src="{{ food.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ food.name }}" style="width: 100%; height: 100%; object-fit: cover;">
-        </div>
-        
-        <h1 style="font-size: 2.5rem; margin-top: 1.5rem; color: var(--text-light); margin-bottom: 0.5rem;">{{ food.name }}</h1>
-        
-        <p style="font-size: 1.1rem; color: var(--text-muted); line-height: 1.6; margin: 0.5rem 0;">
-            {{ food.description|default:"Prepared fresh by home chefs using hand-picked organic ingredients under high-quality standards." }}
-        </p>
-
-        <div style="background-color: var(--dark-surface); border: 1px solid var(--dark-border); padding: 1rem 1.5rem; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; margin: 1.5rem 0;">
-            <div>
-                <span style="font-size: 0.85rem; color: var(--text-muted); display: block;">Cooked by Chef</span>
-                <strong style="color: var(--primary);">{{ food.chef.username|upper }}</strong>
-            </div>
-            <div style="text-align: right;">
-                <span style="font-size: 1.4rem; color: var(--warning);">★</span>
-                <strong>5.0</strong>
-            </div>
-        </div>
-
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 2rem;">
-            <span style="font-size: 2.2rem; font-weight: 700; color: var(--primary);">₹{{ food.price }}</span>
-            {% if food.stock_quantity > 0 %}
-                <a href="{% url 'cart_add' food.id %}" class="btn" style="padding: 0.8rem 2rem; font-size: 1.1rem;">Add to Basket</a>
-            {% else %}
-                <span class="badge badge-danger" style="font-size: 1rem; padding: 0.5rem 1.5rem;">SOLD OUT</span>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- Right side: Nutrition and Health Suitability -->
-    <div>
-        <!-- AI Health Suitability Indicators -->
-        <div class="card mb-3" style="border-top: 4px solid var(--accent);">
-            <h3 class="mb-2" style="color: var(--accent);">🛡️ AI Health Suitability</h3>
-            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem;">
-                AI algorithms classify this dish suitability for standard dietary requirements.
-            </p>
-            
-            <div style="display: flex; flex-direction: column; gap: 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--dark-border);">
-                    <span>Diabetes-Friendly</span>
-                    {% if suitability.diabetes %}
-                        <span class="badge badge-success">✓ SAFE (Low Sugar)</span>
-                    {% else %}
-                        <span class="badge badge-danger">✗ AVOID (High Sugar)</span>
-                    {% endif %}
-                </div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--dark-border);">
-                    <span>Cholesterol-Friendly</span>
-                    {% if suitability.cholesterol %}
-                        <span class="badge badge-success">✓ SAFE (Low Cholesterol)</span>
-                    {% else %}
-                        <span class="badge badge-danger">✗ AVOID (High Fat)</span>
-                    {% endif %}
-                </div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--dark-border);">
-                    <span>Blood Pressure-Friendly</span>
-                    {% if suitability.bp %}
-                        <span class="badge badge-success">✓ SAFE (Low Sodium)</span>
-                    {% else %}
-                        <span class="badge badge-danger">✗ AVOID (High Sodium)</span>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Detailed Nutrition Metrics -->
-        <div class="card">
-            <h3 class="mb-3" style="color: var(--primary);">📊 Nutritional Facts</h3>
-            {% if food.nutrition %}
-                <div style="display: flex; flex-direction: column; gap: 1.25rem;">
-                    <!-- Calories -->
-                    <div>
-                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.25rem;">
-                            <span>Calories</span>
-                            <strong>{{ food.nutrition.calories }} kcal</strong>
-                        </div>
-                        <div style="height: 6px; background-color: var(--dark-bg); border-radius: 3px; overflow: hidden;">
-                            <div style="width: {% widthratio food.nutrition.calories 800 100 %}%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--primary-light));"></div>
-                        </div>
-                    </div>
-                    
-                    <!-- Sugar -->
-                    <div>
-                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.25rem;">
-                            <span>Sugar</span>
-                            <strong>{{ food.nutrition.sugar }} g</strong>
-                        </div>
-                        <div style="height: 6px; background-color: var(--dark-bg); border-radius: 3px; overflow: hidden;">
-                            <div style="width: {% widthratio food.nutrition.sugar 30 100 %}%; height: 100%; background-color: #f72585;"></div>
-                        </div>
-                    </div>
-                    
-                    <!-- Cholesterol -->
-                    <div>
-                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.25rem;">
-                            <span>Cholesterol</span>
-                            <strong>{{ food.nutrition.cholesterol }} mg</strong>
-                        </div>
-                        <div style="height: 6px; background-color: var(--dark-bg); border-radius: 3px; overflow: hidden;">
-                            <div style="width: {% widthratio food.nutrition.cholesterol 150 100 %}%; height: 100%; background-color: #ffb703;"></div>
-                        </div>
-                    </div>
-
-                    <!-- Sodium -->
-                    <div>
-                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.25rem;">
-                            <span>Sodium</span>
-                            <strong>{{ food.nutrition.sodium }} mg</strong>
-                        </div>
-                        <div style="height: 6px; background-color: var(--dark-bg); border-radius: 3px; overflow: hidden;">
-                            <div style="width: {% widthratio food.nutrition.sodium 800 100 %}%; height: 100%; background-color: var(--accent);"></div>
-                        </div>
-                    </div>
-
-                    <!-- Macro breakdown grid -->
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1rem; border-top: 1px solid var(--dark-border); padding-top: 1rem;">
-                        <div>
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">Protein</span>
-                            <p style="font-weight: 700; font-size: 1.1rem; color: var(--text-light);">{{ food.nutrition.protein }}g</p>
-                        </div>
-                        <div>
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">Total Fat</span>
-                            <p style="font-weight: 700; font-size: 1.1rem; color: var(--text-light);">{{ food.nutrition.fat }}g</p>
-                        </div>
-                        <div>
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">Carbs</span>
-                            <p style="font-weight: 700; font-size: 1.1rem; color: var(--text-light);">{{ food.nutrition.carbohydrates }}g</p>
-                        </div>
-                        <div>
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">Fiber</span>
-                            <p style="font-weight: 700; font-size: 1.1rem; color: var(--text-light);">{{ food.nutrition.fiber }}g</p>
-                        </div>
-                    </div>
-                </div>
-            {% else %}
-                <p style="color: var(--text-muted); text-align: center;">No nutritional specifications recorded for this dish.</p>
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<!-- Reviews and Sentiments Section -->
-<div class="mt-3 card">
-    <h2 class="mb-3" style="color: var(--text-light);">Reviews & AI Sentiment Insights (Avg: {{ avg_rating }} ★)</h2>
-    
-    <div class="grid-2">
-        <!-- Review submission -->
+    <div class="grid-2" style="grid-template-columns: 1.15fr 1fr; gap: 2rem; align-items: start;">
+        <!-- Left Column: Focal Dish Image & Chef Trust Card -->
         <div>
-            {% if user.is_authenticated %}
-                <h4 class="mb-2" style="color: var(--primary);">Write a Review</h4>
-                <form method="POST">
-                    {% csrf_token %}
-                    <div class="form-group">
-                        <label class="form-label" for="rating">Rating (1-5)</label>
-                        <select name="rating" id="rating" class="form-control" required style="max-width: 150px;">
-                            <option value="5" selected>5 Stars</option>
-                            <option value="4">4 Stars</option>
-                            <option value="3">3 Stars</option>
-                            <option value="2">2 Stars</option>
-                            <option value="1">1 Star</option>
-                        </select>
+            <div style="border-radius: var(--radius-lg); overflow: hidden; background: #F4EBE1; border: 1.5px solid var(--border-warm); box-shadow: var(--shadow-md); position: relative; height: 380px;">
+                <img src="{{ food.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ food.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                
+                <span class="badge badge-green" style="position: absolute; top: 16px; left: 16px; font-size: 0.82rem;">
+                    {{ food.category.name }}
+                </span>
+                
+                <span class="badge badge-primary" style="position: absolute; top: 16px; right: 16px; font-size: 0.82rem;">
+                    {{ food.meal_session.name }}
+                </span>
+            </div>
+
+            <!-- Home Chef Kitchen Card -->
+            <div class="card mt-3" style="border-left: 4px solid var(--primary-green); padding: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span style="font-size: 2rem;">👩‍🍳</span>
+                        <div>
+                            <span style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 500; display: block;">Prepared by Home Chef</span>
+                            <span style="color: var(--primary-brown); font-size: 1.1rem; font-weight: 600;">{{ food.chef.username|upper }}</span>
+                            <p style="margin: 0; font-size: 0.85rem; color: var(--primary-green); font-weight: 500;">✓ Verified Local Kerala Kitchen</p>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label" for="review_text">Your Comment</label>
-                        <textarea name="review_text" id="review_text" rows="4" class="form-control" placeholder="Share your experience (AI will analyze the sentiment of your comment...)" required></textarea>
+                    <div style="text-align: right;">
+                        <span style="font-size: 1.2rem; color: var(--gold-accent); font-weight: 600;">★ 5.0</span>
+                        <span style="display: block; font-size: 0.78rem; color: var(--text-muted);">Home Cooked</span>
                     </div>
-                    <button type="submit" class="btn">Submit Review</button>
-                </form>
-            {% else %}
-                <div style="background-color: var(--dark-bg); border: 1px solid var(--dark-border); padding: 1.5rem; border-radius: 8px; text-align: center;">
-                    <p style="color: var(--text-muted);">Please <a href="{% url 'login' %}" style="color: var(--primary);">login</a> to write a review.</p>
                 </div>
-            {% endif %}
+            </div>
         </div>
 
-        <!-- Review list with AI Sentiments -->
-        <div style="max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
-            <h4 class="mb-2" style="color: var(--text-light);">Feedback</h4>
-            {% for review in reviews %}
-                <div style="background-color: var(--dark-bg); border: 1px solid var(--dark-border); border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <strong>{{ review.user.username|upper }}</strong>
-                        <span style="color: var(--warning);">
-                            {% if review.rating == 5 %}★★★★★{% elif review.rating == 4 %}★★★★☆{% elif review.rating == 3 %}★★★☆☆{% elif review.rating == 2 %}★★☆☆☆{% else %}★☆☆☆☆{% endif %}
+        <!-- Right Column: Dish Info, Price, Quantity Stepper, & Actions -->
+        <div>
+            <div class="card" style="padding: 1.75rem;">
+                <h1 style="font-size: 2.1rem; font-weight: 700; color: var(--primary-green); margin-bottom: 0.5rem; line-height: 1.2;">
+                    {{ food.name }}
+                </h1>
+
+                <p style="font-size: 1rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 1.25rem; font-weight: 400;">
+                    {{ food.description|default:"Prepared fresh by local home chefs using traditional hand-ground spices and organic Kerala ingredients with utmost hygiene." }}
+                </p>
+
+                <!-- Stock / Portion Status -->
+                <div style="margin-bottom: 1.25rem;">
+                    {% if food.stock_quantity <= 0 %}
+                        <span class="badge badge-danger" style="font-size: 0.88rem; padding: 0.35rem 0.9rem;">
+                            ⚠️ Sold Out Today
                         </span>
+                    {% else %}
+                        <span class="badge badge-success" style="font-size: 0.88rem; padding: 0.35rem 0.9rem;">
+                            🟢 In Stock: {{ food.stock_quantity }} portions freshly made today
+                        </span>
+                    {% endif %}
+                </div>
+
+                <!-- Price and Ordering Box -->
+                <div style="background: var(--bg-cream); border: 1.5px solid var(--border-leaf); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1rem;">
+                        <span style="font-size: 0.95rem; color: var(--text-muted); font-weight: 500;">Price per portion:</span>
+                        <span style="font-size: 1.85rem; font-weight: 700; color: var(--primary-green);">₹{{ food.price }}</span>
                     </div>
-                    <p style="font-size: 0.9rem; color: var(--text-light); line-height: 1.4; margin-bottom: 0.5rem;">
-                        "{{ review.review_text }}"
-                    </p>
-                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.4rem;">
-                        <span style="color: var(--text-muted);">{{ review.created_at|date:"M d, Y" }}</span>
-                        <!-- AI Sentiment prediction output -->
-                        <span class="badge {% if review.sentiment == 'positive' %}badge-success{% elif review.sentiment == 'negative' %}badge-danger{% else %}badge-warning{% endif %}">
-                            AI Sentiment: {{ review.sentiment|upper }} ({{ review.confidence_score|floatformat:0 }}%)
-                        </span>
+
+                    {% if food.stock_quantity > 0 %}
+                        <div style="display: flex; gap: 0.75rem;">
+                            <a href="{% url 'cart_add' food.id %}" class="btn" style="flex: 1; font-size: 1.05rem; font-weight: 600; border-radius: 10px;">
+                                <i class="fa-solid fa-cart-shopping"></i> Add to Basket
+                            </a>
+                            {% if user.is_authenticated and user.role == 'customer' %}
+                                <a href="{% url 'wishlist_toggle' food.id %}" class="btn btn-outline" style="padding: 0.75rem 1.1rem;" title="Save to Favorites">
+                                    <i class="fa-solid fa-heart" style="color: #EF4444;"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <button class="btn" disabled style="width: 100%; opacity: 0.6; cursor: not-allowed;">
+                            Currently Unavailable
+                        </button>
+                    {% endif %}
+                </div>
+
+                <!-- AI Health Suitability Breakdown -->
+                <div style="margin-bottom: 1.5rem;">
+                    <h3 style="font-size: 1.15rem; font-weight: 600; color: var(--text-heading); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
+                        <span>🛡️</span> AI Dietary & Health Suitability
+                    </h3>
+
+                    <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.92rem; font-weight: 400;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px dashed var(--border-warm);">
+                            <span>Diabetic Friendly:</span>
+                            {% if suitability.diabetes %}
+                                <span class="badge badge-success">✓ SAFE (Low Glycemic)</span>
+                            {% else %}
+                                <span class="badge badge-danger">✗ Moderate Carbohydrate</span>
+                            {% endif %}
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px dashed var(--border-warm);">
+                            <span>Cholesterol Friendly:</span>
+                            {% if suitability.cholesterol %}
+                                <span class="badge badge-success">✓ SAFE (Low Oil/Fat)</span>
+                            {% else %}
+                                <span class="badge badge-danger">✗ Rich in Coconut/Oil</span>
+                            {% endif %}
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0;">
+                            <span>Blood Pressure Friendly:</span>
+                            {% if suitability.bp %}
+                                <span class="badge badge-success">✓ SAFE (Low Sodium)</span>
+                            {% else %}
+                                <span class="badge badge-danger">✗ Moderate Salt</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
-            {% empty %}
-                <p style="color: var(--text-muted); text-align: center; padding: 2rem;">No reviews submitted yet. Be the first to review!</p>
-            {% endfor %}
+
+                <!-- Nutritional Breakdown -->
+                {% if food.nutrition %}
+                    <div style="border-top: 1.5px solid var(--border-warm); padding-top: 1.25rem;">
+                        <h4 style="font-size: 1.05rem; font-weight: 600; color: var(--primary-brown); margin-bottom: 0.75rem;">
+                            📊 Nutritional Facts & Information
+                        </h4>
+                        <div class="grid-4" style="text-align: center;">
+                            <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Calories</span>
+                                <span style="color: var(--primary-brown); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.calories }} kcal</span>
+                            </div>
+                            <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Protein</span>
+                                <span style="color: var(--primary-green); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.protein }}g</span>
+                            </div>
+                            <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Carbs</span>
+                                <span style="color: var(--primary-brown); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.carbs }}g</span>
+                            </div>
+                            <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Fats</span>
+                                <span style="color: var(--primary-orange); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.fats }}g</span>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
         </div>
+    </div>
+
+    <!-- Customer Reviews & Feedback Section -->
+    <div class="card mt-4" style="padding: 1.75rem;">
+        <h3 style="font-size: 1.3rem; font-weight: 600; color: var(--primary-brown); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.4rem;">
+            <span>💬</span> Customer Reviews
+        </h3>
+
+        {% if reviews %}
+            <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;">
+                {% for rev in reviews %}
+                    <div style="background: var(--bg-cream); border: 1.5px solid var(--border-warm); border-radius: var(--radius-sm); padding: 1rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                            <span style="color: var(--primary-brown); font-size: 0.95rem; font-weight: 600;">{{ rev.user.first_name|default:rev.user.username }}</span>
+                            <span style="font-size: 0.85rem; color: var(--gold-accent); font-weight: 600;">
+                                {% if rev.sentiment_tag == 'Positive' %}
+                                    <span class="badge badge-success">⭐ Positive</span>
+                                {% elif rev.sentiment_tag == 'Negative' %}
+                                    <span class="badge badge-danger">⚠️ Critical</span>
+                                {% else %}
+                                    <span class="badge badge-warning">Neutral</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <p style="font-size: 0.95rem; color: var(--text-main); margin: 0; font-weight: 400;">
+                            "{{ rev.review_text }}"
+                        </p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem; font-weight: 400;">
+                Be the first to share your authentic review for this homemade dish!
+            </p>
+        {% endif %}
+
+        <!-- Review Submission Form for Logged-In Customers -->
+        {% if user.is_authenticated and user.role == 'customer' %}
+            <form method="POST" action="{% url 'food_detail' food.id %}" style="background: var(--bg-surface); padding: 1.25rem; border-radius: var(--radius-sm); border: 1.5px solid var(--border-warm);">
+                {% csrf_token %}
+                <h4 style="color: var(--primary-brown); font-weight: 600; font-size: 1.05rem; margin-bottom: 0.75rem;">
+                    Leave a Review for this Dish:
+                </h4>
+                <div class="form-group mb-2">
+                    <textarea name="review_text" rows="3" class="form-control" placeholder="Share your experience (e.g. delicious taste, perfectly spiced, authentic Kerala style)..." required style="font-size: 0.95rem; font-weight: 400;"></textarea>
+                </div>
+                <button type="submit" class="btn btn-secondary btn-sm">
+                    Submit Review
+                </button>
+            </form>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

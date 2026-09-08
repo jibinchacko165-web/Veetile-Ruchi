@@ -1,369 +1,395 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<!-- Search bar to track any order by entering Order ID -->
-<div class="card mb-3" style="max-width: 600px; margin: 0 auto 2rem; border: 2px solid var(--primary); background: linear-gradient(135deg, #fff0dd 0%, #ffffff 100%);">
-    <h3 class="mb-2 text-center" style="color: var(--primary-dark); font-weight: 700; font-size: 1.4rem;">🚚 Track Order Status</h3>
-    <form method="GET" onsubmit="event.preventDefault(); window.location.href='/orders/track/' + document.getElementById('search_id').value.toUpperCase().trim() + '/';" style="display: flex; gap: 0.5rem;">
-        <input type="text" id="search_id" placeholder="Enter Order ID (e.g. VR-20260729-A1B2)" class="form-control" style="text-transform: uppercase; font-weight: 600;" required>
-        <button type="submit" class="btn" style="font-weight: 600; padding: 0.65rem 1.6rem;">Track Order</button>
-    </form>
-</div>
+{% block title %}Track Order {{ order.order_id }} — Veetile-Ruchi{% endblock %}
 
-<div class="card" style="max-width: 800px; margin: 0 auto;">
-    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--dark-border); padding-bottom: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
-        <div>
-            <span style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Tracking Order</span>
-            <h2 style="color: var(--primary-light); font-size: 1.8rem; font-family: 'Inter', sans-serif;">{{ order.order_id }}</h2>
-        </div>
-        <div style="text-align: right;">
-            <span class="badge {% if order.status == 'delivered' %}badge-success{% elif order.status == 'cancelled' %}badge-danger{% elif order.status == 'in_transit' %}badge-warning{% else %}badge-primary{% endif %}" style="font-size: 1rem; padding: 0.5rem 1.25rem;">
-                {% if order.status == 'ready_pickup' or order.status == 'assigned' %}
-                    {% if order.delivery_assignment %}
+{% block extra_head %}
+<script>
+    let map, courierMarker, customerMarker, kitchenMarker;
+    let orderStatus = "{{ order.status }}";
+    const orderId = "{{ order.order_id }}";
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const custLat = parseFloat("{{ order.latitude|default:9.5564 }}");
+        const custLng = parseFloat("{{ order.longitude|default:76.7909 }}");
+        const kitchenLat = 9.5564; // Kanjirappally Central Kitchen Hub
+        const kitchenLng = 76.7909;
+
+        map = L.map('live-delivery-map').setView([custLat, custLng], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Custom Icons
+        const kitchenIcon = L.divIcon({
+            html: '<div style="background-color: #1B4D3E; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">🏠</div>',
+            className: 'custom-map-icon',
+            iconSize: [34, 34],
+            iconAnchor: [17, 17]
+        });
+
+        const custIcon = L.divIcon({
+            html: '<div style="background-color: #D97736; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">📍</div>',
+            className: 'custom-map-icon',
+            iconSize: [34, 34],
+            iconAnchor: [17, 17]
+        });
+
+        const courierIcon = L.divIcon({
+            html: '<div style="background-color: #F59E0B; color: #2D1E18; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 2px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.35);">🛵</div>',
+            className: 'custom-map-icon',
+            iconSize: [36, 36],
+            iconAnchor: [18, 18]
+        });
+
+        kitchenMarker = L.marker([kitchenLat, kitchenLng], {icon: kitchenIcon}).addTo(map)
+            .bindPopup('<strong>Kanjirappally Kitchen Hub</strong><br>Fresh food prepared & dispatched here.');
+
+        customerMarker = L.marker([custLat, custLng], {icon: custIcon}).addTo(map)
+            .bindPopup('<strong>Your Delivery Location</strong>');
+
+        const initCourierLat = parseFloat("{{ assignment.delivery_boy.current_latitude|default:9.5564 }}");
+        const initCourierLng = parseFloat("{{ assignment.delivery_boy.current_longitude|default:76.7909 }}");
+
+        courierMarker = L.marker([initCourierLat, initCourierLng], {icon: courierIcon}).addTo(map)
+            .bindPopup('<strong>Delivery Courier Partner</strong><br>Speeding with your hot meals!');
+
+        const group = new L.featureGroup([kitchenMarker, customerMarker, courierMarker]);
+        map.fitBounds(group.getBounds().pad(0.2));
+
+        // Start 3-Second Real-Time Status & Live GPS Polling
+        setInterval(pollLiveOrderStatus, 3000);
+    });
+
+    function updateTimelineUI(status) {
+        orderStatus = status;
+        const stages = ['pending', 'confirmed', 'preparing', 'ready_pickup', 'picked_up', 'in_transit', 'delivered'];
+        const stageIndexMap = {
+            'pending': 0,
+            'confirmed': 1,
+            'preparing': 2,
+            'ready_pickup': 3,
+            'assigned': 3,
+            'picked_up': 4,
+            'in_transit': 5,
+            'delivered': 6
+        };
+
+        const activeIndex = stageIndexMap[status] !== undefined ? stageIndexMap[status] : 0;
+        const percent = Math.min(100, Math.round((activeIndex / 6) * 100));
+
+        const progressLine = document.getElementById('timeline-progress-line');
+        if (progressLine) {
+            progressLine.style.width = `${percent}%`;
+        }
+
+        for (let i = 0; i <= 6; i++) {
+            const stepCircle = document.getElementById(`timeline-circle-${i}`);
+            const stepLabel = document.getElementById(`timeline-label-${i}`);
+            if (stepCircle) {
+                if (i <= activeIndex) {
+                    stepCircle.style.backgroundColor = 'var(--primary-green)';
+                    stepCircle.style.color = 'white';
+                } else {
+                    stepCircle.style.backgroundColor = 'var(--border-warm)';
+                    stepCircle.style.color = 'var(--text-muted)';
+                }
+            }
+            if (stepLabel) {
+                stepLabel.style.color = (i <= activeIndex) ? 'var(--primary-green)' : 'var(--text-muted)';
+                stepLabel.style.fontWeight = (i === activeIndex) ? '700' : '600';
+            }
+        }
+    }
+
+    function pollLiveOrderStatus() {
+        fetch(`/orders/live-status/${orderId}/`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // 1. Update Timeline & Status Badge
+                    updateTimelineUI(data.order_status);
+
+                    const badgeElem = document.getElementById('live-order-status-badge');
+                    if (badgeElem) {
+                        badgeElem.innerHTML = data.status_display;
+                    }
+
+                    // 2. Update AI Predicted Time
+                    const etaElem = document.getElementById('ai-predicted-eta');
+                    if (etaElem && data.ai_eta_min) {
+                        etaElem.innerHTML = `🤖 <strong>AI Predicted Delivery:</strong> Approximately ${data.ai_eta_min} minutes`;
+                    }
+
+                    // 3. Update Courier Info Card
+                    if (data.has_courier && data.courier_name) {
+                        const courierCard = document.getElementById('assigned-courier-card');
+                        if (courierCard) {
+                            courierCard.style.display = 'block';
+                            document.getElementById('courier-name-display').innerText = data.courier_name;
+                            document.getElementById('courier-phone-display').innerText = data.courier_phone || 'Phone not provided';
+                            if (data.courier_phone) {
+                                document.getElementById('courier-phone-link').href = `tel:${data.courier_phone}`;
+                            }
+                            document.getElementById('courier-vehicle-display').innerText = data.vehicle_number || 'N/A';
+                        }
+                    }
+
+                    // 4. Update Map Marker Location
+                    if (data.courier_lat && data.courier_lon && courierMarker) {
+                        courierMarker.setLatLng([parseFloat(data.courier_lat), parseFloat(data.courier_lon)]);
+                    }
+                }
+            })
+            .catch(err => console.log('Live status poll fallback:', err));
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 1050px; margin: 1.5rem auto;">
+    <a href="{% url 'order_history' %}" class="btn btn-outline btn-sm" style="margin-bottom: 1.25rem; display: inline-flex; align-items: center; gap: 0.4rem;">
+        &larr; Back to Order History
+    </a>
+
+    <!-- AI Predicted Delivery Time Banner -->
+    <div id="ai-predicted-eta" style="background: linear-gradient(135deg, #1B4D3E 0%, #2D6A4F 100%); color: white; padding: 1rem 1.5rem; border-radius: 12px; font-size: 1.1rem; font-weight: 500; margin-bottom: 1.5rem; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+        <span>🤖 <strong>AI Predicted Delivery:</strong> Approximately {{ ai_eta_min|default:"35" }} minutes</span>
+        <span style="font-size: 0.85rem; opacity: 0.9; font-weight: 400;">(Estimated based on preparation, distance & courier availability)</span>
+    </div>
+
+    <!-- Order Header Summary -->
+    <div class="card mb-4" style="padding: 1.75rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid var(--border-warm); padding-bottom: 1.25rem; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase;">
+                    Tracking Live Order Progress
+                </span>
+                <h1 style="color: var(--primary-green); font-size: 2rem; font-weight: 700; margin: 0.1rem 0 0 0;">
+                    {{ order.order_id }}
+                </h1>
+            </div>
+
+            <div>
+                <span id="live-order-status-badge" class="badge {% if order.status == 'delivered' %}badge-success{% elif order.status == 'cancelled' %}badge-danger{% elif order.status == 'in_transit' %}badge-warning{% else %}badge-green{% endif %}" style="font-size: 0.95rem; padding: 0.5rem 1.25rem; font-weight: 600;">
+                    {% if order.status == 'ready_pickup' or order.status == 'assigned' %}
                         Ready for Pickup (Courier Assigned)
                     {% else %}
-                        Ready for Pickup
+                        {{ order.get_status_display }}
                     {% endif %}
-                {% else %}
-                    {{ order.get_status_display }}
-                {% endif %}
-            </span>
-        </div>
-    </div>
-
-    <!-- Status Progress Bar -->
-    <div class="mb-3" style="background-color: var(--dark-bg); padding: 2rem 1.5rem; border-radius: 12px; border: 1px solid var(--dark-border);">
-        <div style="display: flex; justify-content: space-between; position: relative;">
-            <div style="position: absolute; top: 15px; left: 10%; right: 10%; height: 4px; background-color: var(--dark-border); z-index: 1;">
-                <div style="height: 100%; background: linear-gradient(90deg, var(--primary), var(--success)); width: {% if order.status == 'pending' %}0%{% elif order.status == 'preparing' %}25%{% elif order.status == 'ready_pickup' or order.status == 'assigned' or order.status == 'picked_up' %}50%{% elif order.status == 'in_transit' %}75%{% elif order.status == 'delivered' %}100%{% else %}0%{% endif %}%; transition: width 0.8s ease;"></div>
-            </div>
-            
-            <div style="text-align: center; position: relative; z-index: 2; width: 20%;">
-                <div style="width: 34px; height: 34px; border-radius: 50%; background-color: {% if order.status in 'pending,preparing,ready_pickup,assigned,picked_up,in_transit,delivered' %}var(--primary){% else %}var(--dark-border){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: bold; border: 3px solid var(--dark-bg);">1</div>
-                <span style="font-size: 0.85rem; font-weight: 600; color: {% if order.status in 'pending,preparing,ready_pickup,assigned,picked_up,in_transit,delivered' %}var(--text-main){% else %}var(--text-muted){% endif %};">Confirmed</span>
-            </div>
-            <div style="text-align: center; position: relative; z-index: 2; width: 20%;">
-                <div style="width: 34px; height: 34px; border-radius: 50%; background-color: {% if order.status in 'preparing,ready_pickup,assigned,picked_up,in_transit,delivered' %}var(--primary){% else %}var(--dark-border){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: bold; border: 3px solid var(--dark-bg);">2</div>
-                <span style="font-size: 0.85rem; font-weight: 600; color: {% if order.status in 'preparing,ready_pickup,assigned,picked_up,in_transit,delivered' %}var(--text-main){% else %}var(--text-muted){% endif %};">Preparing</span>
-            </div>
-            <div style="text-align: center; position: relative; z-index: 2; width: 20%;">
-                <div style="width: 34px; height: 34px; border-radius: 50%; background-color: {% if order.status in 'ready_pickup,assigned,picked_up,in_transit,delivered' %}var(--primary){% else %}var(--dark-border){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: bold; border: 3px solid var(--dark-bg);">3</div>
-                <span style="font-size: 0.85rem; font-weight: 600; color: {% if order.status in 'ready_pickup,assigned,picked_up,in_transit,delivered' %}var(--text-main){% else %}var(--text-muted){% endif %};">
-                    Ready for Pickup
-                    {% if order.delivery_assignment %}<br><small style="font-size:0.75rem; color:var(--primary-orange);">(Courier Assigned)</small>{% endif %}
                 </span>
             </div>
-            <div style="text-align: center; position: relative; z-index: 2; width: 20%;">
-                <div style="width: 34px; height: 34px; border-radius: 50%; background-color: {% if order.status in 'in_transit,delivered' %}var(--primary){% else %}var(--dark-border){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: bold; border: 3px solid var(--dark-bg);">4</div>
-                <span style="font-size: 0.85rem; font-weight: 600; color: {% if order.status in 'in_transit,delivered' %}var(--text-main){% else %}var(--text-muted){% endif %};">In Transit</span>
-            </div>
-            <div style="text-align: center; position: relative; z-index: 2; width: 20%;">
-                <div style="width: 34px; height: 34px; border-radius: 50%; background-color: {% if order.status == 'delivered' %}var(--success){% else %}var(--dark-border){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: bold; border: 3px solid var(--dark-bg);">5</div>
-                <span style="font-size: 0.85rem; font-weight: 600; color: {% if order.status == 'delivered' %}var(--text-main){% else %}var(--text-muted){% endif %};">Delivered</span>
+        </div>
+
+        <!-- Professional 7-Stage Timeline Progression -->
+        <!-- Order Placed → Confirmed → Preparing → Ready for Pickup → Picked Up → Out for Delivery → Delivered -->
+        <div style="background: var(--bg-cream); padding: 1.75rem 1rem; border-radius: var(--radius-md); border: 1.5px solid var(--border-warm); margin-bottom: 1.75rem; overflow-x: auto;">
+            <div style="min-width: 720px; position: relative;">
+                <!-- Connection Line -->
+                <div style="position: absolute; top: 18px; left: 6%; right: 6%; height: 5px; background-color: var(--border-warm); z-index: 1;">
+                    <div id="timeline-progress-line" style="height: 100%; background: linear-gradient(90deg, var(--primary-green), #40916C); width: {% if order.status == 'pending' %}0%{% elif order.status == 'confirmed' %}16.6%{% elif order.status == 'preparing' %}33.3%{% elif order.status == 'ready_pickup' or order.status == 'assigned' %}50%{% elif order.status == 'picked_up' %}66.6%{% elif order.status == 'in_transit' %}83.3%{% elif order.status == 'delivered' %}100%{% else %}0%{% endif %}%; transition: width 0.8s ease;"></div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; position: relative; z-index: 2;">
+                    <!-- Stage 0: Order Placed -->
+                    <div style="text-align: center; width: 14%;">
+                        <div id="timeline-circle-0" style="width: 36px; height: 36px; border-radius: 50%; background-color: var(--primary-green); color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">1</div>
+                        <span id="timeline-label-0" style="font-size: 0.82rem; color: var(--primary-green); display: block; font-weight: 700;">Order Placed</span>
+                    </div>
+
+                    <!-- Stage 1: Confirmed -->
+                    <div style="text-align: center; width: 14%;">
+                        <div id="timeline-circle-1" style="width: 36px; height: 36px; border-radius: 50%; background-color: {% if order.status in 'preparing,ready_pickup,assigned,picked_up,in_transit,delivered' %}var(--primary-green){% else %}var(--border-warm){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">2</div>
+                        <span id="timeline-label-1" style="font-size: 0.82rem; color: var(--text-heading); display: block; font-weight: 600;">Confirmed</span>
+                    </div>
+
+                    <!-- Stage 2: Preparing -->
+                    <div style="text-align: center; width: 14%;">
+                        <div id="timeline-circle-2" style="width: 36px; height: 36px; border-radius: 50%; background-color: {% if order.status in 'preparing,ready_pickup,assigned,picked_up,in_transit,delivered' %}var(--primary-green){% else %}var(--border-warm){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">3</div>
+                        <span id="timeline-label-2" style="font-size: 0.82rem; color: var(--text-heading); display: block; font-weight: 600;">Preparing</span>
+                    </div>
+
+                    <!-- Stage 3: Ready for Pickup -->
+                    <div style="text-align: center; width: 14%;">
+                        <div id="timeline-circle-3" style="width: 36px; height: 36px; border-radius: 50%; background-color: {% if order.status in 'ready_pickup,assigned,picked_up,in_transit,delivered' %}var(--primary-green){% else %}var(--border-warm){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">4</div>
+                        <span id="timeline-label-3" style="font-size: 0.82rem; color: var(--text-heading); display: block; font-weight: 600;">Ready for Pickup</span>
+                    </div>
+
+                    <!-- Stage 4: Picked Up -->
+                    <div style="text-align: center; width: 14%;">
+                        <div id="timeline-circle-4" style="width: 36px; height: 36px; border-radius: 50%; background-color: {% if order.status in 'picked_up,in_transit,delivered' %}var(--primary-green){% else %}var(--border-warm){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">5</div>
+                        <span id="timeline-label-4" style="font-size: 0.82rem; color: var(--text-heading); display: block; font-weight: 600;">Picked Up</span>
+                    </div>
+
+                    <!-- Stage 5: Out for Delivery -->
+                    <div style="text-align: center; width: 14%;">
+                        <div id="timeline-circle-5" style="width: 36px; height: 36px; border-radius: 50%; background-color: {% if order.status in 'in_transit,delivered' %}var(--primary-green){% else %}var(--border-warm){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">6</div>
+                        <span id="timeline-label-5" style="font-size: 0.82rem; color: var(--text-heading); display: block; font-weight: 600;">Out for Delivery</span>
+                    </div>
+
+                    <!-- Stage 6: Delivered -->
+                    <div style="text-align: center; width: 14%;">
+                        <div id="timeline-circle-6" style="width: 36px; height: 36px; border-radius: 50%; background-color: {% if order.status == 'delivered' %}var(--primary-green){% else %}var(--border-warm){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">7</div>
+                        <span id="timeline-label-6" style="font-size: 0.82rem; color: var(--text-heading); display: block; font-weight: 600;">Delivered</span>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="grid-2" style="margin-top: 2rem;">
-        <!-- Left: Delivery Assignment and ETA details -->
-        <div>
-            <!-- Order Items Breakdown -->
-            <div style="background-color: var(--dark-bg); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--dark-border); margin-bottom: 1.5rem;">
-                <h4 style="color: var(--primary-brown); margin-bottom: 0.75rem; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
+        <!-- Live GPS Delivery Map -->
+        <div style="margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+                <h3 style="color: var(--primary-brown); font-weight: 600; font-size: 1.2rem; margin: 0;">
+                    🗺️ Live GPS Location & Delivery Route Map (Kanjirappally Hub)
+                </h3>
+                <span id="gps-live-badge" style="font-size: 0.85rem; font-weight: 500; color: var(--primary-green);">
+                    🟢 Real-time Synchronized Data
+                </span>
+            </div>
+            
+            <div id="live-delivery-map" style="height: 320px; width: 100%; border-radius: var(--radius-md); border: 2px solid var(--border-warm); z-index: 1;"></div>
+        </div>
+
+        <div class="grid-2" style="gap: 1.5rem;">
+            <!-- Left: Customer Delivery Details & Items -->
+            <div style="background: var(--bg-cream); padding: 1.5rem; border-radius: var(--radius-md); border: 1.5px solid var(--border-warm);">
+                <h3 style="color: var(--primary-brown); font-weight: 600; font-size: 1.15rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border-warm); padding-bottom: 0.5rem;">
+                    👤 Customer & Delivery Details
+                </h3>
+                
+                <div style="display: flex; flex-direction: column; gap: 0.65rem; font-size: 0.95rem; margin-bottom: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-muted);">Customer Name:</span>
+                        <strong style="color: var(--text-heading);">{{ order.user.get_full_name|default:order.user.username }}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-muted);">Customer Phone:</span>
+                        <strong style="color: var(--text-heading);">{{ order.user.phone|default:"Phone not provided" }}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-muted);">Order ID:</span>
+                        <strong style="color: var(--primary-green);">{{ order.order_id }}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;">
+                        <span style="color: var(--text-muted); font-weight: 500; min-width: 130px;">📍 Delivery Address:</span>
+                        <strong style="color: var(--text-heading); text-align: right; font-weight: 600; line-height: 1.4; max-width: 65%;">{{ order.formatted_delivery_address }}</strong>
+                    </div>
+
+                </div>
+
+                <h4 style="color: var(--primary-brown); font-weight: 600; font-size: 1.05rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
                     <span>🍱</span> Ordered Food Items
                 </h4>
-                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;">
                     {% for item in order.items.all %}
-                        <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; padding: 0.6rem 0.9rem; border-radius: 8px; border: 1px solid var(--border-light);">
-                            <span style="font-weight: 600; color: var(--text-main); font-size: 0.9rem;">
-                                {{ item.food_item.name }} <strong style="color: var(--primary-orange);">×{{ item.quantity }}</strong>
+                        <div style="display: flex; justify-content: space-between; align-items: center; background: #FFFFFF; padding: 0.6rem 0.9rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                            <span style="color: var(--text-main); font-size: 0.95rem; font-weight: 500;">
+                                {{ item.food_item.name }} <span style="color: var(--primary-orange); font-weight: 600;">× {{ item.quantity }}</span>
                             </span>
-                            <span style="font-weight: 700; color: var(--primary-brown); font-size: 0.9rem;">
+                            <span style="color: var(--primary-brown); font-size: 0.98rem; font-weight: 600;">
                                 ₹{{ item.price }}
                             </span>
                         </div>
                     {% empty %}
-                        <p style="color: var(--text-muted); font-size: 0.85rem;">No items recorded.</p>
+                        <p style="color: var(--text-muted); font-size: 0.9rem; font-weight: 400;">No items recorded.</p>
                     {% endfor %}
                 </div>
-            </div>
 
-            <h3 class="mb-2" style="color: var(--text-light);">Delivery Specifications</h3>
-            
-            <div style="display: flex; flex-direction: column; gap: 1rem; font-size: 0.95rem;">
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
-                    <span style="color: var(--text-muted);">Payment Method:</span>
-                    <span>{{ payment.get_payment_method_display }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
-                    <span style="color: var(--text-muted);">Payment Status:</span>
-                    <span class="badge {% if payment.status == 'success' %}badge-success{% else %}badge-warning{% endif %}">{{ payment.get_status_display }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
-                    <span style="color: var(--text-muted);">Total Amount Paid:</span>
-                    <strong style="color: var(--primary);">₹{{ order.total_amount }}</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
-                    <span style="color: var(--text-muted);">Delivery Location (GPS):</span>
-                    <span style="font-family: monospace; color: var(--primary);">Lat {{ order.latitude }}, Lon {{ order.longitude }}</span>
+                <div style="border-top: 1.5px solid var(--border-warm); pt-3; display: flex; justify-content: space-between; align-items: center; padding-top: 0.75rem;">
+                    <span style="color: var(--primary-brown); font-size: 1.05rem; font-weight: 600;">Total Amount Paid:</span>
+                    <span style="color: var(--primary-green); font-size: 1.4rem; font-weight: 700;">₹{{ order.total_amount }}</span>
                 </div>
             </div>
 
-            <!-- Delivery Partner & Contact Information -->
-            <div style="background-color: var(--dark-bg); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--dark-border); margin-top: 1.5rem;">
-                <h4 style="color: var(--primary-brown); margin-bottom: 0.75rem; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
-                    <span>🚚</span> Delivery Partner & Contact
-                </h4>
-                {% if assignment and assignment.delivery_boy %}
-                    <div style="background: #ffffff; padding: 1rem; border-radius: 10px; border: 1.5px solid var(--border-light); margin-bottom: 1rem;">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.6rem;">
-                            <div>
-                                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">Assigned Delivery Boy</span>
-                                <strong style="font-size: 1.1rem; color: var(--primary-brown);">
-                                    🛵 {{ assignment.delivery_boy.user.username|title }}
-                                </strong>
-                            </div>
-                            <span class="badge badge-warning" style="font-size: 0.78rem;">Vehicle #{{ assignment.delivery_boy.vehicle_number }}</span>
-                        </div>
-
-                        <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed var(--border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-                            <div>
-                                <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">📱 Delivery Boy Contact</span>
-                                {% if assignment.delivery_boy.user.phone %}
-                                    <a href="tel:{{ assignment.delivery_boy.user.phone }}" style="display: inline-flex; align-items: center; gap: 0.4rem; color: #10b981; font-weight: 800; font-size: 1.05rem; text-decoration: none; font-family: monospace; margin-top: 0.2rem; background: #e8f8f0; padding: 0.3rem 0.75rem; border-radius: 6px; border: 1px solid #c1efd8;">
-                                        <span>📞</span> {{ assignment.delivery_boy.user.phone }}
-                                    </a>
-                                {% else %}
-                                    <span style="color: var(--text-muted); font-size: 0.85rem;">Phone unavailable</span>
-                                {% endif %}
-                            </div>
-                            <div style="text-align: right;">
-                                <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Assigned At</span>
-                                <span style="font-size: 0.82rem; font-weight: 600; color: var(--text-main);">{{ assignment.assigned_at|date:"h:i A" }}</span>
-                            </div>
+            <!-- Right: Assigned Courier Details & Payment Status -->
+            <div>
+                <!-- Assigned Courier Info Card -->
+                <div id="assigned-courier-card" style="{% if not order.delivery_assignment %}display: none;{% endif %} background: #FFFFFF; border: 1.5px solid var(--border-warm); border-left: 5px solid var(--primary-green); border-radius: var(--radius-sm); padding: 1.25rem; margin-bottom: 1.25rem; box-shadow: var(--shadow-sm);">
+                    <div style="display: flex; align-items: center; gap: 0.85rem;">
+                        <span style="font-size: 2.2rem;">🛵</span>
+                        <div style="flex: 1;">
+                            <span style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; display: block;">Assigned Delivery Courier</span>
+                            <span id="courier-name-display" style="color: var(--primary-brown); font-size: 1.15rem; font-weight: 800; display: block;">
+                                {{ order.delivery_assignment.delivery_boy.courier_name }}
+                            </span>
+                            <p style="margin: 0.2rem 0 0 0; font-size: 0.88rem; color: var(--text-main);">
+                                👤 Username: <strong style="color: var(--primary-orange); font-family: monospace;">{{ order.delivery_assignment.delivery_boy.courier_username }}</strong>
+                            </p>
+                            <p style="margin: 0.15rem 0 0 0; font-size: 0.88rem; color: var(--text-main);">
+                                📞 Phone: <a id="courier-phone-link" href="tel:{{ order.delivery_assignment.delivery_boy.user.phone }}" style="color: var(--primary-green); font-weight: 600;"><span id="courier-phone-display">{{ order.delivery_assignment.delivery_boy.user.phone|default:"Phone not provided" }}</span></a>
+                            </p>
+                            {% if order.delivery_assignment.delivery_boy.vehicle_number %}
+                                <p style="margin: 0.15rem 0 0 0; font-size: 0.85rem; color: var(--text-muted);">
+                                    🛵 Vehicle Number: <strong id="courier-vehicle-display" style="color: var(--text-heading); font-family: monospace;">{{ order.delivery_assignment.delivery_boy.vehicle_number }}</strong>
+                                </p>
+                            {% endif %}
                         </div>
                     </div>
+                </div>
 
-                    <!-- AI Route & ETA Stats -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0.6rem; text-align: center;">
-                        <div style="background: #ffffff; padding: 0.6rem; border-radius: 8px; border: 1px solid var(--border-light);">
-                            <span style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">Distance</span>
-                            <strong style="font-size: 1rem; color: var(--primary-brown);" id="custDistanceVal">{{ distance_km }} km</strong>
+                <!-- Payment Details Card -->
+                <div style="background: var(--bg-cream); padding: 1.25rem; border-radius: var(--radius-sm); border: 1.5px solid var(--border-warm);">
+                    <h4 style="color: var(--primary-brown); font-weight: 600; font-size: 1.05rem; margin-bottom: 0.75rem;">
+                        Payment Summary
+                    </h4>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.92rem;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--text-muted);">Payment Method:</span>
+                            <span style="color: var(--text-main); font-weight: 600;">{{ payment.get_payment_method_display|default:"Cash On Delivery" }}</span>
                         </div>
-                        <div style="background: #ffffff; padding: 0.6rem; border-radius: 8px; border: 1px solid var(--border-light);">
-                            <span style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">AI Est. Time</span>
-                            <strong style="font-size: 1rem; color: var(--warning);" id="custPredTimeVal">{{ pred_delivery_min }} mins</strong>
-                        </div>
-                        <div style="background: #ffffff; padding: 0.6rem; border-radius: 8px; border: 1px solid var(--border-light);">
-                            <span style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">AI ETA</span>
-                            <strong style="font-size: 1rem; color: var(--success);" id="custEtaVal">{{ ai_eta_min }} mins</strong>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="color: var(--text-muted);">Payment Status:</span>
+                            <span class="badge {% if payment.status == 'success' %}badge-success{% else %}badge-warning{% endif %}">
+                                {{ payment.get_status_display|default:"Pending" }}
+                            </span>
                         </div>
                     </div>
-                    
-                    {% if assignment.actual_delivery_time %}
-                        <div style="margin-top: 0.75rem; text-align: center; color: var(--success); font-weight: 700; font-size: 0.88rem;">
-                            ✅ Final Delivery Duration: {{ assignment.actual_delivery_time }} mins
-                        </div>
-                    {% endif %}
-                {% else %}
-                    <div style="background: #ffffff; padding: 1rem; border-radius: 10px; border: 1.5px dashed var(--border-light); text-align: center;">
-                        <span style="font-size: 1.6rem; display: block; margin-bottom: 0.3rem;">🛵</span>
-                        <strong style="color: var(--primary-brown); font-size: 0.95rem; display: block;">Delivery Partner: Not Assigned Yet</strong>
-                        <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">
-                            Your delivery partner will be assigned soon by staff once food preparation is ready.
+                </div>
+            </div>
+        </div>
+
+        <!-- Post Delivery Rating & Review Box -->
+        {% if order.status == 'delivered' %}
+            <div class="mt-4" style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-md); border: 1.5px solid var(--border-warm); text-align: center;">
+                <h3 style="color: var(--primary-brown); font-weight: 600; font-size: 1.25rem; margin-bottom: 0.4rem;">
+                    ⭐ How was your meal & delivery experience?
+                </h3>
+                <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.25rem; font-weight: 400;">
+                    Your feedback helps our local home chefs maintain authentic Kanjirappally standards.
+                </p>
+
+                {% if order.delivery_feedback %}
+                    <div style="display: inline-block; background: #FFFFFF; padding: 0.75rem 1.75rem; border-radius: 50px; border: 1.5px solid var(--border-warm);">
+                        <span style="color: var(--gold-accent); font-size: 1.15rem; font-weight: 600;">
+                            ★ {{ order.delivery_feedback.rating }} / 5 Stars
+                        </span>
+                        <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; color: var(--text-main); font-style: italic; font-weight: 400;">
+                            "{{ order.delivery_feedback.comment }}"
                         </p>
                     </div>
+                {% else %}
+                    <form method="POST" action="{% url 'submit_delivery_feedback' order.order_id %}" style="max-width: 480px; margin: 0 auto;">
+                        {% csrf_token %}
+                        <div class="form-group mb-2">
+                            <select name="rating" class="form-control" style="font-weight: 500;" required>
+                                <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
+                                <option value="4">⭐⭐⭐⭐ Very Good</option>
+                                <option value="3">⭐⭐⭐ Average</option>
+                                <option value="2">⭐⭐ Needs Improvement</option>
+                                <option value="1">⭐ Poor</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-3">
+                            <input type="text" name="comment" class="form-control" placeholder="Optional comments (e.g. delicious, delivered hot and fresh)...">
+                        </div>
+                        <button type="submit" class="btn btn-secondary btn-sm" style="padding: 0.65rem 2rem;">
+                            Submit Feedback
+                        </button>
+                    </form>
                 {% endif %}
             </div>
-        </div>
-
-        <!-- Right: Interactive Leaflet Navigation Map -->
-        <div class="card" style="border: 1px solid var(--dark-border); padding: 1.25rem; display: flex; flex-direction: column;">
-            <h3 class="mb-2" style="color: var(--text-light); text-align: center;">📍 Live GPS Navigation Map</h3>
-            <p style="font-size: 0.75rem; color: var(--text-muted); text-align: center; margin-bottom: 1rem;">
-                Visualizing route from Chef Kitchen ({{ chef_lat }}, {{ chef_lon }}) to Customer Home ({{ order.latitude }}, {{ order.longitude }}).
-            </p>
-
-            <!-- Leaflet Map Container -->
-            <div id="tracking-map" style="height: 280px; width: 100%; border-radius: 8px; border: 1px solid var(--dark-border); z-index: 1;"></div>
-            
-            <div style="margin-top: 1rem; text-align: center;">
-                <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">GPS Coordinates</span>
-                <strong style="color: var(--accent); font-family: monospace;">Lat: {{ order.latitude }} | Lng: {{ order.longitude }}</strong>
-            </div>
-        </div>
-    </div>
-
-    <!-- Customer Delivery Feedback Section (Only shown when order is Delivered and user is customer) -->
-    {% if order.status == 'delivered' and user == order.user %}
-        <div class="card mt-3" style="border: 2px solid var(--primary-orange); background: var(--accent-warm); border-radius: 16px; padding: 1.5rem;">
-            {% if order.delivery_feedback %}
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="color: var(--primary-brown); font-weight: 700; font-size: 1.15rem; margin: 0;">
-                        ⭐ Your Delivery Feedback
-                    </h3>
-                    <span class="badge badge-warning" style="font-size: 0.9rem; padding: 0.35rem 0.8rem;">
-                        ⭐ {{ order.delivery_feedback.rating }}/5 Stars
-                    </span>
-                </div>
-                <p style="color: var(--text-main); font-size: 0.95rem; margin-top: 0.5rem; font-style: italic; background: #ffffff; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border-light);">
-                    {% if order.delivery_feedback.comment %}"{{ order.delivery_feedback.comment }}"{% else %}No comment attached.{% endif %}
-                </p>
-                <div style="font-size: 0.8rem; color: var(--text-muted); text-align: right; margin-top: 0.4rem;">
-                    Submitted on {{ order.delivery_feedback.created_at|date:"N j, Y, h:i A" }}
-                </div>
-            {% else %}
-                <h3 style="color: var(--primary-brown); font-weight: 800; font-size: 1.25rem; margin-bottom: 0.4rem;">
-                    ⭐ Rate Your Delivery Experience
-                </h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.25rem;">
-                    Your food order has been delivered! Please rate the service provided by courier 
-                    <strong>{{ assignment.delivery_boy.user.username|title }}</strong> (Vehicle #{{ assignment.delivery_boy.vehicle_number }}).
-                </p>
-
-                <form method="POST" action="{% url 'submit_delivery_feedback' order.order_id %}">
-                    {% csrf_token %}
-                    <div class="form-group mb-3">
-                        <label class="form-label" style="font-weight: 700; color: var(--text-main);">Delivery Rating (1 to 5 Stars):</label>
-                        <select name="rating" class="form-control" style="max-width: 220px; font-weight: 700;" required>
-                            <option value="5" selected>⭐⭐⭐⭐⭐ (5/5 Excellent)</option>
-                            <option value="4">⭐⭐⭐⭐ (4/5 Good)</option>
-                            <option value="3">⭐⭐⭐ (3/5 Average)</option>
-                            <option value="2">⭐⭐ (2/5 Poor)</option>
-                            <option value="1">⭐ (1/5 Very Poor)</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label class="form-label" style="font-weight: 700; color: var(--text-main);">Comments / Feedback (Optional):</label>
-                        <textarea name="comment" class="form-control" rows="3" placeholder="Share your experience regarding punctuality, polite service, or food handling..."></textarea>
-                    </div>
-
-                    <button type="submit" class="btn" style="padding: 0.6rem 1.6rem; font-weight: 700;">
-                        Submit Delivery Feedback
-                    </button>
-                </form>
-            {% endif %}
-        </div>
-    {% endif %}
-</div>
-
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const chefLat = parseFloat("{{ chef_lat }}");
-        const chefLon = parseFloat("{{ chef_lon }}");
-        const custLat = parseFloat("{{ order.latitude }}");
-        const custLon = parseFloat("{{ order.longitude }}");
-
-        // Parse route steps passed from Django
-        const routeSteps = [
-            {% for step in route_steps %}
-                [{{ step.lat }}, {{ step.lng }}]{% if not forloop.last %},{% endif %}
-            {% endfor %}
-        ];
-
-        // Fallback route if empty
-        if (routeSteps.length === 0) {
-            routeSteps.push([chefLat, chefLon], [custLat, custLon]);
-        }
-
-        // Initialize Leaflet Map centered between points
-        const map = L.map('tracking-map').setView([ (chefLat + custLat)/2, (chefLon + custLon)/2 ], 13);
-
-        // Dark/Standard OpenStreetMap Tile Layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
-
-        // Chef Marker
-        const chefIcon = L.divIcon({
-            html: '<div style="background-color: #2a9d8f; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5);">👨‍🍳</div>',
-            className: 'custom-leaflet-icon',
-            iconSize: [32, 32],
-            iconAnchor: [16, 16]
-        });
-        L.marker([chefLat, chefLon], {icon: chefIcon}).addTo(map)
-            .bindPopup("<b>Chef Kitchen</b><br>Lat: " + chefLat + "<br>Lng: " + chefLon);
-
-        // Customer Marker
-        const custIcon = L.divIcon({
-            html: '<div style="background-color: #ff6b35; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5);">🏠</div>',
-            className: 'custom-leaflet-icon',
-            iconSize: [32, 32],
-            iconAnchor: [16, 16]
-        });
-        L.marker([custLat, custLon], {icon: custIcon}).addTo(map)
-            .bindPopup("<b>Customer Destination</b><br>Lat: " + custLat + "<br>Lng: " + custLon).openPopup();
-
-        // Route Polyline
-        const polyline = L.polyline(routeSteps, {
-            color: '#ff6b35',
-            weight: 5,
-            opacity: 0.8,
-            dashArray: '10, 10'
-        }).addTo(map);
-
-        // Auto-fit map bounds to cover origin and destination
-        const bounds = L.latLngBounds([chefLat, chefLon], [custLat, custLon]);
-        map.fitBounds(bounds, { padding: [40, 40] });
-
-        // Real-time Courier Live GPS Tracking for Customer
-        {% if order.status == 'in_transit' or order.status == 'assigned' %}
-            const courierIcon = L.divIcon({
-                html: '<div style="background-color: #d97736; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2px solid white; box-shadow: 0 0 14px rgba(217,119,54,0.8);">🛵</div>',
-                className: 'custom-leaflet-icon',
-                iconSize: [32, 32],
-                iconAnchor: [16, 16]
-            });
-            
-            let initialLat = chefLat;
-            let initialLon = chefLon;
-            {% if assignment %}
-                initialLat = parseFloat("{{ assignment.delivery_boy.current_latitude|default:chef_lat }}");
-                initialLon = parseFloat("{{ assignment.delivery_boy.current_longitude|default:chef_lon }}");
-            {% endif %}
-
-            const courierMarker = L.marker([initialLat, initialLon], {icon: courierIcon}).addTo(map).bindPopup("<b>Courier Live Location</b>");
-
-            {% if order.status == 'in_transit' %}
-                let stepIdx = 0;
-                const pollInterval = setInterval(() => {
-                    fetch("{% url 'get_live_gps_location' order.order_id %}")
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.latitude && data.longitude) {
-                                courierMarker.setLatLng([data.latitude, data.longitude]);
-                            } else {
-                                stepIdx = (stepIdx + 1) % routeSteps.length;
-                                courierMarker.setLatLng(routeSteps[stepIdx]);
-                            }
-
-                            if (data.status === 'delivered') {
-                                clearInterval(pollInterval);
-                                location.reload();
-                            }
-                        })
-                        .catch(err => {
-                            stepIdx = (stepIdx + 1) % routeSteps.length;
-                            courierMarker.setLatLng(routeSteps[stepIdx]);
-                        });
-                }, 3000);
-            {% endif %}
         {% endif %}
-    });
-</script>
-
-<style>
-    @keyframes dash {
-        to {
-            stroke-dashoffset: -100;
-        }
-    }
-    @keyframes pulse {
-        0% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.2); opacity: 0.7; }
-        100% { transform: scale(1); opacity: 1; }
-    }
-</style>
+    </div>
+</div>
 {% endblock %}
+

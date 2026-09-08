@@ -172,6 +172,156 @@ def classify_health_profile_risk(has_diabetes, has_cholesterol, has_bp):
     return pred
 
 
+def recommend_health_and_time_aware_foods(all_foods, health_profile, active_session_name='Lunch', limit=4):
+    """
+    Kerala Food Health Recommendation & AI Meal-Time Filter.
+    
+    Priority Architecture:
+    1. Current Time / Active Meal Session (Breakfast, Lunch, Evening Snack, Dinner)
+    2. Food Availability & Stock (is_available=True, stock_quantity > 0)
+    3. Dietary Preference (Veg, Non-Veg, Vegan)
+    4. Combined Health Condition Filters (Diabetes, High Cholesterol, High BP)
+    5. Preparation Method, Ingredients & Nutrition Criteria
+    6. Ranked Selection + Personalized Combined Reason
+    """
+    if not all_foods or not health_profile:
+        return [], "No health profile configured."
+
+    has_diabetes = getattr(health_profile, 'has_diabetes', False)
+    has_cholesterol = getattr(health_profile, 'has_cholesterol', False)
+    has_bp = getattr(health_profile, 'has_bp', False)
+
+    # Selected condition labels
+    selected_conditions = []
+    if has_diabetes: selected_conditions.append("Diabetes")
+    if has_cholesterol: selected_conditions.append("High Cholesterol")
+    if has_bp: selected_conditions.append("High Blood Pressure")
+
+    if not selected_conditions:
+        return [], "No medical conditions selected. Select Diabetes, High Cholesterol, or High BP to see AI recommended foods."
+
+    cond_str = " + ".join(selected_conditions)
+    sess_label = active_session_name or 'Current Meal'
+    sess_lower = sess_label.lower()
+
+    # Step 1: Filter foods strictly by active meal session
+    session_eligible_foods = []
+    for food in all_foods:
+        if not getattr(food, 'is_available', True) or getattr(food, 'stock_quantity', 1) <= 0:
+            continue
+
+        food_sess_name = (food.meal_session.name if food.meal_session else '').lower()
+        
+        # Match session
+        match = False
+        if 'breakfast' in sess_lower and 'breakfast' in food_sess_name:
+            match = True
+        elif 'lunch' in sess_lower and 'lunch' in food_sess_name:
+            match = True
+        elif ('snack' in sess_lower or 'evening' in sess_lower) and ('snack' in food_sess_name or 'evening' in food_sess_name):
+            match = True
+        elif 'dinner' in sess_lower and 'dinner' in food_sess_name:
+            match = True
+        elif sess_lower in food_sess_name or food_sess_name in sess_lower:
+            match = True
+
+        if match:
+            session_eligible_foods.append(food)
+
+    if not session_eligible_foods:
+        # Fallback to available items if session has no direct items
+        for food in all_foods:
+            if getattr(food, 'is_available', True) and getattr(food, 'stock_quantity', 1) > 0:
+                session_eligible_foods.append(food)
+
+    # Step 2: Filter by dietary preference & health conditions
+    pref = (getattr(health_profile, 'dietary_preference', 'any') or 'any').lower()
+    
+    scored_candidates = []
+    for food in session_eligible_foods:
+        cat_name = (food.category.name if food.category else '').lower()
+        if pref == 'veg' and 'non-veg' in cat_name:
+            continue
+        if pref == 'vegan' and not ('vegan' in cat_name or 'veg' in cat_name):
+            continue
+
+        desc = ((food.description or '') + ' ' + (food.name or '')).lower()
+        
+        # Nutrition metrics
+        has_nutr = hasattr(food, 'nutrition') and food.nutrition is not None
+        sugar = food.nutrition.sugar if has_nutr else 2.0
+        cholesterol = food.nutrition.cholesterol if has_nutr else 10.0
+        sodium = food.nutrition.sodium if has_nutr else 100.0
+        calories = food.nutrition.calories if has_nutr else 300.0
+        fiber = food.nutrition.fiber if has_nutr else 3.0
+        fat = food.nutrition.fat if has_nutr else 6.0
+
+        # Keywords inspection
+        fried_keywords = ['deep-fried', 'deep fried', 'fried', 'fritter', 'fritters', 'vada', 'bajji', 'chips', 'pori']
+        is_fried = any(k in desc for k in fried_keywords)
+
+        sweet_keywords = ['jaggery', 'sweet', 'sugar', 'halwa', 'payasam', 'cake', 'pudding']
+        is_sweet = any(k in desc for k in sweet_keywords)
+
+        is_diab_ok = True
+        is_chol_ok = True
+        is_bp_ok = True
+
+        if has_diabetes:
+            if sugar > 4.5 or is_sweet or (calories > 550 and sugar > 3.0):
+                is_diab_ok = False
+
+        if has_cholesterol:
+            if cholesterol > 25.0 or is_fried or fat > 18.0:
+                is_chol_ok = False
+
+        if has_bp:
+            if sodium > 280.0:
+                is_bp_ok = False
+
+        if (has_diabetes and not is_diab_ok) or (has_cholesterol and not is_chol_ok) or (has_bp and not is_bp_ok):
+            continue
+
+        # Score calculation for ranking
+        score = 100.0
+        if is_fried: score -= 35.0
+        if is_sweet: score -= 35.0
+        score += fiber * 3.0
+        score -= sugar * 4.0
+        score -= cholesterol * 0.4
+        score -= sodium * 0.05
+
+        scored_candidates.append({
+            'food': food,
+            'score': score
+        })
+
+    scored_candidates.sort(key=lambda x: x['score'], reverse=True)
+    recommended_foods = [c['food'] for c in scored_candidates[:limit]]
+
+    if recommended_foods:
+        reasons_list = []
+        if has_diabetes:
+            reasons_list.append("limits added sugar & high glycemic impact")
+        if has_cholesterol:
+            reasons_list.append("avoids deep-fried preparations & saturated fats")
+        if has_bp:
+            reasons_list.append("maintains controlled sodium metrics")
+
+        reason_clause = ", ".join(reasons_list)
+        combined_reason = (
+            f"Recommended for {sess_label} based on your selected {cond_str} filters. "
+            f"These authentic Kerala options focus on fresh/steamed preparation and {reason_clause} with balanced portion sizes."
+        )
+    else:
+        combined_reason = (
+            f"No available items in today's {sess_label} menu satisfy all your combined health filters ({cond_str}). "
+            f"Try adjusting your condition filters or checking other meal sessions."
+        )
+
+    return recommended_foods, combined_reason
+
+
 # --- 4. SMART MEAL PLANNER (KNN & DECISION TREE) ---
 def plan_meals(food_items, health_profile):
     """

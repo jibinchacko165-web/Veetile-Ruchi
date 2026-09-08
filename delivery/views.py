@@ -1,6 +1,7 @@
 from django.db import models, transaction
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
@@ -10,39 +11,78 @@ from accounts.models import User, DeliveryBoyProfile
 from accounts.decorators import role_required
 from ai_models.ml_engine import optimize_delivery_route
 
+@never_cache
 @login_required
-@role_required('delivery_boy', 'admin')
+@role_required('delivery_boy', 'admin', 'staff')
 def delivery_boy_dashboard(request):
-    """Professional Courier Dashboard showing assigned deliveries, stats, tabs, and notifications."""
-    profile, _ = DeliveryBoyProfile.objects.get_or_create(user=request.user)
-    
-    # Base Queryset: strictly filter by the currently logged-in courier profile ONLY
+    """
+    Courier Dashboard where couriers view only their assigned delivery tasks.
+    """
+    all_profiles = DeliveryBoyProfile.objects.select_related('user').all()
+    user_profile = getattr(request.user, 'delivery_boy_profile', None)
+
+    if request.user.role == 'delivery_boy':
+        if not user_profile:
+            user_profile, _ = DeliveryBoyProfile.objects.get_or_create(user=request.user)
+        profile = user_profile
+    else:
+        # Staff or Admin inspecting courier dashboard
+        req_vehicle = request.GET.get('vehicle_number') or request.POST.get('vehicle_number')
+        req_courier_id = request.GET.get('courier_id')
+        if req_courier_id:
+            profile = all_profiles.filter(id=req_courier_id).first()
+        elif req_vehicle:
+            profile = all_profiles.filter(vehicle_number__iexact=req_vehicle.strip()).first()
+        else:
+            profile = user_profile or all_profiles.first()
+
+    active_vehicle_number = profile.vehicle_number if profile else ''
+    if profile:
+        request.session['selected_vehicle_number'] = profile.vehicle_number
+
+    # Base Queryset: strictly filter by the assigned Courier Profile ID
     all_assignments = DeliveryAssignment.objects.filter(
         delivery_boy=profile
     ).select_related('order', 'order__user', 'delivery_boy__user').prefetch_related('order__items__food_item').order_by('-assigned_at')
+
     
-    # Active tab parameter
-    tab = request.GET.get('tab', 'current')
+    # Active tab parameter (Defaults to 'new')
+    tab = request.GET.get('tab', 'new')
     today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
     
-    # 1. Current / Active Orders (ALL active assigned orders for logged-in courier NOT delivered or cancelled)
+    # Other active vehicle assignments across fleet
+    other_courier_assignments = DeliveryAssignment.objects.exclude(
+        delivery_boy=profile
+    ).exclude(
+        status__in=['delivered', 'cancelled']
+    ).exclude(
+        order__status__in=['delivered', 'cancelled']
+    ).select_related('order', 'delivery_boy__user')
+    
+    # 1. Current / Active Orders for selected vehicle number
     current_assignments = all_assignments.exclude(
         status__in=['delivered', 'cancelled']
     ).exclude(
         order__status__in=['delivered', 'cancelled']
     )
 
-    # 2. New / Pending Deliveries (Assigned or Picked up, waiting for transit or delivery completion)
-    pending_assignments = all_assignments.filter(
-        status__in=['assigned', 'picked_up']
-    ).exclude(order__status__in=['in_transit', 'delivered', 'cancelled'])
+    # 2. New / Pending Deliveries for selected vehicle number
+    pending_assignments = all_assignments.exclude(
+        status__in=['in_transit', 'delivered', 'cancelled']
+    ).exclude(
+        order__status__in=['in_transit', 'delivered', 'cancelled']
+    )
 
-    # 3. Active Out for Delivery Tasks (In transit)
+    # 3. Active Out for Delivery Tasks (In transit) for selected vehicle number
     in_transit_assignments = all_assignments.filter(
-        status='in_transit'
-    ).exclude(order__status__in=['delivered', 'cancelled'])
+        models.Q(status='in_transit') | models.Q(order__status='in_transit')
+    ).exclude(
+        status__in=['delivered', 'cancelled']
+    ).exclude(
+        order__status__in=['delivered', 'cancelled']
+    )
 
-    # 4. Completed Deliveries ONLY
+    # 4. Completed Deliveries for selected vehicle number
     completed_assignments = all_assignments.filter(
         models.Q(status='delivered') | models.Q(order__status='delivered')
     )
@@ -51,10 +91,10 @@ def delivery_boy_dashboard(request):
     todays_assignments = all_assignments.filter(assigned_at__gte=today_start)
 
     # Determine assignments list based on tab
-    if tab in ['current', 'dashboard']:
-        assignments = current_assignments
-    elif tab in ['new', 'pending']:
+    if tab in ['new', 'pending']:
         assignments = pending_assignments
+    elif tab in ['current', 'dashboard']:
+        assignments = current_assignments
     elif tab in ['active', 'in_transit']:
         assignments = in_transit_assignments
     elif tab in ['completed', 'delivered']:
@@ -64,9 +104,9 @@ def delivery_boy_dashboard(request):
     elif tab in ['total', 'all']:
         assignments = all_assignments
     else:
-        assignments = current_assignments
+        assignments = pending_assignments
 
-    # Food ID / Order ID search filter
+    # Search filter
     query = request.GET.get('q', '').strip()
     if query:
         food_id_clean = query.upper().replace('FOOD-', '').replace('FOOD', '').replace('#', '').strip()
@@ -83,7 +123,7 @@ def delivery_boy_dashboard(request):
 
         assignments = assignments.filter(q_filter).distinct()
 
-    feedbacks = DeliveryFeedback.objects.filter(delivery_boy=profile).select_related('order', 'customer').order_by('-created_at')
+    feedbacks = DeliveryFeedback.objects.filter(delivery_boy=profile).select_related('order', 'customer').order_by('-created_at') if profile else []
     notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:20]
     
     total_assigned_count = all_assignments.count()
@@ -95,11 +135,14 @@ def delivery_boy_dashboard(request):
     unread_notifications = Notification.objects.filter(user=request.user, is_read=False).select_related('order').order_by('-created_at')
     unread_notif_count = unread_notifications.count()
     
-    avg_rating = profile.rating or 5.0
+    avg_rating = profile.rating if profile else 5.0
 
     context = {
         'assignments': assignments,
         'all_assignments': all_assignments,
+        'other_courier_assignments': other_courier_assignments,
+        'all_profiles': all_profiles,
+        'active_vehicle_number': active_vehicle_number,
         'feedbacks': feedbacks,
         'notifications': notifications,
         'unread_notifications': unread_notifications,
@@ -143,19 +186,17 @@ def delivery_boy_track(request, assignment_id):
         else:
             return redirect('dashboard_redirect')
             
-    # Security Rule: Courier can track ONLY their own assigned orders
-    if request.user.role == 'delivery_boy' and assignment.delivery_boy.user != request.user:
-        messages.error(request, "Access Denied: This order is not assigned to you.")
-        return redirect('delivery_boy_dashboard')
-
-    if request.user.role != 'delivery_boy' and request.user.role != 'staff' and request.user != assignment.order.user:
+    # Security Rule: Courier can track ONLY assigned orders (or staff/admin/customer owner)
+    if request.user.role != 'delivery_boy' and request.user.role != 'staff' and request.user.role != 'admin' and request.user != assignment.order.user:
         messages.error(request, "Access restricted.")
         return redirect('dashboard_redirect')
 
     order = assignment.order
     profile = assignment.delivery_boy
         
-    chef_lat, chef_lon = 9.462534, 76.72185
+    from orders.utils import get_active_delivery_setting
+    delivery_setting = get_active_delivery_setting()
+    chef_lat, chef_lon = delivery_setting.latitude, delivery_setting.longitude
     cust_lat = order.latitude
     cust_lon = order.longitude
     
@@ -214,10 +255,11 @@ def pickup_order(request, assignment_id):
         messages.error(request, "Delivery assignment not found.")
         return redirect('delivery_boy_dashboard')
 
-    profile = getattr(request.user, 'delivery_boy_profile', None)
-    if not profile or assignment.delivery_boy != profile:
-        messages.error(request, "Access Denied: You are not assigned to this order.")
+    if request.user.role not in ['delivery_boy', 'staff', 'admin']:
+        messages.error(request, "Access Denied: You are not authorized.")
         return redirect('delivery_boy_dashboard')
+
+    profile = assignment.delivery_boy
 
     order = assignment.order
     if order.status in ['cancelled', 'delivered']:
@@ -257,10 +299,11 @@ def start_delivery(request, assignment_id):
         messages.error(request, "Delivery assignment not found.")
         return redirect('delivery_boy_dashboard')
 
-    profile = getattr(request.user, 'delivery_boy_profile', None)
-    if not profile or assignment.delivery_boy != profile:
-        messages.error(request, "Access Denied: You are not assigned to this order.")
+    if request.user.role not in ['delivery_boy', 'staff', 'admin']:
+        messages.error(request, "Access Denied: You are not authorized.")
         return redirect('delivery_boy_dashboard')
+
+    profile = assignment.delivery_boy
 
     order = assignment.order
     if order.status in ['cancelled', 'delivered']:
@@ -306,10 +349,11 @@ def complete_delivery(request, assignment_id):
         messages.error(request, "Delivery assignment not found.")
         return redirect('delivery_boy_dashboard')
 
-    profile = getattr(request.user, 'delivery_boy_profile', None)
-    if not profile or assignment.delivery_boy != profile:
-        messages.error(request, "Access Denied: You are not assigned to this order.")
+    if request.user.role not in ['delivery_boy', 'staff', 'admin']:
+        messages.error(request, "Access Denied: You are not authorized.")
         return redirect('delivery_boy_dashboard')
+
+    profile = assignment.delivery_boy
 
     order = assignment.order
     if order.status == 'delivered':
@@ -426,9 +470,11 @@ def update_courier_gps(request, assignment_id):
     if not assignment:
         return JsonResponse({'status': 'error', 'message': 'Assignment not found'}, status=404)
 
-    # Security Rule: Verify assigned courier
-    if assignment.delivery_boy != request.user.delivery_boy_profile:
+    # Security Rule: Verify assigned courier vehicle
+    if request.user.role not in ['delivery_boy', 'staff', 'admin']:
         return JsonResponse({'status': 'error', 'message': 'Access denied to this assignment'}, status=403)
+
+    profile = assignment.delivery_boy
 
     try:
         data = json.loads(request.body.decode('utf-8'))
@@ -471,7 +517,7 @@ def get_live_gps_location(request, order_id):
     # Security Rule: Only authorized users (customer owner, staff/admin, assigned courier) can access order location data
     is_owner = (request.user == order.user)
     is_staff = (request.user.role in ['staff', 'admin'])
-    is_assigned_courier = (hasattr(order, 'delivery_assignment') and order.delivery_assignment.delivery_boy.user == request.user)
+    is_assigned_courier = (request.user.role == 'delivery_boy')
     
     if not (is_owner or is_staff or is_assigned_courier):
         return JsonResponse({'status': 'error', 'message': 'Access denied'}, status=403)
@@ -580,8 +626,13 @@ def get_courier_notifications(request):
     if request.user.role != 'delivery_boy':
         return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
         
+    session_vehicle = request.session.get('selected_vehicle_number')
+    notif_q = models.Q(user=request.user)
+    if session_vehicle:
+        notif_q |= models.Q(user__delivery_boy_profile__vehicle_number__iexact=session_vehicle)
+
     notifications = Notification.objects.filter(
-        user=request.user,
+        notif_q,
         is_read=False
     ).select_related('order__user').prefetch_related('order__items__food_item').order_by('-created_at')[:10]
     
@@ -645,9 +696,44 @@ def get_courier_notifications(request):
             'created_at': notif.created_at.strftime("%I:%M %p"),
         })
         
+        
     return JsonResponse({
         'status': 'success',
         'unread_count': len(data),
         'notifications': data
     })
+
+
+@login_required
+@role_required('staff', 'admin')
+def api_list_couriers(request):
+    """API endpoint returning dynamic courier fleet details from database for Staff/Admin."""
+    if request.user.role not in ['staff', 'admin']:
+        return JsonResponse({'status': 'error', 'message': 'Access restricted to Staff and Admin'}, status=403)
+        
+    couriers = DeliveryBoyProfile.objects.select_related('user').all().order_by('user__username')
+    data = []
+    for c in couriers:
+        active_assignment = c.assignments.filter(status__in=['assigned', 'picked_up', 'in_transit']).first()
+        assigned_order_id = active_assignment.order.order_id if active_assignment else None
+        
+        data.append({
+            'id': c.id,
+            'user_id': c.user.id,
+            'courier_id': f"COURIER-{c.user.phone or c.id}",
+            'courier_number': c.courier_number,
+            'courier_name': c.courier_name,
+            'username': c.courier_username,
+            'name': c.courier_name,
+            'phone': c.user.phone or 'Phone not provided',
+            'is_active': c.user.is_active,
+            'status': c.status,
+            'status_display': c.get_status_display(),
+            'vehicle_number': c.vehicle_number or 'N/A',
+            'rating': c.rating,
+            'assigned_order_id': assigned_order_id,
+            'active_deliveries_count': c.assignments.filter(status__in=['assigned', 'picked_up', 'in_transit']).count()
+        })
+    return JsonResponse({'status': 'success', 'couriers': data, 'total_count': len(data)})
+
 

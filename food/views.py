@@ -2,9 +2,10 @@ import datetime
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.utils import timezone
-from django.db.models import Q, Avg, Sum, Count
+from django.db.models import Q, Avg, Sum, Count, F, FloatField
 from .models import FoodItem, Category, MealSession, NutritionInfo, ReviewSentiment
 from accounts.models import User, ChefProfile, DeliveryBoyProfile
 from accounts.decorators import role_required
@@ -17,7 +18,8 @@ from ai_models.ml_engine import (
     recommend_foods_content_based, 
     predict_health_suitability, 
     get_forecasts,
-    classify_health_profile_risk
+    classify_health_profile_risk,
+    recommend_health_and_time_aware_foods
 )
 
 def food_catalog(request):
@@ -102,8 +104,22 @@ def food_catalog(request):
     ai_recs = []
     health_risk = 'Low'
     health_recs = []
+    health_combined_reason = ""
+    target_rec_session = ""
+    rec_food_ids = []
     
     if request.user.is_authenticated:
+        profile, created = HealthProfile.objects.get_or_create(user=request.user)
+
+        # Allow inline health filter toggling from catalog POST
+        if request.method == 'POST' and 'update_health_filters' in request.POST:
+            profile.has_diabetes = (request.POST.get('has_diabetes') == 'on')
+            profile.has_cholesterol = (request.POST.get('has_cholesterol') == 'on')
+            profile.has_bp = (request.POST.get('has_bp') == 'on')
+            profile.save()
+            messages.success(request, "AI Health Condition filters updated!")
+            return redirect('food_catalog')
+
         wish_ids = list(Wishlist.objects.filter(user=request.user).values_list('food_item_id', flat=True))
         
         # 1. AI Recommendation: Content-Based from Wishlist
@@ -111,59 +127,36 @@ def food_catalog(request):
         all_avail = list(FoodItem.objects.filter(is_available=True))
         ai_recs = recommend_foods_content_based(all_avail, user_wishes, limit=4)
         
-        # 2. AI Health Profile & Recommendations
-        profile, created = HealthProfile.objects.get_or_create(user=request.user)
+        # 2. AI Health Profile & Meal-Time Aware Recommendations
         health_risk = classify_health_profile_risk(profile.has_diabetes, profile.has_cholesterol, profile.has_bp)
         
-        # Build health recommendations list
-        for food in all_avail:
-            if hasattr(food, 'nutrition'):
-                suit = predict_health_suitability(
-                    food.nutrition.sugar, 
-                    food.nutrition.cholesterol, 
-                    food.nutrition.sodium
-                )
-                reasons = []
-                is_safe = True
-                
-                # Check preferences
-                pref = profile.dietary_preference.lower()
-                if pref == 'veg' and 'non-veg' in (food.category.name.lower() if food.category else ''):
-                    is_safe = False
-                if pref == 'vegan' and not ('vegan' in (food.category.name.lower() if food.category else '') or 'veg' in (food.category.name.lower() if food.category else '')):
-                    is_safe = False
-                
-                # Check disease suitability
-                if profile.has_diabetes:
-                    if suit['diabetes']:
-                        reasons.append("Low Sugar (Safe for Diabetes)")
-                    else:
-                        is_safe = False
-                if profile.has_cholesterol:
-                    if suit['cholesterol']:
-                        reasons.append("Low Cholesterol (Safe for Cholesterol)")
-                    else:
-                        is_safe = False
-                if profile.has_bp:
-                    if suit['bp']:
-                        reasons.append("Low Sodium (BP-Friendly)")
-                    else:
-                        is_safe = False
-                        
-                if is_safe and (profile.has_diabetes or profile.has_cholesterol or profile.has_bp):
-                    # Save recommendations to database
-                    HealthRecommendation.objects.get_or_create(
-                        user=request.user,
-                        recommended_food=food,
-                        defaults={'reason': ", ".join(reasons) or "Matches health parameters", 'score': 0.9}
-                    )
-                    health_recs.append({
-                        'food': food,
-                        'reason': ", ".join(reasons) or "Matches health parameters"
-                    })
-        
-        # Truncate health recommendations
-        health_recs = health_recs[:4]
+        # Target active meal session name (Prioritizes session filter or current active application time)
+        if session_filter and session_filter != 'All':
+            target_rec_session = session_filter
+        elif active_session:
+            target_rec_session = active_session.name
+        else:
+            target_rec_session = 'Morning Breakfast'
+
+        recommended_food_objs, health_combined_reason = recommend_health_and_time_aware_foods(
+            all_avail,
+            profile,
+            active_session_name=target_rec_session,
+            limit=4
+        )
+
+        for food in recommended_food_objs:
+            rec_food_ids.append(food.id)
+            # Save to HealthRecommendation model
+            HealthRecommendation.objects.get_or_create(
+                user=request.user,
+                recommended_food=food,
+                defaults={'reason': health_combined_reason, 'score': 0.95}
+            )
+            health_recs.append({
+                'food': food,
+                'reason': health_combined_reason
+            })
         
     context = {
         'foods': foods,
@@ -180,6 +173,9 @@ def food_catalog(request):
         'ai_recs': ai_recs,
         'health_risk': health_risk,
         'health_recs': health_recs,
+        'health_combined_reason': health_combined_reason,
+        'target_rec_session': target_rec_session,
+        'rec_food_ids': rec_food_ids,
     }
     return render(request, 'food/catalog.html', context)
 
@@ -264,6 +260,7 @@ def wishlist_toggle(request, pk):
         return redirect(referer)
     return redirect('food_catalog')
 
+@never_cache
 @login_required
 @role_required('chef', 'admin')
 def chef_dashboard(request):
@@ -278,10 +275,8 @@ def chef_dashboard(request):
             "You can view your dashboard and update profile details, but you cannot manage or publish menu items until approved."
         )
 
-    chef_foods = FoodItem.objects.filter(chef=request.user)
-    
-    # Get incoming orders containing chef's foods
-    orders_items = OrderItem.objects.filter(food_item__chef=request.user).order_by('-order__created_at')
+    chef_foods = FoodItem.objects.all() if request.user.role == 'admin' else FoodItem.objects.filter(Q(chef=request.user) | Q(chef__isnull=True))
+    orders_items = OrderItem.objects.select_related('order', 'food_item', 'food_item__meal_session', 'food_item__category').order_by('-order__created_at')
     
     # Calculate AI forecasting for each food
     forecasts = []
@@ -327,6 +322,39 @@ def chef_dashboard(request):
         'forecasts': forecasts,
     }
     return render(request, 'food/chef_dashboard.html', context)
+
+
+@login_required
+@role_required('chef', 'admin')
+def api_chef_orders(request):
+    """Real-time API endpoint returning pending/active kitchen orders for the Chef Portal."""
+    if request.user.role not in ['chef', 'admin']:
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
+
+    order_items = OrderItem.objects.filter(
+        order__status__in=['pending', 'preparing', 'ready_pickup']
+    ).select_related('order', 'food_item', 'food_item__meal_session', 'food_item__category').order_by('-order__created_at')
+
+    data = []
+    for item in order_items:
+        data.append({
+            'order_id': item.order.order_id,
+            'food_id': f"FOOD{item.food_item.id:04d}",
+            'food_name': item.food_item.name,
+            'quantity': item.quantity,
+            'category': item.food_item.category.name if item.food_item.category else 'General',
+            'session': item.food_item.meal_session.name if item.food_item.meal_session else 'All Day',
+            'status': item.order.status,
+            'status_display': item.order.get_status_display(),
+            'created_at': item.order.created_at.strftime("%b %d, %Y • %I:%M %p"),
+        })
+
+    return JsonResponse({
+        'status': 'success',
+        'count': len(data),
+        'has_pending': any(item['status'] == 'pending' for item in data),
+        'orders': data
+    })
 
 @login_required
 @role_required('chef', 'admin')
@@ -453,6 +481,7 @@ def chef_food_manage(request, pk=None):
     return render(request, 'food/food_form.html', context)
 
 @login_required
+@role_required('chef', 'admin')
 def chef_order_status_update(request, order_id):
     """Allows Chef to update preparation status for their own kitchen order."""
     if request.user.role != 'chef' and request.user.role != 'admin':
@@ -460,12 +489,6 @@ def chef_order_status_update(request, order_id):
         return redirect('dashboard_redirect')
         
     order = get_object_or_404(Order, order_id=order_id)
-    
-    # Ownership Check: Ensure order contains food prepared by this chef
-    contains_chef_food = order.items.filter(food_item__chef=request.user).exists()
-    if request.user.role == 'chef' and not contains_chef_food:
-        messages.error(request, "Access Denied: You are not authorized to modify this order.")
-        return redirect('chef_dashboard')
 
     new_status = request.POST.get('status')
     if new_status in ['preparing', 'ready_pickup']:
@@ -474,6 +497,7 @@ def chef_order_status_update(request, order_id):
         messages.success(request, f"Order status updated to {order.get_status_display()}.")
     return redirect('chef_dashboard')
 
+@never_cache
 @login_required
 @role_required('admin')
 def admin_dashboard(request, section='overview'):
@@ -513,12 +537,133 @@ def admin_dashboard(request, section='overview'):
     completed_orders = Order.objects.filter(status='delivered').count()
     cancelled_orders = Order.objects.filter(status='cancelled').count()
     
-    # 5. Revenue stats
-    total_revenue = float(Payment.objects.filter(status='success').aggregate(Sum('amount'))['amount__sum'] or 0.00)
-    today_revenue = float(Payment.objects.filter(status='success', created_at__date=today).aggregate(Sum('amount'))['amount__sum'] or 0.00)
-    weekly_revenue = float(Payment.objects.filter(status='success', created_at__date__gte=seven_days_ago).aggregate(Sum('amount'))['amount__sum'] or 0.00)
-    monthly_revenue = float(Payment.objects.filter(status='success', created_at__date__gte=thirty_days_ago).aggregate(Sum('amount'))['amount__sum'] or 0.00)
+    # 5. Revenue & Food Sales Analytics
+    valid_orders_qs = Order.objects.exclude(status='cancelled').exclude(payment__status='failed')
+
+    def make_day_range(target_date):
+        start_dt = timezone.make_aware(datetime.datetime.combine(target_date, datetime.time.min))
+        end_dt = timezone.make_aware(datetime.datetime.combine(target_date, datetime.time.max))
+        return start_dt, end_dt
+
+    start_today, end_today = make_day_range(today)
+    start_7days, _ = make_day_range(seven_days_ago)
+    first_of_this_month = today.replace(day=1)
+    start_month, _ = make_day_range(first_of_this_month)
+
+    total_revenue = float(valid_orders_qs.aggregate(total=Sum('total_amount'))['total'] or 0.00)
+    today_revenue = float(valid_orders_qs.filter(created_at__range=(start_today, end_today)).aggregate(total=Sum('total_amount'))['total'] or 0.00)
+    monthly_revenue = float(valid_orders_qs.filter(created_at__gte=start_month).aggregate(total=Sum('total_amount'))['total'] or 0.00)
+    weekly_revenue = float(valid_orders_qs.filter(created_at__gte=start_7days).aggregate(total=Sum('total_amount'))['total'] or 0.00)
+
+    # Date-based filtering for Food Sales Analytics & Selected Period Revenue
+    period = request.GET.get('period', 'all').strip()
+    selected_date_str = request.GET.get('date', '').strip()
+    selected_month_str = request.GET.get('month', '').strip()
+    start_date_str = request.GET.get('start_date', '').strip()
+    end_date_str = request.GET.get('end_date', '').strip()
+
+    filtered_orders_qs = valid_orders_qs
+    date_filter_label = "All Time"
+
+    if selected_date_str:
+        try:
+            sel_date = datetime.datetime.strptime(selected_date_str, '%Y-%m-%d').date()
+            s_dt, e_dt = make_day_range(sel_date)
+            filtered_orders_qs = valid_orders_qs.filter(created_at__range=(s_dt, e_dt))
+            date_filter_label = sel_date.strftime('%B %d, %Y')
+            period = 'single_date'
+        except ValueError:
+            pass
+    elif selected_month_str:
+        try:
+            parts = selected_month_str.split('-')
+            year, month = int(parts[0]), int(parts[1])
+            filtered_orders_qs = valid_orders_qs.filter(created_at__year=year, created_at__month=month)
+            date_filter_label = datetime.date(year, month, 1).strftime('%B %Y')
+            period = 'single_month'
+        except ValueError:
+            pass
+    elif period == 'today':
+        filtered_orders_qs = valid_orders_qs.filter(created_at__range=(start_today, end_today))
+        date_filter_label = f"Today ({today.strftime('%b %d, %Y')})"
+    elif period == 'yesterday':
+        yesterday = today - datetime.timedelta(days=1)
+        s_dt, e_dt = make_day_range(yesterday)
+        filtered_orders_qs = valid_orders_qs.filter(created_at__range=(s_dt, e_dt))
+        date_filter_label = f"Yesterday ({yesterday.strftime('%b %d, %Y')})"
+    elif period == 'last_7_days':
+        filtered_orders_qs = valid_orders_qs.filter(created_at__gte=start_7days)
+        date_filter_label = "Last 7 Days"
+    elif period == 'this_month':
+        filtered_orders_qs = valid_orders_qs.filter(created_at__gte=start_month)
+        date_filter_label = today.strftime('%B %Y')
+    elif period == 'previous_month':
+        last_month_end = first_of_this_month - datetime.timedelta(days=1)
+        first_of_last_month = last_month_end.replace(day=1)
+        s_dt, _ = make_day_range(first_of_last_month)
+        _, e_dt = make_day_range(last_month_end)
+        filtered_orders_qs = valid_orders_qs.filter(created_at__range=(s_dt, e_dt))
+        date_filter_label = first_of_last_month.strftime('%B %Y')
+    elif period == 'custom' and start_date_str and end_date_str:
+        try:
+            s_date = datetime.datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            e_date = datetime.datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            s_dt, _ = make_day_range(s_date)
+            _, e_dt = make_day_range(e_date)
+            filtered_orders_qs = valid_orders_qs.filter(created_at__range=(s_dt, e_dt))
+            date_filter_label = f"{s_date.strftime('%b %d, %Y')} to {e_date.strftime('%b %d, %Y')}"
+        except ValueError:
+            pass
+
+    # Summary Metrics for Selected Filter Period
+    filtered_orders_count = filtered_orders_qs.count()
+    filtered_items_sold = OrderItem.objects.filter(order__in=filtered_orders_qs).aggregate(total=Sum('quantity'))['total'] or 0
+    filtered_revenue = float(filtered_orders_qs.aggregate(total=Sum('total_amount'))['total'] or 0.00)
+
+    # Food Sales Analytics Queryset for Selected Filter Period
+    food_sales_qs = FoodItem.objects.annotate(
+        total_qty_sold=Sum('orderitem__quantity', filter=Q(orderitem__order__in=filtered_orders_qs)),
+        orders_cnt=Count('orderitem__order', filter=Q(orderitem__order__in=filtered_orders_qs), distinct=True),
+        food_revenue=Sum(F('orderitem__quantity') * F('orderitem__price'), filter=Q(orderitem__order__in=filtered_orders_qs), output_field=FloatField())
+    ).order_by('-total_qty_sold')
+
+    food_sales_analysis = []
+    top_selling_foods = []
     
+    total_rev_pct_base = filtered_revenue if filtered_revenue > 0 else 1.0
+    rank = 1
+    
+    for food in food_sales_qs:
+        qty = food.total_qty_sold or 0
+        rev = float(food.food_revenue or 0.0)
+        ord_cnt = food.orders_cnt or 0
+        
+        food_code = f"FOOD{food.id:04d}"
+        pct = round((rev / total_rev_pct_base) * 100, 1) if filtered_revenue > 0 else 0.0
+        
+        badge_icon = "🥇" if rank == 1 else ("🥈" if rank == 2 else ("🥉" if rank == 3 else f"#{rank}"))
+        
+        item_data = {
+            'rank': rank,
+            'badge_icon': badge_icon,
+            'id': food.id,
+            'food_code': food_code,
+            'name': food.name,
+            'category': food.category.name if food.category else 'N/A',
+            'qty_sold': qty,
+            'orders_count': ord_cnt,
+            'revenue': rev,
+            'percentage': pct,
+        }
+        
+        if qty > 0:
+            food_sales_analysis.append(item_data)
+            if len(top_selling_foods) < 5:
+                top_selling_foods.append(item_data)
+            rank += 1
+
+    most_purchased_food = top_selling_foods[0] if top_selling_foods else None
+
     # 6. Active Deliveries & Tracking
     active_deliveries = DeliveryAssignment.objects.filter(status__in=['assigned', 'picked_up', 'in_transit']).count()
     waiting_deliveries = Order.objects.filter(status='ready_pickup').count()
@@ -553,13 +698,13 @@ def admin_dashboard(request, section='overview'):
         day_date = today - datetime.timedelta(days=i)
         day_str = day_date.strftime('%a %d')
         chart_days.append(day_str)
-        rev = float(Payment.objects.filter(status='success', created_at__date=day_date).aggregate(Sum('amount'))['amount__sum'] or 0.00)
-        ords = Order.objects.filter(created_at__date=day_date).count()
+        rev = float(valid_orders_qs.filter(created_at__date=day_date).aggregate(Sum('total_amount'))['total_amount__sum'] or 0.00)
+        ords = valid_orders_qs.filter(created_at__date=day_date).count()
         chart_revenue.append(rev)
         chart_orders.append(ords)
         
     # Category sales breakdown for charts
-    cat_sales = Category.objects.annotate(total_sales=Sum('foods__orderitem__quantity')).values('name', 'total_sales')
+    cat_sales = Category.objects.annotate(total_sales=Sum('foods__orderitem__quantity', filter=Q(foods__orderitem__order__in=valid_orders_qs))).values('name', 'total_sales')
     cat_labels = [c['name'] for c in cat_sales if c['total_sales']]
     cat_data = [int(c['total_sales']) for c in cat_sales if c['total_sales']]
     if not cat_labels:
@@ -567,34 +712,16 @@ def admin_dashboard(request, section='overview'):
         cat_data = [42, 68, 35, 24]
 
     # --- Business Analytics ---
-    from django.db.models import F, FloatField
-    
-    total_sales_revenue = float(Payment.objects.filter(status='success', order__status='delivered').aggregate(Sum('amount'))['amount__sum'] or 1.0)
-    
-    most_ordered_foods_qs = FoodItem.objects.annotate(
-        qty_sold=Sum('orderitem__quantity', filter=Q(orderitem__order__status='delivered')),
-        orders_count=Count('orderitem__order', filter=Q(orderitem__order__status='delivered'), distinct=True),
-        revenue_gen=Sum(F('orderitem__quantity') * F('orderitem__price'), filter=Q(orderitem__order__status='delivered'), output_field=FloatField())
-    ).filter(qty_sold__gt=0).order_by('-qty_sold')[:10]
-    
-    most_ordered_foods = []
-    for f_obj in most_ordered_foods_qs:
-        most_ordered_foods.append({
-            'name': f_obj.name,
-            'category': f_obj.category.name if f_obj.category else 'N/A',
-            'qty_sold': f_obj.qty_sold,
-            'orders_count': f_obj.orders_count,
-            'revenue': float(f_obj.revenue_gen or 0.0),
-            'percentage': round((float(f_obj.revenue_gen or 0.0) / total_sales_revenue) * 100, 1) if total_sales_revenue > 0 else 0
-        })
+    most_ordered_foods = food_sales_analysis[:10]
         
     popular_categories_stats_qs = Category.objects.annotate(
-        qty_sold=Sum('foods__orderitem__quantity', filter=Q(foods__orderitem__order__status='delivered')),
-        orders_count=Count('foods__orderitem__order', filter=Q(foods__orderitem__order__status='delivered'), distinct=True),
-        revenue_gen=Sum(F('foods__orderitem__quantity') * F('foods__orderitem__price'), filter=Q(foods__orderitem__order__status='delivered'), output_field=FloatField())
+        qty_sold=Sum('foods__orderitem__quantity', filter=Q(foods__orderitem__order__in=valid_orders_qs)),
+        orders_count=Count('foods__orderitem__order', filter=Q(foods__orderitem__order__in=valid_orders_qs), distinct=True),
+        revenue_gen=Sum(F('foods__orderitem__quantity') * F('foods__orderitem__price'), filter=Q(foods__orderitem__order__in=valid_orders_qs), output_field=FloatField())
     ).filter(qty_sold__gt=0).order_by('-qty_sold')
     
     popular_categories_stats = []
+    total_sales_revenue = filtered_revenue if filtered_revenue > 0 else 1.0
     for c_obj in popular_categories_stats_qs:
         popular_categories_stats.append({
             'name': c_obj.name,
@@ -604,7 +731,7 @@ def admin_dashboard(request, section='overview'):
             'percentage': round((float(c_obj.revenue_gen or 0.0) / total_sales_revenue) * 100, 1) if total_sales_revenue > 0 else 0
         })
 
-    total_orders_all = Order.objects.filter(status='delivered').count() or 1
+    total_orders_all = valid_orders_qs.count() or 1
     meal_session_stats = []
     highest_session_orders = None
     highest_session_deliveries = None
@@ -613,13 +740,14 @@ def admin_dashboard(request, section='overview'):
     
     sessions = MealSession.objects.all()
     for sess in sessions:
-        sess_items = OrderItem.objects.filter(food_item__meal_session=sess, order__status='delivered')
+        sess_items = OrderItem.objects.filter(food_item__meal_session=sess, order__in=valid_orders_qs)
         sess_orders_count = sess_items.values('order').distinct().count()
         sess_qty = sess_items.aggregate(Sum('quantity'))['quantity__sum'] or 0
         sess_rev = sess_items.aggregate(rev=Sum(F('quantity') * F('price'), output_field=FloatField()))['rev'] or 0.0
         sess_deliv_count = DeliveryAssignment.objects.filter(
             status='delivered', 
-            order__items__food_item__meal_session=sess
+            order__items__food_item__meal_session=sess,
+            order__in=valid_orders_qs
         ).distinct().count()
         
         meal_session_stats.append({
@@ -730,6 +858,18 @@ def admin_dashboard(request, section='overview'):
         'cat_data': cat_data,
         
         # New Business Analytics Context
+        'period': period,
+        'selected_date_str': selected_date_str,
+        'selected_month_str': selected_month_str,
+        'start_date_str': start_date_str,
+        'end_date_str': end_date_str,
+        'date_filter_label': date_filter_label,
+        'filtered_orders_count': filtered_orders_count,
+        'filtered_items_sold': filtered_items_sold,
+        'filtered_revenue': filtered_revenue,
+        'food_sales_analysis': food_sales_analysis,
+        'top_selling_foods': top_selling_foods,
+        'most_purchased_food': most_purchased_food,
         'most_ordered_foods': most_ordered_foods,
         'popular_categories_stats': popular_categories_stats,
         'meal_session_stats': meal_session_stats,

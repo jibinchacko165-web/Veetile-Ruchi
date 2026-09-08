@@ -1,43 +1,19 @@
 {% extends 'base.html' %}
 
+{% block title %}Create Account — Veetile-Ruchi{% endblock %}
+
 {% block extra_head %}
 <script>
     function toggleRoleFields() {
-        const role = document.getElementById('role').value;
+        const role = document.getElementById('role') ? document.getElementById('role').value : 'customer';
         const chefFields = document.getElementById('chef-fields');
         const deliveryFields = document.getElementById('delivery-fields');
         
-        if (role === 'chef') {
-            chefFields.style.display = 'block';
-            deliveryFields.style.display = 'none';
-        } else if (role === 'delivery_boy') {
-            chefFields.style.display = 'none';
-            deliveryFields.style.display = 'block';
-        } else {
-            chefFields.style.display = 'none';
-            deliveryFields.style.display = 'none';
+        if (chefFields) {
+            chefFields.style.display = (role === 'chef') ? 'block' : 'none';
         }
-    }
-
-    function captureGPSLocation() {
-        const latElem = document.getElementById('latitude');
-        const lonElem = document.getElementById('longitude');
-        const statusElem = document.getElementById('gps-status');
-
-        if (!latElem.value) latElem.value = "9.462534";
-        if (!lonElem.value) lonElem.value = "76.721850";
-
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition((position) => {
-                latElem.value = position.coords.latitude.toFixed(6);
-                lonElem.value = position.coords.longitude.toFixed(6);
-                if (statusElem) statusElem.innerHTML = "🟢 GPS coordinates captured successfully!";
-            }, (error) => {
-                console.log("GPS fetch failed. Using default coordinates.");
-                if (statusElem) statusElem.innerHTML = "🟡 Geolocation fallback active (Kochi coordinates).";
-            });
-        } else {
-            if (statusElem) statusElem.innerHTML = "🔴 Geolocation not supported by this browser.";
+        if (deliveryFields) {
+            deliveryFields.style.display = (role === 'delivery_boy') ? 'block' : 'none';
         }
     }
 
@@ -57,110 +33,105 @@
     }
 
     function checkPasswordMatch() {
-        const p1 = document.getElementById('password').value;
-        const p2 = document.getElementById('confirm_password').value;
+        const p1 = document.getElementById('password') ? document.getElementById('password').value : '';
+        const p2 = document.getElementById('confirm_password') ? document.getElementById('confirm_password').value : '';
         const status = document.getElementById('password-match-status');
         
+        if (!status) return;
         if (!p2) {
             status.innerHTML = '';
             return;
         }
         
         if (p1 === p2) {
-            status.style.color = 'var(--success, #2E7D32)';
-            status.innerHTML = '🟢 Passwords match perfectly!';
+            status.style.color = '#15803D';
+            status.innerHTML = '🟢 Passwords match!';
         } else {
-            status.style.color = 'var(--danger, #E63946)';
+            status.style.color = '#B91C1C';
             status.innerHTML = '🔴 Passwords do not match!';
         }
     }
 
     window.onload = function() {
         toggleRoleFields();
-        captureGPSLocation();
     };
 </script>
 {% endblock %}
 
 {% block content %}
-<div style="max-width: 550px; margin: 2rem auto;" class="card">
-    <h2 class="text-center mb-1" style="font-size: 2.2rem; color: var(--text-light);">Create Account</h2>
-    <p class="text-center mb-3" style="color: var(--text-muted);">Join Veetile Ruchi Food Network</p>
+<div style="max-width: 540px; margin: 2.5rem auto;" class="card">
+    <div style="text-align: center; margin-bottom: 1.5rem;">
+        <div style="width: 60px; height: 60px; border-radius: 50%; background: var(--accent-green-bg); color: var(--primary-green); display: inline-flex; align-items: center; justify-content: center; font-size: 1.8rem; margin-bottom: 0.75rem; border: 2px solid var(--border-leaf);">
+            <span>🍲</span>
+        </div>
+        <h1 style="font-size: 2rem; font-weight: 700; color: var(--primary-green); margin: 0;">Create Account</h1>
+        <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem; font-weight: 400;">Join Veetile-Ruchi Authentic Kerala Food Platform</p>
+    </div>
 
     <form method="POST" action="{% url 'register' %}">
         {% csrf_token %}
-        <div class="form-group">
-            <label class="form-label" for="username">Username</label>
-            <input type="text" name="username" id="username" class="form-control" placeholder="Choose a username" value="{{ form_data.username|default:'' }}" required>
+        
+        <div class="form-group mb-3">
+            <label class="form-label" for="username">Username <span style="color: var(--danger);">*</span></label>
+            <input type="text" name="username" id="username" class="form-control" placeholder="Choose a username (e.g. rahul)" value="{{ form_data.username|default:'' }}" required autofocus style="font-size: 0.98rem;">
         </div>
         
-        <div class="form-group">
-            <label class="form-label" for="email">Email Address</label>
-            <input type="email" name="email" id="email" class="form-control" placeholder="Enter email" value="{{ form_data.email|default:'' }}" required>
+        <div class="form-group mb-3">
+            <label class="form-label" for="email">Email Address <span style="color: var(--danger);">*</span></label>
+            <input type="email" name="email" id="email" class="form-control" placeholder="user@gmail.com" value="{{ form_data.email|default:'' }}" required style="font-size: 0.98rem;">
+        </div>
+
+        <div class="form-group mb-3">
+            <label class="form-label" for="phone">Mobile Phone Number <span style="color: var(--danger);">*</span></label>
+            <input type="text" name="phone" id="phone" class="form-control" placeholder="10-digit mobile number (e.g. 9876543210)" value="{{ form_data.phone|default:'' }}" required style="font-size: 0.98rem;">
         </div>
         
-        <div class="form-group">
-            <label class="form-label" for="dob">Date of Birth (DOB)</label>
-            <input type="date" name="dob" id="dob" class="form-control" min="1900-01-01" max="2026-12-31" value="{{ form_data.dob|default:'' }}" required>
+        <div class="form-group mb-3">
+            <label class="form-label" for="dob">Date of Birth (DOB) <span style="color: var(--danger);">*</span></label>
+            <input type="date" name="dob" id="dob" class="form-control" min="1900-01-01" max="2026-12-31" value="{{ form_data.dob|default:'' }}" required style="font-size: 0.98rem;">
         </div>
         
-        <div class="form-group">
-            <label class="form-label" for="password">Password</label>
+        <div class="form-group mb-3">
+            <label class="form-label" for="password">Create Strong Password <span style="color: var(--danger);">*</span></label>
             <div style="position: relative;">
-                <input type="password" name="password" id="password" class="form-control" placeholder="Choose password (min 6 characters)" oninput="checkPasswordMatch()" required style="padding-right: 2.8rem;" autocomplete="new-password">
-                <button type="button" id="toggle-pwd-btn" onclick="togglePassword('password', 'toggle-pwd-btn')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.05rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; padding: 4px;" title="Show Password"><i class="fa-solid fa-eye"></i></button>
+                <input type="password" name="password" id="password" class="form-control" placeholder="Min 8 chars, uppercase, lowercase, digit, symbol" oninput="checkPasswordMatch()" required style="padding-right: 3rem; font-size: 0.98rem;" autocomplete="new-password">
+                <button type="button" id="toggle-pwd-btn" onclick="togglePassword('password', 'toggle-pwd-btn')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.1rem; color: var(--text-muted); padding: 6px;" title="Show Password"><i class="fa-solid fa-eye"></i></button>
             </div>
         </div>
 
-        <div class="form-group">
-            <label class="form-label" for="confirm_password">Confirm Password</label>
+        <div class="form-group mb-4">
+            <label class="form-label" for="confirm_password">Confirm Password <span style="color: var(--danger);">*</span></label>
             <div style="position: relative;">
-                <input type="password" name="confirm_password" id="confirm_password" class="form-control" placeholder="Re-enter password to confirm" oninput="checkPasswordMatch()" required style="padding-right: 2.8rem;" autocomplete="new-password">
-                <button type="button" id="toggle-confirm-btn" onclick="togglePassword('confirm_password', 'toggle-confirm-btn')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.05rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; padding: 4px;" title="Show Password"><i class="fa-solid fa-eye"></i></button>
+                <input type="password" name="confirm_password" id="confirm_password" class="form-control" placeholder="Re-enter password to confirm" oninput="checkPasswordMatch()" required style="padding-right: 3rem; font-size: 0.98rem;" autocomplete="new-password">
+                <button type="button" id="toggle-confirm-btn" onclick="togglePassword('confirm_password', 'toggle-confirm-btn')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.1rem; color: var(--text-muted); padding: 6px;" title="Show Password"><i class="fa-solid fa-eye"></i></button>
             </div>
-            <p id="password-match-status" style="font-size: 0.8rem; margin-top: 0.3rem; font-weight: 600;"></p>
+            <p id="password-match-status" style="font-size: 0.85rem; margin-top: 0.35rem; font-weight: 500;"></p>
         </div>
 
-        <!-- Role set to Customer by default -->
+        <!-- Role defaults to customer -->
         <input type="hidden" name="role" id="role" value="customer">
 
-        <div class="form-group">
-            <label class="form-label" for="phone">Phone Number</label>
-            <input type="text" name="phone" id="phone" class="form-control" placeholder="Enter phone number" value="{{ form_data.phone|default:'' }}" required>
-        </div>
-
-        <!-- Dynamic Chef Fields -->
-        <div id="chef-fields" class="form-group" style="display:none;">
-            <label class="form-label" for="specialty">Chef Specialty</label>
-            <input type="text" name="specialty" id="specialty" class="form-control" placeholder="e.g. South Indian, Desserts" value="{{ form_data.specialty|default:'' }}">
+        <!-- Dynamic Chef Fields (if chef role used) -->
+        <div id="chef-fields" class="form-group mb-3" style="display: none;">
+            <label class="form-label" for="specialty">Chef Culinary Specialty</label>
+            <input type="text" name="specialty" id="specialty" class="form-control" placeholder="e.g. Traditional Kerala Sadya, Seafood" value="{{ form_data.specialty|default:'' }}">
         </div>
 
         <!-- Dynamic Delivery Boy Fields -->
-        <div id="delivery-fields" class="form-group" style="display:none;">
+        <div id="delivery-fields" class="form-group mb-3" style="display: none;">
             <label class="form-label" for="vehicle_number">Vehicle Number</label>
             <input type="text" name="vehicle_number" id="vehicle_number" class="form-control" placeholder="e.g. KL-07-CD-5678" value="{{ form_data.vehicle_number|default:'' }}">
         </div>
 
-        <!-- GPS Coordinates Capture -->
-        <div class="form-group">
-            <label class="form-label" style="display: flex; justify-content: space-between; align-items: center;">
-                GPS Delivery Coordinates
-                <button type="button" class="btn btn-secondary" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;" onclick="captureGPSLocation()">Retry GPS</button>
-            </label>
-            <div style="display: flex; gap: 1rem;">
-                <input type="text" name="latitude" id="latitude" class="form-control" placeholder="Latitude" value="{{ form_data.latitude|default:'10.015000' }}">
-                <input type="text" name="longitude" id="longitude" class="form-control" placeholder="Longitude" value="{{ form_data.longitude|default:'76.325000' }}">
-            </div>
-            <p id="gps-status" style="font-size: 0.8rem; margin-top: 0.25rem; color: var(--text-muted);">Detecting GPS location...</p>
-        </div>
-
-        <button type="submit" class="btn" style="width: 100%; padding: 0.8rem; font-size: 1.1rem; border-radius: 8px; margin-top: 1rem;">
+        <button type="submit" class="btn" style="width: 100%; padding: 0.85rem; font-size: 1.1rem; border-radius: 10px; margin-top: 0.5rem;">
             Register Account
         </button>
     </form>
     
-    <p class="text-center mt-3" style="color: var(--text-muted); font-size: 0.95rem;">
-        Already have an account? <a href="{% url 'login' %}" style="color: var(--primary); text-decoration: none; font-weight: 600;">Sign In</a>
-    </p>
+    <div style="text-align: center; margin-top: 1.5rem; border-top: 1.5px solid var(--border-warm); padding-top: 1.25rem;">
+        <p style="color: var(--text-muted); font-size: 0.92rem; margin: 0; font-weight: 400;">
+            Already have an account? <a href="{% url 'login' %}" style="color: var(--primary-green); text-decoration: none; font-weight: 600;">Sign In Here</a>
+        </p>
+    </div>
 </div>
 {% endblock %}

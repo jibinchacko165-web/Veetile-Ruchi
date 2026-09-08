@@ -34,14 +34,21 @@
             </div>
         </div>
 
-        <!-- Order ID Summary Box -->
-        <div style="background: #ffffff; padding: 0.75rem 1.25rem; border-radius: 12px; border: 1px solid var(--border-light);">
+        <!-- Order & Customer Contact Summary Box -->
+        <div style="background: #ffffff; padding: 0.75rem 1.25rem; border-radius: 12px; border: 1px solid var(--border-light); text-align: right;">
             <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.2rem;">
-                Order Identifier
+                Customer Contact
             </span>
-            <span style="background: #fff8ea; color: var(--primary-orange); font-family: monospace; font-weight: 700; padding: 0.25rem 0.65rem; border-radius: 6px; font-size: 0.9rem; border: 1px solid #fce5c8; display: inline-block;">
-                #{{ assignment.order.order_id }}
-            </span>
+            <strong style="font-size: 0.95rem; color: var(--primary-brown); display: block;">
+                👤 {{ assignment.order.user.get_full_name|default:assignment.order.user.username|title }}
+            </strong>
+            {% if assignment.order.user.phone %}
+                <a href="tel:{{ assignment.order.user.phone }}" style="display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 800; color: #2563eb; font-size: 0.9rem; text-decoration: none; margin-top: 0.2rem; background: #eff6ff; padding: 0.15rem 0.6rem; border-radius: 6px; border: 1px solid #bfdbfe;">
+                    📞 {{ assignment.order.user.phone }}
+                </a>
+            {% else %}
+                <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Phone not provided</span>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -127,8 +134,62 @@
             </form>
         </div>
 
+        <!-- Ordered Food Items Card -->
+        <div style="margin-top: 1.25rem; background: #ffffff; padding: 1.25rem; border-radius: 14px; border: 1px solid var(--border-light);">
+            <h4 style="color: var(--primary-brown); font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
+                📦 Ordered Food Items
+            </h4>
+            <ul style="list-style: none; padding: 0; margin: 0;">
+                {% for item in order.items.all %}
+                    <li style="display: flex; justify-content: space-between; align-items: center; font-size: 0.92rem; margin-bottom: 0.5rem; padding-bottom: 0.4rem; border-bottom: 1px dashed var(--border-light);">
+                        <div>
+                            <span style="font-weight: 700; color: var(--primary-brown); display: block;">
+                                🍲 {{ item.food_item.name }}
+                            </span>
+                            <span style="font-size: 0.78rem; color: var(--text-muted); font-family: monospace;">
+                                Food ID: FOOD{{ item.food_item.id|stringformat:"04d" }}
+                            </span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 0.6rem;">
+                            <span style="font-size: 0.82rem; color: var(--text-muted);">₹{{ item.price }}</span>
+                            <span style="font-weight: 700; color: var(--primary-brown); background: #fce5c8; padding: 0.2rem 0.65rem; border-radius: 50px; font-size: 0.85rem;">
+                                Qty: {{ item.quantity }}
+                            </span>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Customer Contact Details Card -->
+        <div style="margin-top: 1.25rem; background: #ffffff; padding: 1.25rem; border-radius: 14px; border: 1px solid var(--border-light);">
+            <h4 style="color: var(--primary-brown); font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
+                👤 Customer Contact Details
+            </h4>
+            <div style="background: var(--accent-warm); padding: 0.85rem; border-radius: 10px; border: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                <div>
+                    <strong style="font-size: 1rem; color: var(--primary-brown); display: block;">
+                        👤 {{ assignment.order.user.get_full_name|default:assignment.order.user.username|title }}
+                    </strong>
+                    <span style="font-size: 0.78rem; color: var(--text-muted);">Customer</span>
+                </div>
+                {% if assignment.order.user.phone %}
+                    <a href="tel:{{ assignment.order.user.phone }}" class="btn" style="padding: 0.45rem 1rem; font-size: 0.88rem; font-weight: 800; background: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.4rem; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
+                        📞 {{ assignment.order.user.phone }}
+                    </a>
+                {% else %}
+                    <span style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600;">Phone number not provided</span>
+                {% endif %}
+            </div>
+            {% if assignment.order.delivery_address %}
+                <div style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-main);">
+                    🏠 <strong>Address Notes:</strong> {{ assignment.order.formatted_delivery_address }}
+                </div>
+            {% endif %}
+        </div>
+
         <!-- AI Route & Delivery Time Predictions (Random Forest AI Model) -->
-        <div style="margin-top: 1.5rem; background: #ffffff; padding: 1.25rem; border-radius: 14px; border: 1px solid var(--border-light);">
+        <div style="margin-top: 1.25rem; background: #ffffff; padding: 1.25rem; border-radius: 14px; border: 1px solid var(--border-light);">
             <h4 style="color: var(--primary-brown); font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
                 🤖 AI Route & Delivery Predictions
             </h4>

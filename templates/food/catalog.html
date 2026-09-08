@@ -1,214 +1,409 @@
 {% extends 'base.html' %}
 
+{% block title %}Veetile-Ruchi — Authentic Kerala Homemade Food Ordering{% endblock %}
+
 {% block content %}
-<!-- Hero Section (Matching Screenshot Palette & Styling) -->
-<div style="background: linear-gradient(180deg, #fdeed9 0%, #fce5c8 100%); padding: 4rem 2rem; border-radius: 28px; border: 1.5px solid #fcdbc2; margin-bottom: 2.5rem; text-align: center; box-shadow: 0 10px 30px rgba(184, 92, 20, 0.05);">
-    <h1 style="font-size: 3rem; font-family: 'Poppins', sans-serif; font-weight: 700; color: #b85c14; margin-bottom: 1.25rem; letter-spacing: -0.02em;">
-        Experience the Authentic Taste of Home
+<!-- =========================================================================
+     1. HERO SECTION — AUTHENTIC KERALA HOMEMADE TASTE & WARM WELCOME
+     ========================================================================= -->
+<section style="background: linear-gradient(135deg, #EAF4EE 0%, #FAF7F0 50%, #F5EFEB 100%); border: 1.5px solid var(--border-leaf); border-radius: var(--radius-lg); padding: 3rem 2rem; margin-bottom: 2.5rem; text-align: center; box-shadow: var(--shadow-sm); position: relative; overflow: hidden;">
+    <!-- Kerala Thanima Badge -->
+    <div style="display: inline-flex; align-items: center; gap: 0.5rem; background: #FFFFFF; border: 1.5px solid var(--border-leaf); padding: 0.45rem 1.25rem; border-radius: 50px; margin-bottom: 1.25rem; box-shadow: var(--shadow-sm);">
+        <span style="font-size: 1.2rem;">🌴</span>
+        <span style="font-weight: 600; color: var(--primary-green); font-size: 0.92rem; letter-spacing: 0.01em;">
+            100% Traditional Kerala Home Kitchens • Fresh & Homely
+        </span>
+    </div>
+
+    <!-- Main Heading -->
+    <h1 style="font-size: 2.6rem; font-weight: 700; color: var(--primary-green); margin-bottom: 0.6rem; line-height: 1.2;">
+        Authentic Kerala Homemade Food, Prepared with Motherly Care
     </h1>
     
-    <!-- Time Session Badge -->
-    <div style="display: inline-flex; align-items: center; justify-content: center; gap: 0.6rem; background-color: #ffffff; border: 1.5px solid #fcdbc2; border-radius: 50px; padding: 0.55rem 1.8rem; font-size: 1.05rem; font-weight: 700; color: #b85c14; margin-bottom: 1.25rem; box-shadow: 0 4px 14px rgba(184, 92, 20, 0.08);">
-        <span style="font-size: 1.2rem;">🍳</span>
+    <!-- Subtitle / Welcome Description -->
+    <p style="font-size: 1.05rem; color: var(--text-muted); max-width: 720px; margin: 0 auto 1.6rem; line-height: 1.6; font-weight: 400;">
+        Experience the genuine taste of Kerala — from steaming Puttu with Kadala curry to traditional banana-leaf Sadya feasts, crispy Pazham Pori, and authentic delicacies, freshly hand-crafted by verified local home chefs in your neighborhood.
+    </p>
+
+    <!-- Prominent Action CTA Buttons -->
+    <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.75rem;">
+        <a href="#today-menu" class="btn btn-lg" style="box-shadow: 0 6px 20px rgba(27, 77, 62, 0.28);">
+            <i class="fa-solid fa-utensils"></i> Explore Today's Menu
+        </a>
+        <a href="{% url 'checkout_view' %}" class="btn btn-secondary btn-lg">
+            <i class="fa-solid fa-location-dot"></i> Delivery Service Area
+        </a>
+    </div>
+
+    <!-- Time-Based Meal Session Active Status Indicator -->
+    <div style="display: inline-flex; align-items: center; gap: 0.6rem; background: #FFFFFF; border: 1.5px solid var(--border-warm); border-radius: 50px; padding: 0.5rem 1.4rem; font-weight: 500; font-size: 0.92rem; color: var(--text-heading); box-shadow: var(--shadow-sm); margin-bottom: 1.5rem;">
+        <span class="pulse-dot"></span>
         <span>
             {% if active_session %}
-                Now Serving: <strong>{{ active_session.name }}</strong> ({{ active_session.start_time|time:"g:i A" }} – {{ active_session.end_time|time:"g:i A" }})
+                Now Serving Live: <strong style="color: var(--primary-green); font-weight: 600;">{{ active_session.name }}</strong> ({{ active_session.start_time|time:"g:i A" }} – {{ active_session.end_time|time:"g:i A" }})
             {% else %}
-                Kitchen Open All Day
+                Home Kitchens Open All Day
             {% endif %}
         </span>
     </div>
-    
-    <p style="font-size: 1.1rem; color: #8c5a3c; max-width: 650px; margin: 0 auto 2rem; font-weight: 600;">
-        Freshly prepared meals made with love and delivered straight to your doorstep.
-    </p>
 
-    <!-- Search Form -->
-    <form method="GET" action="{% url 'food_catalog' %}" style="max-width: 620px; margin: 0 auto; display: flex; gap: 0.5rem; background: #ffffff; padding: 0.45rem; border-radius: 50px; border: 2px solid #fcdbc2; box-shadow: 0 6px 20px rgba(184, 92, 20, 0.08);">
-        <input type="text" name="q" value="{{ query }}" placeholder="Search delicious homemade foods..." style="flex:1; background:transparent; border:none; color:#4a2412; padding:0 1.5rem; outline:none; font-size:1rem; font-family:inherit;">
-        {% if cat_filter %}
-            <input type="hidden" name="category" value="{{ cat_filter }}">
-        {% endif %}
-        {% if session_filter %}
-            <input type="hidden" name="session" value="{{ session_filter }}">
-        {% endif %}
-        <button type="submit" class="btn" style="padding: 0.65rem 2rem; font-size: 0.95rem;">Search</button>
-    </form>
-</div>
+    <!-- Search Form with Quick Tag Pills -->
+    <div style="max-width: 650px; margin: 0 auto;">
+        <form method="GET" action="{% url 'food_catalog' %}" style="display: flex; gap: 0.5rem; background: #FFFFFF; padding: 0.4rem 0.5rem; border-radius: 50px; border: 1.5px solid var(--border-leaf); box-shadow: var(--shadow-md);">
+            <input type="text" name="q" value="{{ query }}" placeholder="Search Kerala dishes (e.g. Appam, Puttu, Sadya, Fish Curry, Beef Fry)..." style="flex: 1; background: transparent; border: none; color: var(--text-main); padding: 0 1.25rem; outline: none; font-size: 1rem; font-family: inherit; font-weight: 400;">
+            {% if cat_filter %}
+                <input type="hidden" name="category" value="{{ cat_filter }}">
+            {% endif %}
+            {% if session_filter %}
+                <input type="hidden" name="session" value="{{ session_filter }}">
+            {% endif %}
+            <button type="submit" class="btn btn-sm" style="padding: 0.7rem 1.6rem; border-radius: 50px; font-weight: 600;">
+                <i class="fa-solid fa-magnifying-glass"></i> Search
+            </button>
+        </form>
 
-<!-- AI Recommendations and Health Banners (If Logged In Customer) -->
-{% if user.is_authenticated and user.role == 'customer' %}
-    <!-- AI Health Profile & Risk Classification -->
-    <div class="card mb-3" style="background: #ffffff; border: 1.5px solid #fcdbc2; border-left: 6px solid #2a9d8f; border-radius: 18px; padding: 1.4rem 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.25rem; box-shadow: 0 6px 22px rgba(184, 92, 20, 0.06);">
-        <div>
-            <h3 style="color: #0d9488; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem; margin: 0;">
-                🥗 AI Health Profile Summary
-            </h3>
-            <p style="color: #4a2412; font-size: 0.95rem; margin-top: 0.4rem; font-weight: 500;">
-                Based on your selected conditions: 
-                {% if user.health_profile.has_diabetes %}<strong style="color: #b85c14;">Diabetes</strong> | {% endif %}
-                {% if user.health_profile.has_cholesterol %}<strong style="color: #b85c14;">High Cholesterol</strong> | {% endif %}
-                {% if user.health_profile.has_bp %}<strong style="color: #b85c14;">High Blood Pressure</strong> | {% endif %}
-                {% if not user.health_profile.has_diabetes and not user.health_profile.has_cholesterol and not user.health_profile.has_bp %}
-                    <span style="color: #8c5a3c;">No chronic conditions registered.</span>
-                {% endif %}
-                Diet preference: <strong style="color: #b85c14;">{{ user.health_profile.get_dietary_preference_display }}</strong>
-            </p>
-        </div>
-        <div style="text-align: right;">
-            <span style="font-size: 0.82rem; color: #8c5a3c; font-weight: 600; display: block; margin-bottom: 0.3rem;">AI Risk Classification</span>
-            <span class="badge {% if health_risk == 'High' %}badge-danger{% elif health_risk == 'Medium' %}badge-warning{% else %}badge-success{% endif %}" style="font-size: 0.9rem; padding: 0.45rem 1.2rem; font-weight: 700;">
-                {{ health_risk }} Risk Profile
-            </span>
+        <!-- Popular Kerala Dish Quick Search Tags -->
+        <div style="display: flex; justify-content: center; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.85rem; font-size: 0.84rem;">
+            <span style="color: var(--text-muted); font-weight: 500;">Popular Dishes:</span>
+            <a href="?q=Puttu" style="color: var(--primary-green); background: #FFFFFF; padding: 0.2rem 0.65rem; border-radius: 20px; border: 1px solid var(--border-warm); text-decoration: none;">Puttu</a>
+            <a href="?q=Appam" style="color: var(--primary-green); background: #FFFFFF; padding: 0.2rem 0.65rem; border-radius: 20px; border: 1px solid var(--border-warm); text-decoration: none;">Appam</a>
+            <a href="?q=Sadya" style="color: var(--primary-green); background: #FFFFFF; padding: 0.2rem 0.65rem; border-radius: 20px; border: 1px solid var(--border-warm); text-decoration: none;">Sadya</a>
+            <a href="?q=Fish Curry" style="color: var(--primary-green); background: #FFFFFF; padding: 0.2rem 0.65rem; border-radius: 20px; border: 1px solid var(--border-warm); text-decoration: none;">Fish Curry</a>
+            <a href="?q=Porotta" style="color: var(--primary-green); background: #FFFFFF; padding: 0.2rem 0.65rem; border-radius: 20px; border: 1px solid var(--border-warm); text-decoration: none;">Kerala Parotta</a>
+            <a href="?q=Pazham Pori" style="color: var(--primary-green); background: #FFFFFF; padding: 0.2rem 0.65rem; border-radius: 20px; border: 1px solid var(--border-warm); text-decoration: none;">Pazham Pori</a>
         </div>
     </div>
+</section>
 
-    <!-- AI Health-Profile Based Recommendations -->
-    {% if health_recs %}
-    <div class="mb-3">
-        <h3 style="color: var(--warning); margin-bottom: 1rem; font-family: 'Poppins', sans-serif; display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
-            ❤️ Health-Friendly Recommendations
-        </h3>
-        <div class="grid-3">
-            {% for rec in health_recs %}
-            <div class="card" style="border-top: 3px solid var(--warning);">
-                <div style="height: 160px; border-radius: 8px; overflow: hidden; background: #fce5c8; position: relative;">
-                    <img src="{{ rec.food.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ rec.food.name }}" style="width: 100%; height: 100%; object-fit: cover;">
-                    <span class="badge badge-warning" style="position: absolute; top: 8px; left: 8px;">
-                        {{ rec.food.meal_session.name|upper }} ({{ rec.food.meal_session.start_time|time:"g:i A" }}–{{ rec.food.meal_session.end_time|time:"g:i A" }})
-                    </span>
+<!-- =========================================================================
+     2. AI HEALTH PROFILE & PERSONALIZED RECOMMENDATIONS (FOR LOGGED-IN USERS)
+     ========================================================================= -->
+{% if user.is_authenticated and user.role == 'customer' %}
+    <!-- AI Medical Conditions & Meal-Time Recommendation Panel -->
+    <div class="card mb-4" style="border-left: 6px solid var(--primary-green); background: #FFFFFF; padding: 1.5rem; border-radius: 16px; box-shadow: var(--shadow-sm);">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1.25rem; margin-bottom: 1.25rem; border-bottom: 1.5px solid var(--border-warm); padding-bottom: 1rem;">
+            <div>
+                <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.35rem;">
+                    <span style="font-size: 1.5rem;">🥗</span>
+                    <h3 style="color: var(--primary-green); font-size: 1.3rem; font-weight: 800; margin: 0;">
+                        AI Medical Conditions & Meal-Time Food Recommendations
+                    </h3>
                 </div>
-                <h4 class="mt-2">{{ rec.food.name }}</h4>
-                <p style="font-size: 0.8rem; color: var(--success); margin: 0.25rem 0;" class="font-weight: 600;">{{ rec.reason }}</p>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
-                    <span style="font-weight: 700; color: var(--primary); font-size: 1.15rem;">₹{{ rec.food.price }}</span>
-                    <a href="{% url 'food_detail' rec.food.id %}" class="btn btn-outline" style="padding: 0.4rem 1rem; font-size: 0.85rem;">Order Now</a>
+                <p style="color: var(--text-muted); font-size: 0.92rem; margin: 0; font-weight: 400;">
+                    Active Meal Session: <strong style="color: var(--primary-green); font-weight: 700;">{{ target_rec_session }}</strong> • Diet: <strong style="color: var(--primary-brown); font-weight: 700;">{{ user.health_profile.get_dietary_preference_display }}</strong>
+                </p>
+            </div>
+            
+            <div style="text-align: right;">
+                <span class="badge {% if health_risk == 'High' %}badge-danger{% elif health_risk == 'Medium' %}badge-warning{% else %}badge-success{% endif %}" style="font-size: 0.85rem; padding: 0.4rem 1rem;">
+                    {{ health_risk }} Health Risk Mode
+                </span>
+            </div>
+        </div>
+
+
+        {% if health_recs %}
+            <div style="margin-bottom: 1.25rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.85rem;">
+                    <span style="font-size: 1.3rem;">✨</span>
+                    <h4 style="color: var(--primary-brown); font-size: 1.15rem; font-weight: 800; margin: 0;">
+                        Recommended Kerala Foods for {{ target_rec_session }}
+                    </h4>
+                </div>
+
+
+                <!-- Recommended Foods Grid -->
+                <div class="grid-3">
+                    {% for rec in health_recs %}
+                        <div class="food-card" style="border: 2px solid var(--primary-green); box-shadow: 0 4px 16px rgba(46, 125, 50, 0.15);">
+                            <div class="food-card-media">
+                                <img src="{{ rec.food.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ rec.food.name }}" loading="lazy">
+                                <span class="badge badge-success" style="position: absolute; top: 12px; left: 12px; font-weight: 700; color: #FFFFFF; background: #2E7D32;">
+                                    ✓ Recommended for {{ target_rec_session }}
+                                </span>
+                            </div>
+                            <div class="food-card-body">
+                                <div>
+                                    <h4 class="food-card-title">{{ rec.food.name }}</h4>
+                                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                                        {{ rec.food.description|truncatewords:14 }}
+                                    </p>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1.5px solid var(--border-warm); padding-top: 0.85rem; margin-top: 0.5rem;">
+                                    <span class="food-card-price">₹{{ rec.food.price }}</span>
+                                    <a href="{% url 'food_detail' rec.food.id %}" class="btn btn-sm">
+                                        Order Now
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
                 </div>
             </div>
-            {% endfor %}
-        </div>
+        {% else %}
+            <div style="background: #FFF8E1; border: 1.5px solid #FFE082; padding: 1rem 1.25rem; border-radius: 12px; font-size: 0.9rem; color: #8B4513;">
+                {{ health_combined_reason }}
+            </div>
+        {% endif %}
+
+        <!-- Safe Medical Disclaimer Footer -->
+        <p style="font-size: 0.78rem; color: var(--text-muted); margin: 1rem 0 0 0; font-style: italic; border-top: 1px dashed var(--border-warm); padding-top: 0.6rem;">
+            ⚠️ <strong>Medical Disclaimer:</strong> These recommendations provide general dietary guidance based on nutritional parameters and food preparation methods, and are not a substitute for professional advice from your doctor or registered dietitian.
+        </p>
     </div>
-    {% endif %}
 {% endif %}
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin: 2rem 0 1.5rem; flex-wrap: wrap; gap: 1.5rem;">
-    <h2 style="font-size: 2.2rem; font-weight: 700; color: var(--primary-dark); letter-spacing: -0.02em;">📋 Menu Card</h2>
-</div>
+<!-- =========================================================================
+     3. KERALA MEAL SESSIONS & CATEGORIES SECTION
+     ========================================================================= -->
+<section id="today-menu" style="margin-bottom: 2rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h2 style="font-size: 1.8rem; font-weight: 700; color: var(--primary-green); margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                <span>🍲</span> Today's Traditional Kerala Menu
+            </h2>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin: 0.25rem 0 0 0; font-weight: 400;">
+                Select your meal session or explore authentic homemade delicacies
+            </p>
+        </div>
+    </div>
 
-<!-- Session Filters matching exact UI design -->
-<div style="background: rgba(254, 248, 240, 0.05); border: 1px solid var(--dark-border); border-radius: 20px; padding: 1.75rem 1.25rem; margin-bottom: 2.5rem; text-align: center;">
-    
-    <!-- Pills Row -->
-    <div style="display: flex; justify-content: center; align-items: center; gap: 1rem; flex-wrap: wrap;">
-        
+    <!-- Meal Session Filter Pills Row -->
+    <div class="scrollable-pill-bar" style="margin-bottom: 1.25rem;">
         <!-- All Session Pill -->
         <a href="?session=All{% if query %}&q={{ query }}{% endif %}{% if cat_filter %}&category={{ cat_filter }}{% endif %}" 
-           style="position: relative; display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1.6rem; border-radius: 50px; text-decoration: none; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.95rem; transition: var(--transition);
-           {% if session_filter == 'All' %}
-               background: linear-gradient(135deg, #e07a38 0%, #d97736 100%); color: #ffffff; box-shadow: 0 4px 16px rgba(217, 119, 54, 0.4);
-           {% else %}
-               background-color: #fef5e7; border: 1.5px solid #fcdbb3; color: #b85c14;
-           {% endif %}">
-            <span style="font-size: 1.1rem; display: inline-flex; align-items: center;">⊞</span>
-            <span>All</span>
+           class="btn btn-sm {% if session_filter == 'All' %}btn{% else %}btn-outline{% endif %}" style="border-radius: 50px; flex-shrink: 0;">
+            <span>⊞ All Dishes</span>
         </a>
 
-        <!-- Meal Session Pills -->
+        <!-- Meal Session Pills (Breakfast, Lunch, Snacks, Dinner) -->
         {% for pill in session_pills %}
             <a href="?session={{ pill.short_name }}{% if query %}&q={{ query }}{% endif %}{% if cat_filter %}&category={{ cat_filter }}{% endif %}" 
-               style="position: relative; display: inline-flex; align-items: center; gap: 0.55rem; padding: 0.65rem 1.7rem; border-radius: 50px; text-decoration: none; font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.95rem; transition: var(--transition);
-               {% if pill.is_selected %}
-                   background: linear-gradient(135deg, #e07a38 0%, #d97736 100%); color: #ffffff; box-shadow: 0 4px 16px rgba(217, 119, 54, 0.4);
-               {% else %}
-                   background-color: #fef5e7; border: 1.5px solid #fcdbb3; color: #b85c14;
-               {% endif %}">
-                
-                <!-- Session Icon -->
-                <span style="font-size: 1.15rem; display: inline-flex; align-items: center;">{{ pill.icon }}</span>
-                <span>{{ pill.short_name }}</span>
-
-                <!-- Active Live Green Indicator Dot for Currently Serving Session -->
+               class="btn btn-sm {% if pill.is_selected %}btn{% else %}btn-outline{% endif %}" style="border-radius: 50px; position: relative; flex-shrink: 0;">
+                <span>{{ pill.icon }} {{ pill.short_name }}</span>
                 {% if pill.is_active %}
-                    <span title="Currently Serving Session" style="position: absolute; top: -3px; right: -3px; width: 14px; height: 14px; background-color: #10b981; border: 2.5px solid #ffffff; border-radius: 50%; box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);"></span>
+                    <span class="badge badge-success" style="font-size: 0.72rem; padding: 2px 8px; margin-left: 5px; background: #2E7D32; color: #FFFFFF; font-weight: 600;">Available</span>
                 {% endif %}
             </a>
         {% endfor %}
     </div>
 
-    <!-- Active Serving Status Banner -->
-    {% if active_session %}
-        <div style="margin-top: 1.25rem;">
-            <div style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; background-color: rgba(16, 185, 129, 0.12); border: 1.5px solid rgba(16, 185, 129, 0.4); border-radius: 30px; padding: 0.45rem 1.4rem; font-size: 0.92rem; font-weight: 600; color: #10b981;">
-                <span style="display: inline-block; width: 9px; height: 9px; border-radius: 50%; background-color: #10b981; box-shadow: 0 0 8px #10b981; animation: pulse 1.5s infinite;"></span>
-                <span>Currently Serving: <strong>{{ active_session.name }}</strong> ({{ active_session.start_time|time:"g:i A" }} – {{ active_session.end_time|time:"g:i A" }})</span>
-            </div>
+    <!-- Category Pills Row -->
+    {% if categories %}
+        <div class="scrollable-pill-bar" style="align-items: center;">
+            <span style="font-size: 0.88rem; font-weight: 600; color: var(--text-heading); margin-right: 0.25rem; flex-shrink: 0;">Categories:</span>
+            <a href="?category={% if session_filter %}&session={{ session_filter }}{% endif %}{% if query %}&q={{ query }}{% endif %}" 
+               style="padding: 0.35rem 0.9rem; border-radius: 50px; font-size: 0.85rem; font-weight: 500; text-decoration: none; border: 1.5px solid var(--border-warm); flex-shrink: 0; {% if not cat_filter %}background: var(--primary-green); color: white; border-color: var(--primary-green);{% else %}background: #FFFFFF; color: var(--text-main);{% endif %}">
+                All Categories
+            </a>
+            {% for cat in categories %}
+                <a href="?category={{ cat.name }}{% if session_filter %}&session={{ session_filter }}{% endif %}{% if query %}&q={{ query }}{% endif %}" 
+                   style="padding: 0.35rem 0.9rem; border-radius: 50px; font-size: 0.85rem; font-weight: 500; text-decoration: none; border: 1.5px solid var(--border-warm); {% if cat_filter == cat.name %}background: var(--primary-green); color: white; border-color: var(--primary-green);{% else %}background: #FFFFFF; color: var(--text-main);{% endif %}">
+                    {{ cat.name }}
+                </a>
+            {% endfor %}
         </div>
     {% endif %}
-</div>
+</section>
 
-<!-- Food Grid -->
-<div class="grid-3">
+<!-- =========================================================================
+     4. FOOD CARDS GRID (100% AUTHENTIC KERALA DISH PRESENTATION)
+     ========================================================================= -->
+<div class="grid-3 mb-4">
     {% for food in foods %}
-        <div class="card" style="display: flex; flex-direction: column;">
-            <div style="height: 200px; border-radius: 12px; overflow: hidden; background: #fce5c8; position: relative;">
-                <img src="{{ food.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ food.name }}" style="width: 100%; height: 100%; object-fit: cover;">
-                <span class="badge badge-accent" style="position: absolute; top: 12px; left: 12px;">{{ food.category.name }}</span>
+        <div class="food-card">
+            <!-- Food Image Container with Aspect Ratio & Verified Photos -->
+            <div class="food-card-media">
+                <img src="{{ food.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ food.name }}" loading="lazy">
                 
-                <!-- Dynamic Time-Based Session Badge on Food Item -->
-                {% if active_session and food.meal_session.id == active_session.id %}
-                    <span class="badge badge-success" style="position: absolute; top: 12px; right: 12px; display: flex; align-items: center; gap: 0.3rem; box-shadow: 0 2px 8px rgba(16,185,129,0.4); text-transform: uppercase;">
-                        <span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background-color: #ffffff; animation: pulse 1.5s infinite;"></span>
-                        🟢 {{ food.meal_session.name|upper }} ({{ food.meal_session.start_time|time:"g:i A" }}–{{ food.meal_session.end_time|time:"g:i A" }})
-                    </span>
-                {% else %}
-                    <span class="badge badge-primary" style="position: absolute; top: 12px; right: 12px; opacity: 0.9; text-transform: uppercase;">
-                        {{ food.meal_session.name|upper }} ({{ food.meal_session.start_time|time:"g:i A" }}–{{ food.meal_session.end_time|time:"g:i A" }})
+                <!-- Category Badge -->
+                <span class="badge badge-green" style="position: absolute; top: 12px; left: 12px; font-size: 0.78rem;">
+                    {{ food.category.name }}
+                </span>
+                
+                <!-- Meal Session Badge -->
+                <span class="badge badge-primary" style="position: absolute; top: 12px; right: 12px; font-size: 0.78rem;">
+                    {{ food.meal_session.name }}
+                </span>
+
+                {% if food.id in rec_food_ids %}
+                    <span class="badge badge-success" style="position: absolute; bottom: 12px; left: 12px; font-size: 0.78rem; font-weight: 700; color: #FFFFFF; background: #2E7D32;">
+                        ✓ AI Recommended for {{ target_rec_session }}
                     </span>
                 {% endif %}
             </div>
             
-            <div style="padding: 1rem 0; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+            <div class="food-card-body">
                 <div>
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.25rem;">
-                        <div>
-                            <h3 style="font-size: 1.25rem; font-weight: 700;">{{ food.name }}</h3>
-                        </div>
-                        <a href="{% url 'wishlist_toggle' food.id %}" style="text-decoration: none; display: inline-flex; align-items: center; transition: transform 0.2s ease;" title="Save to Favorites" onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">
-                            {% if food.id in wish_ids %}
-                                <img src="/static/images/wishlist-heart.svg" alt="Favorited" style="width: 28px; height: 28px;">
-                            {% else %}
-                                <img src="/static/images/wishlist-heart-outline.svg" alt="Add to Favorites" style="width: 28px; height: 28px;">
-                            {% endif %}
-                        </a>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.25rem;">
+                        <h3 class="food-card-title">{{ food.name }}</h3>
+                        
+                        <!-- Wishlist Toggle Button -->
+                        {% if user.is_authenticated and user.role == 'customer' %}
+                            <a href="{% url 'wishlist_toggle' food.id %}" style="text-decoration: none; font-size: 1.25rem; color: {% if food.id in wish_ids %}#EF4444{% else %}#CBD5E1{% endif %}; transition: var(--transition);" title="Save to Wishlist">
+                                <i class="fa-solid fa-heart"></i>
+                            </a>
+                        {% endif %}
                     </div>
-                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem;">
-                        {{ food.description|default:"Delectable fresh homemade preparation." }}
+                    
+                    <p class="food-card-desc">
+                        {{ food.description|default:"Authentic Kerala homemade preparation prepared using traditional spices and hygienic standards." }}
                     </p>
                     
-                    {% if food.stock_quantity <= 0 %}
-                        <p style="font-size: 0.8rem; color: var(--danger); font-weight: 600; margin-bottom: 0.5rem;">⚠️ Sold Out (Out of Stock)</p>
-                    {% else %}
-                        <p style="font-size: 0.8rem; color: var(--success); font-weight: 500; margin-bottom: 0.5rem;">🟢 Stock Available: {{ food.stock_quantity }} portions</p>
-                    {% endif %}
+                    <!-- Portion Stock Availability Pill -->
+                    <div style="margin-bottom: 0.75rem;">
+                        {% if food.stock_quantity <= 0 %}
+                            <span class="badge badge-danger" style="font-size: 0.8rem;">
+                                ⚠️ Sold Out Today
+                            </span>
+                        {% else %}
+                            <span class="badge badge-success" style="font-size: 0.8rem;">
+                                🟢 In Stock: {{ food.stock_quantity }} portions
+                            </span>
+                        {% endif %}
+                    </div>
                 </div>
                 
-                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--dark-border); padding-top: 1rem; margin-top: 0.5rem;">
-                    <span style="font-weight: 700; color: var(--primary); font-size: 1.4rem;">₹{{ food.price }}</span>
+                <!-- Price & Large Touch Action Buttons -->
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1.5px solid var(--border-warm); padding-top: 0.85rem; margin-top: 0.5rem;">
+                    <div>
+                        <span style="font-size: 0.78rem; color: var(--text-muted); display: block; line-height: 1;">Price:</span>
+                        <span class="food-card-price">₹{{ food.price }}</span>
+                    </div>
+                    
                     <div style="display: flex; gap: 0.5rem;">
-                        <a href="{% url 'food_detail' food.id %}" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.85rem;">Details</a>
+                        <a href="{% url 'food_detail' food.id %}" class="btn btn-outline btn-sm">
+                            Details
+                        </a>
                         {% if food.stock_quantity > 0 %}
-                            <a href="{% url 'cart_add' food.id %}" class="btn" style="padding: 0.5rem 1.2rem; font-size: 0.85rem;">Add +</a>
+                            <a href="{% url 'cart_add' food.id %}" class="btn btn-sm">
+                                + Add
+                            </a>
                         {% endif %}
                     </div>
                 </div>
             </div>
         </div>
     {% empty %}
-        <div style="grid-column: 1 / -1; padding: 4rem 2rem; text-align: center; color: var(--text-muted);">
-            <p style="font-size: 1.25rem;">No homemade food items found matching your filters.</p>
+        <div style="grid-column: 1 / -1; padding: 4rem 2rem; text-align: center; background: #FFFFFF; border-radius: var(--radius-lg); border: 1.5px solid var(--border-warm);">
+            <span style="font-size: 3rem; display: block; margin-bottom: 0.75rem;">🍲</span>
+            <h3 style="color: var(--text-heading); font-weight: 600; margin-bottom: 0.5rem;">No dishes found matching your criteria</h3>
+            <p style="font-size: 1rem; color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 400;">Try selecting another meal session or clearing your search filter.</p>
+            <a href="{% url 'food_catalog' %}?session=All" class="btn btn-sm">View All Dishes</a>
         </div>
     {% endfor %}
 </div>
+
+<!-- =========================================================================
+     5. THE TASTE OF KERALA THANIMA (TRUST & HOMEMADE QUALITY HIGHLIGHTS)
+     ========================================================================= -->
+<section style="background: #FFFFFF; border: 1.5px solid var(--border-warm); border-radius: var(--radius-lg); padding: 2.5rem 2rem; margin-bottom: 2.5rem; box-shadow: var(--shadow-sm);">
+    <div style="text-align: center; max-width: 680px; margin: 0 auto 2rem;">
+        <span class="badge badge-green" style="margin-bottom: 0.5rem;">The Veetile-Ruchi Promise</span>
+        <h2 style="color: var(--primary-green); font-size: 1.85rem; font-weight: 700; margin-bottom: 0.4rem;">
+            Why Families Love Our Homemade Food
+        </h2>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">
+            Prepared in home kitchens, not industrial factories, following traditional Kerala recipes handed down across generations.
+        </p>
+    </div>
+
+    <div class="grid-4" style="gap: 1.5rem;">
+        <div style="background: var(--bg-cream); border: 1.5px solid var(--border-warm); border-radius: var(--radius-md); padding: 1.5rem; text-align: center;">
+            <span style="font-size: 2rem; display: block; margin-bottom: 0.6rem;">🏡</span>
+            <h4 style="font-size: 1.05rem; font-weight: 600; color: var(--primary-green); margin-bottom: 0.35rem;">Verified Home Chefs</h4>
+            <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin: 0;">Passionate local mothers and chefs verified for exceptional hygiene and authenticity.</p>
+        </div>
+
+        <div style="background: var(--bg-cream); border: 1.5px solid var(--border-warm); border-radius: var(--radius-md); padding: 1.5rem; text-align: center;">
+            <span style="font-size: 2rem; display: block; margin-bottom: 0.6rem;">🌿</span>
+            <h4 style="font-size: 1.05rem; font-weight: 600; color: var(--primary-green); margin-bottom: 0.35rem;">Banana Leaf Packing</h4>
+            <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin: 0;">Natural, wholesome packing preserving aroma, fresh temperature, and authentic flavor.</p>
+        </div>
+
+        <div style="background: var(--bg-cream); border: 1.5px solid var(--border-warm); border-radius: var(--radius-md); padding: 1.5rem; text-align: center;">
+            <span style="font-size: 2rem; display: block; margin-bottom: 0.6rem;">🥥</span>
+            <h4 style="font-size: 1.05rem; font-weight: 600; color: var(--primary-green); margin-bottom: 0.35rem;">Pure Ingredients</h4>
+            <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin: 0;">Cold-pressed coconut oil, hand-ground spices, zero artificial colors, zero preservatives.</p>
+        </div>
+
+        <div style="background: var(--bg-cream); border: 1.5px solid var(--border-warm); border-radius: var(--radius-md); padding: 1.5rem; text-align: center;">
+            <span style="font-size: 2rem; display: block; margin-bottom: 0.6rem;">🚚</span>
+            <h4 style="font-size: 1.05rem; font-weight: 600; color: var(--primary-green); margin-bottom: 0.35rem;">Live GPS Delivery</h4>
+            <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin: 0;">Hot, timely doorstep delivery verified within our active kitchen perimeter.</p>
+        </div>
+    </div>
+</section>
+
+<!-- =========================================================================
+     6. CUSTOMER REVIEWS & LOCAL RATINGS
+     ========================================================================= -->
+<section style="margin-bottom: 2.5rem;">
+    <div style="text-align: center; margin-bottom: 1.75rem;">
+        <h2 style="color: var(--text-heading); font-size: 1.75rem; font-weight: 700; margin-bottom: 0.35rem;">
+            What Our Kerala Customers Say
+        </h2>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">
+            Real ratings from working professionals, families, and elderly patrons
+        </p>
+    </div>
+
+    <div class="grid-3">
+        <div class="card" style="padding: 1.5rem;">
+            <div style="color: #E5A00D; font-size: 1rem; margin-bottom: 0.5rem;">
+                ⭐⭐⭐⭐⭐
+            </div>
+            <p style="font-style: italic; color: var(--text-main); font-size: 0.92rem; line-height: 1.6; margin-bottom: 1rem;">
+                "The Puttu and Kadala curry reminds me exactly of my grandmother's home cooking in Kottayam. Soft, fresh, and perfectly spiced. Highly recommended for busy families!"
+            </p>
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--accent-green-bg); color: var(--primary-green); display: flex; align-items: center; justify-content: center; font-weight: 700;">
+                    R
+                </div>
+                <div>
+                    <strong style="font-size: 0.92rem; color: var(--text-heading); display: block;">Ramesh Menon</strong>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">Kakkanad, Kochi</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 1.5rem;">
+            <div style="color: #E5A00D; font-size: 1rem; margin-bottom: 0.5rem;">
+                ⭐⭐⭐⭐⭐
+            </div>
+            <p style="font-style: italic; color: var(--text-main); font-size: 0.92rem; line-height: 1.6; margin-bottom: 1rem;">
+                "As an elderly retired person, I appreciate the clean, non-greasy meals and the ability to order with large, clear buttons. The Sadya lunch is top quality!"
+            </p>
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--accent-green-bg); color: var(--primary-green); display: flex; align-items: center; justify-content: center; font-weight: 700;">
+                    K
+                </div>
+                <div>
+                    <strong style="font-size: 0.92rem; color: var(--text-heading); display: block;">Kunjamma Mathew</strong>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">Palarivattom, Kochi</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 1.5rem;">
+            <div style="color: #E5A00D; font-size: 1rem; margin-bottom: 0.5rem;">
+                ⭐⭐⭐⭐⭐
+            </div>
+            <p style="font-style: italic; color: var(--text-main); font-size: 0.92rem; line-height: 1.6; margin-bottom: 1rem;">
+                "The evening Pazham Pori and Ela Ada were delivered piping hot. You can feel the real ghee and fresh coconut. Veetile-Ruchi is a true blessing for authentic food."
+            </p>
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: var(--accent-green-bg); color: var(--primary-green); display: flex; align-items: center; justify-content: center; font-weight: 700;">
+                    A
+                </div>
+                <div>
+                    <strong style="font-size: 0.92rem; color: var(--text-heading); display: block;">Anoop Varghese</strong>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">Edappally, Kochi</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
 
 <!-- Auto-refresh script when session boundary is crossed -->
 <script>

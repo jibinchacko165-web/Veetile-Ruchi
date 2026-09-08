@@ -1,2 +1,679 @@
-/* Veetile Ruchi Stylesheet */
-/* Core custom animations and details are defined in base.html. */
+/* ==========================================================================
+   VEETILE-RUCHI — TRADITIONAL KERALA NATURE & HOMEMADE FOOD DESIGN SYSTEM
+   Authentic Homemade Kerala Food Ordering & Delivery Platform
+   ========================================================================== */
+
+:root {
+    /* 1. Kerala Nature & Coconut / Banana Leaf Green Palette (Primary Theme) */
+    --primary-green: #1B4D3E;        /* Deep Coconut Palm Green */
+    --primary-green-light: #2E7D32;  /* Fresh Banana Leaf Green */
+    --primary-green-hover: #143B2F;  /* Deep Forest Green */
+    --primary-green-subtle: #245A48; /* Mid Palm Green */
+    --accent-green-bg: #EAF4EE;      /* Soft Banana Leaf Tint */
+    --accent-green-surface: #F0F8F3; /* Very Light Nature Green */
+
+    /* 2. Kerala Earthy Claypot & Spice Accents */
+    --primary-brown: #3E2415;        /* Traditional Earthen Claypot Brown */
+    --primary-brown-light: #5A3822;  /* Warm Earthen Clay */
+    --primary-orange: #D97736;       /* Kerala Terracotta Spice */
+    --primary-orange-hover: #BF5E20; /* Deep Roasted Spice */
+    --primary-orange-light: #FFF2E8; /* Soft Terracotta Cream */
+    --gold-accent: #E5A00D;          /* Traditional Kerala Brass / Turmeric Gold */
+    --gold-bg: #FEF8E7;              /* Mild Turmeric Tint */
+
+    /* 3. Authentic Kerala Rice Cream Surfaces */
+    --bg-cream: #FAF7F0;             /* Authentic Kerala Rice / Payasam Off-White */
+    --bg-surface: #F5EFEB;           /* Warm Sand Earthen Surface */
+    --bg-card: #FFFFFF;              /* Pure White Elevated Card */
+    --border-warm: #E2DDD5;          /* Organic Clay Border */
+    --border-leaf: #C8DEC9;          /* Subtle Banana Leaf Border */
+    --border-light: #ECE7E0;         /* Soft Border */
+
+    /* 4. Elderly-Friendly High Contrast Typography */
+    --text-main: #1D2A22;            /* Deep Green-Charcoal (WCAG AAA contrast on cream) */
+    --text-muted: #57655B;           /* Readable Secondary Olive-Charcoal */
+    --text-heading: #26160D;         /* Deep Claypot Brown for Headings */
+    --text-white: #FFFFFF;
+
+    /* 5. Semantic Feedback Indicators */
+    --success: #15803D;              /* Forest Green */
+    --success-bg: #DCFCE7;
+    --warning: #B45309;              /* Deep Amber */
+    --warning-bg: #FEF3C7;
+    --danger: #B91C1C;               /* Kerala Red Chili */
+    --danger-bg: #FEE2E2;
+
+    /* 6. Layout Dimensions & Shapes */
+    --nav-height: 76px;
+    --container-max: 1240px;
+    --radius-sm: 8px;
+    --radius-md: 14px;
+    --radius-lg: 20px;
+    --radius-leaf: 20px 4px 20px 4px; /* Organic Banana Leaf Shape */
+    --radius-full: 9999px;
+
+    /* 7. Soft Earthen Shadows */
+    --shadow-sm: 0 2px 8px rgba(27, 77, 62, 0.06);
+    --shadow-md: 0 6px 20px rgba(27, 77, 62, 0.09);
+    --shadow-lg: 0 12px 32px rgba(27, 77, 62, 0.12);
+    --shadow-hover: 0 12px 32px rgba(27, 77, 62, 0.18);
+
+    /* 8. Transitions */
+    --transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Aliases for Full Backward Compatibility */
+    --primary: var(--primary-green);
+    --primary-light: var(--primary-green-light);
+    --accent: var(--primary-orange);
+    --dark-bg: var(--bg-cream);
+    --dark-surface: var(--bg-surface);
+    --dark-border: var(--border-warm);
+}
+
+/* ==========================================================================
+   RESET & GLOBAL BASE STYLES
+   ========================================================================== */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px; /* Base 16px for comfortable elderly reading */
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bg-cream);
+    color: var(--text-main);
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    padding-top: var(--nav-height);
+    -webkit-font-smoothing: antialiased;
+    font-weight: 400;
+}
+
+/* Typography Hierarchy */
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+    color: var(--text-heading);
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+}
+
+h1 { font-size: 2.15rem; font-weight: 700; color: var(--primary-green); }
+h2 { font-size: 1.65rem; font-weight: 600; }
+h3 { font-size: 1.3rem; font-weight: 600; }
+h4 { font-size: 1.1rem; font-weight: 600; }
+h5, h6 { font-size: 1rem; font-weight: 600; }
+
+p {
+    font-size: 1rem;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+a {
+    color: var(--primary-green-light);
+    text-decoration: none;
+    transition: var(--transition);
+}
+a:hover {
+    color: var(--primary-green);
+}
+
+/* Container & Grid System */
+.container {
+    width: 100%;
+    max-width: var(--container-max);
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+.grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+.grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.75rem;
+}
+
+.grid-4 {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1.25rem;
+}
+
+/* ==========================================================================
+   CARD & CONTAINER COMPONENTS
+   ========================================================================== */
+.card {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-warm);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.card-kerala {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-warm);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    position: relative;
+}
+
+.card-leaf {
+    background: var(--accent-green-surface);
+    border: 1.5px solid var(--border-leaf);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+}
+
+/* ==========================================================================
+   BUTTONS (Kerala Nature Green Primary + Terracotta Accents)
+   Touch Target: >= 48px Height for Elderly Accessibility
+   ========================================================================== */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.6rem;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: 'Poppins', sans-serif;
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-light) 100%);
+    color: var(--text-white);
+    box-shadow: 0 4px 14px rgba(27, 77, 62, 0.22);
+    transition: var(--transition);
+    text-align: center;
+    min-height: 48px;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(27, 77, 62, 0.3);
+    color: var(--text-white);
+    background: linear-gradient(135deg, var(--primary-green-hover) 0%, var(--primary-green) 100%);
+}
+
+.btn-secondary, .btn-terracotta {
+    background: linear-gradient(135deg, var(--primary-orange) 0%, var(--primary-orange-hover) 100%);
+    color: var(--text-white);
+    box-shadow: 0 4px 14px rgba(217, 119, 54, 0.22);
+}
+
+.btn-secondary:hover, .btn-terracotta:hover {
+    color: var(--text-white);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(217, 119, 54, 0.3);
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1.5px solid var(--primary-green);
+    color: var(--primary-green);
+    box-shadow: none;
+}
+
+.btn-outline:hover {
+    background: var(--primary-green);
+    color: var(--text-white);
+    transform: translateY(-2px);
+}
+
+.btn-outline-terracotta {
+    background: transparent;
+    border: 1.5px solid var(--primary-orange);
+    color: var(--primary-orange);
+    box-shadow: none;
+}
+
+.btn-outline-terracotta:hover {
+    background: var(--primary-orange);
+    color: var(--text-white);
+    transform: translateY(-2px);
+}
+
+.btn-sm {
+    padding: 0.4rem 0.95rem;
+    font-size: 0.88rem;
+    min-height: 40px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.btn-lg {
+    padding: 1rem 2.25rem;
+    font-size: 1.15rem;
+    min-height: 56px;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+}
+
+/* ==========================================================================
+   FORM CONTROLS & ACCESSIBLE INPUTS
+   ========================================================================== */
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-label {
+    display: block;
+    font-weight: 500;
+    font-size: 0.95rem;
+    color: var(--text-heading);
+    margin-bottom: 0.45rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 0.98rem;
+    font-family: inherit;
+    font-weight: 400;
+    color: var(--text-main);
+    background: #FFFFFF;
+    border: 1.5px solid var(--border-warm);
+    border-radius: var(--radius-sm);
+    min-height: 48px;
+    transition: var(--transition);
+    outline: none;
+}
+
+.form-control:focus {
+    border-color: var(--primary-green);
+    box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.18);
+}
+
+/* ==========================================================================
+   BADGES & CHIPS (Kerala Leaf & Spice Shapes)
+   ========================================================================== */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    border-radius: var(--radius-full);
+    text-transform: capitalize;
+    letter-spacing: 0.01em;
+}
+
+.badge-green, .badge-accent, .badge-leaf {
+    background: var(--accent-green-bg);
+    color: var(--primary-green);
+    border: 1px solid rgba(27, 77, 62, 0.25);
+}
+
+.badge-primary, .badge-terracotta {
+    background: var(--primary-orange-light);
+    color: var(--primary-orange-hover);
+    border: 1px solid rgba(217, 119, 54, 0.3);
+}
+
+.badge-gold {
+    background: var(--gold-bg);
+    color: #92400E;
+    border: 1px solid rgba(229, 160, 13, 0.35);
+}
+
+.badge-success {
+    background: var(--success-bg);
+    color: var(--success);
+    border: 1px solid rgba(21, 128, 61, 0.3);
+}
+
+.badge-warning {
+    background: var(--warning-bg);
+    color: var(--warning);
+    border: 1px solid rgba(180, 83, 9, 0.3);
+}
+
+.badge-danger {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border: 1px solid rgba(185, 28, 28, 0.3);
+}
+
+/* ==========================================================================
+   KERALA FOOD CARDS (Natural Green & Clay Aesthetic)
+   ========================================================================== */
+.food-card {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-warm);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+    position: relative;
+}
+
+.food-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--primary-green);
+}
+
+.food-card-media {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    min-height: 190px;
+    background: #F1ECE4;
+    position: relative;
+    overflow: hidden;
+}
+
+.food-card-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+    display: block;
+}
+
+.food-card:hover .food-card-media img {
+    transform: scale(1.05);
+}
+
+.food-card-body {
+    padding: 1.25rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.food-card-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--text-heading);
+    margin-bottom: 0.25rem;
+}
+
+.food-card-desc {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin-bottom: 0.85rem;
+    font-weight: 400;
+}
+
+.food-card-price {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--primary-green);
+}
+
+/* ==========================================================================
+   ELDERLY-FRIENDLY QUANTITY STEPPERS
+   ========================================================================== */
+.quantity-stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--bg-surface);
+    border: 1.5px solid var(--border-warm);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem 0.5rem;
+}
+
+.quantity-stepper button {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    border: 1.5px solid var(--border-warm);
+    background: #FFFFFF;
+    color: var(--primary-green);
+    font-size: 1.25rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.quantity-stepper button:hover {
+    background: var(--primary-green);
+    color: #FFFFFF;
+    border-color: var(--primary-green);
+}
+
+.quantity-stepper .qty-val {
+    min-width: 34px;
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-heading);
+}
+
+/* ==========================================================================
+   LOCATION & PAYMENT SELECTION CARDS
+   ========================================================================== */
+.location-option-card, .payment-option-card, .selection-card {
+    border: 1.5px solid var(--border-warm);
+    border-radius: var(--radius-md);
+    padding: 1.15rem;
+    cursor: pointer;
+    transition: var(--transition);
+    background: #FFFFFF;
+    margin-bottom: 0.85rem;
+    font-weight: 400;
+}
+
+.location-option-card:hover, .payment-option-card:hover, .selection-card:hover {
+    border-color: var(--primary-green);
+    box-shadow: var(--shadow-sm);
+}
+
+.location-option-card.selected, .payment-option-card.selected, .selection-card.selected {
+    border-color: var(--primary-green);
+    border-left: 6px solid var(--primary-green);
+    background: var(--accent-green-bg);
+}
+
+/* ==========================================================================
+   PULSE & ANIMATIONS
+   ========================================================================== */
+@keyframes pulse {
+    0% { transform: scale(0.95); opacity: 0.8; }
+    50% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+.pulse-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--success);
+    box-shadow: 0 0 8px var(--success);
+    animation: pulse 1.6s infinite;
+}
+
+/* ==========================================================================
+   SEARCH & INTERACTIVE AUTOCOMPLETE
+   ========================================================================== */
+.kerala-search-result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-light);
+    transition: var(--transition);
+}
+.kerala-search-result-item:hover {
+    background: var(--accent-green-bg);
+}
+
+/* ==========================================================================
+   RESPONSIVE UTILITIES & TABLE WRAPPERS
+   ========================================================================== */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 1rem;
+    border-radius: var(--radius-sm);
+}
+
+.table-responsive::-webkit-scrollbar {
+    height: 6px;
+}
+.table-responsive::-webkit-scrollbar-track {
+    background: var(--bg-cream);
+    border-radius: 4px;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+    background: var(--border-warm);
+    border-radius: 4px;
+}
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-green-light);
+}
+
+.scrollable-pill-bar {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+}
+.scrollable-pill-bar::-webkit-scrollbar {
+    height: 4px;
+}
+.scrollable-pill-bar::-webkit-scrollbar-thumb {
+    background: var(--border-warm);
+    border-radius: 4px;
+}
+
+/* ==========================================================================
+   RESPONSIVE MEDIA QUERIES
+   ========================================================================== */
+@media (max-width: 992px) {
+    .grid-2 {
+        grid-template-columns: 1fr;
+    }
+    .grid-3 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .grid-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    h1 { font-size: 1.75rem; }
+    h2 { font-size: 1.35rem; }
+    h3 { font-size: 1.15rem; }
+
+    .container {
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        padding-top: 68px;
+    }
+    :root {
+        --nav-height: 68px;
+    }
+
+    .grid-2, .grid-3, .grid-4 {
+        grid-template-columns: 1fr;
+    }
+
+    .container {
+        padding-left: 0.85rem;
+        padding-right: 0.85rem;
+    }
+
+    .card {
+        padding: 1rem;
+        border-radius: 12px;
+    }
+
+    .btn {
+        min-height: 46px;
+        padding: 0.65rem 1.1rem;
+        font-size: 0.92rem;
+    }
+
+    /* Stack flex containers on small screens */
+    .flex-mobile-stack {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    /* Full width inputs on mobile */
+    .form-control, select.form-control, input[type="text"], input[type="email"], input[type="password"], input[type="number"], select {
+        font-size: 0.95rem;
+        padding: 0.7rem 0.9rem;
+    }
+
+    /* Quantity stepper touch target */
+    .quantity-stepper button {
+        width: 36px;
+        height: 36px;
+        font-size: 1.1rem;
+    }
+
+    .quantity-stepper .qty-val {
+        min-width: 38px;
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    h1 { font-size: 1.5rem; }
+    h2 { font-size: 1.2rem; }
+
+    .grid-4 {
+        grid-template-columns: 1fr;
+    }
+
+    .card {
+        padding: 0.85rem;
+    }
+
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .brand-text h1 {
+        font-size: 1.05rem;
+    }
+    .brand-text .malayalam-sub {
+        font-size: 0.68rem;
+    }
+    .brand-emblem {
+        width: 38px;
+        height: 38px;
+        font-size: 1.1rem;
+    }
+}
+

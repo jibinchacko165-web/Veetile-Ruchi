@@ -4,6 +4,7 @@ from django.utils import timezone
 from datetime import timedelta, date, time
 from decimal import Decimal
 import json
+from django.core.management import call_command
 
 from accounts.models import User, ChefProfile, DeliveryBoyProfile, PasswordResetOTP
 from health.models import HealthProfile
@@ -15,7 +16,7 @@ class CustomerWorkflowAndSecurityTests(TestCase):
     def setUp(self):
         self.client = Client()
 
-        # 1. Primary Customer
+        # 1. Primary Customer (Kanjirappally)
         self.customer1 = User.objects.create_user(
             username='customer_one',
             email='cust1@test.com',
@@ -23,12 +24,12 @@ class CustomerWorkflowAndSecurityTests(TestCase):
             role='customer',
             dob='1995-03-20',
             phone='9876543210',
-            latitude=10.025,
-            longitude=76.315
+            latitude=9.5564,
+            longitude=76.7909
         )
         HealthProfile.objects.create(user=self.customer1)
 
-        # 2. Secondary Customer (for cross-customer isolation & security checks)
+        # 2. Secondary Customer (Ponkunnam)
         self.customer2 = User.objects.create_user(
             username='customer_two',
             email='cust2@test.com',
@@ -36,8 +37,8 @@ class CustomerWorkflowAndSecurityTests(TestCase):
             role='customer',
             dob='1996-07-14',
             phone='9876543211',
-            latitude=10.040,
-            longitude=76.290
+            latitude=9.5667,
+            longitude=76.7583
         )
         HealthProfile.objects.create(user=self.customer2)
 
@@ -137,23 +138,24 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         """Test food catalog listing, category filtering, and keyword search"""
         self.client.login(username='customer_one', password='Password123!')
 
-        # 1. Base Catalog
-        resp = self.client.get(reverse('food_catalog'))
+        # 1. Base Catalog (with session=All to bypass time-of-day filter)
+        resp = self.client.get(reverse('food_catalog') + '?session=All')
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Kerala Sadya Feast')
         self.assertContains(resp, 'Karimeen Pollichathu')
 
         # 2. Filter by Category
-        resp_cat = self.client.get(reverse('food_catalog') + '?category=Vegetarian')
+        resp_cat = self.client.get(reverse('food_catalog') + '?category=Vegetarian&session=All')
         self.assertEqual(resp_cat.status_code, 200)
         self.assertContains(resp_cat, 'Kerala Sadya Feast')
         self.assertNotContains(resp_cat, 'Karimeen Pollichathu')
 
         # 3. Search by keyword
-        resp_search = self.client.get(reverse('food_catalog') + '?q=Pearl')
+        resp_search = self.client.get(reverse('food_catalog') + '?q=Pearl&session=All')
         self.assertEqual(resp_search.status_code, 200)
         self.assertContains(resp_search, 'Karimeen Pollichathu')
         self.assertNotContains(resp_search, 'Kerala Sadya Feast')
+
 
     def test_02_food_details_and_review_submission(self):
         """Test food detail view with nutrition metrics and customer review with AI sentiment"""
@@ -253,14 +255,14 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         # Checkout Screen
         chk_resp = self.client.get(reverse('checkout_view'))
         self.assertEqual(chk_resp.status_code, 200)
-        self.assertContains(chk_resp, 'Delivery Details')
+        self.assertContains(chk_resp, 'Delivery Location')
 
         initial_stock = self.food1.stock_quantity
 
         # Place Order (COD)
         place_resp = self.client.post(reverse('place_order'), {
-            'latitude': '10.025000',
-            'longitude': '76.315000',
+            'latitude': '9.556400',
+            'longitude': '76.790900',
             'payment_method': 'cod',
         })
         self.assertEqual(place_resp.status_code, 302)
@@ -302,8 +304,8 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         # Place Order (UPI with Coupon)
         place_resp = self.client.post(reverse('place_order'), {
             'coupon_id': str(self.coupon.id),
-            'latitude': '10.025000',
-            'longitude': '76.315000',
+            'latitude': '9.556400',
+            'longitude': '76.790900',
             'payment_method': 'upi',
             'upi_ref': '987654321098'
         })
@@ -492,4 +494,496 @@ class CustomerWorkflowAndSecurityTests(TestCase):
 
         notif.refresh_from_db()
         self.assertTrue(notif.is_read)
+
+    def test_13_cart_quantity_update_stepper_and_stock_limits(self):
+        """Test cart quantity stepper: increment, decrement, and stock ceiling."""
+        self.client.login(username='customer_one', password='Password123!')
+        cart_item = CartItem.objects.create(user=self.customer1, food_item=self.food1, quantity=1)
+
+        # 1. Increase quantity
+        inc_resp = self.client.post(reverse('cart_update_quantity', args=[cart_item.id]), {'action': 'increase'})
+        self.assertRedirects(inc_resp, reverse('cart_view'))
+        cart_item.refresh_from_db()
+        self.assertEqual(cart_item.quantity, 2)
+
+        # 2. Decrease quantity
+        dec_resp = self.client.post(reverse('cart_update_quantity', args=[cart_item.id]), {'action': 'decrease'})
+        self.assertRedirects(dec_resp, reverse('cart_view'))
+        cart_item.refresh_from_db()
+        self.assertEqual(cart_item.quantity, 1)
+
+        # 3. Decrease when quantity is 1 -> removes item from cart
+        del_resp = self.client.post(reverse('cart_update_quantity', args=[cart_item.id]), {'action': 'decrease'})
+        self.assertRedirects(del_resp, reverse('cart_view'))
+        self.assertFalse(CartItem.objects.filter(id=cart_item.id).exists())
+
+    def test_14_delivery_perimeter_inside_service_area(self):
+        """Test delivery location within 20km radius succeeds."""
+        self.client.login(username='customer_one', password='Password123!')
+        CartItem.objects.create(user=self.customer1, food_item=self.food1, quantity=1)
+
+        # Ponkunnam (~3.7 km from Kanjirappally hub)
+        resp = self.client.post(reverse('place_order'), {
+            'latitude': 9.5667,
+            'longitude': 76.7583,
+            'delivery_address': 'Ponkunnam Bus Stand Road',
+            'payment_method': 'cod'
+        })
+        self.assertEqual(resp.status_code, 302)
+        order = Order.objects.filter(user=self.customer1).order_by('-created_at').first()
+        self.assertIsNotNone(order)
+        self.assertEqual(order.latitude, 9.5667)
+
+    def test_15_delivery_perimeter_outside_service_area_blocks_order(self):
+        """Test delivery location far away (>20km e.g. Kozhikode/Bengaluru) is blocked with friendly message."""
+        self.client.login(username='customer_one', password='Password123!')
+        CartItem.objects.create(user=self.customer1, food_item=self.food1, quantity=1)
+
+        # Kozhikode (~180 km away from Kanjirappally hub)
+        resp = self.client.post(reverse('place_order'), {
+            'latitude': 11.2588,
+            'longitude': 75.7804,
+            'delivery_address': 'Kozhikode Beach Road',
+            'payment_method': 'cod'
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertRedirects(resp, reverse('checkout_view'))
+        # Ensure order was NOT created
+        self.assertFalse(Order.objects.filter(latitude=11.2588).exists())
+
+    def test_16_checkout_with_saved_location(self):
+        """Test checkout seamlessly applies SavedLocation details."""
+        from accounts.models import SavedLocation
+        saved_loc = SavedLocation.objects.create(
+            user=self.customer1,
+            name='My Home',
+            location_type='home',
+            description='House 10, Kanjirappally Town',
+            landmark='Near Church Gate',
+            latitude=9.5564,
+            longitude=76.7909,
+            is_default=True
+        )
+
+        self.client.login(username='customer_one', password='Password123!')
+        CartItem.objects.create(user=self.customer1, food_item=self.food1, quantity=1)
+
+        resp = self.client.post(reverse('place_order'), {
+            'saved_location_id': saved_loc.id,
+            'payment_method': 'cod'
+        })
+        self.assertEqual(resp.status_code, 302)
+        order = Order.objects.filter(user=self.customer1).order_by('-created_at').first()
+        self.assertIsNotNone(order)
+        self.assertEqual(order.latitude, 9.5564)
+        self.assertIn('My Home', order.delivery_address)
+        self.assertIn('Near Church Gate', order.delivery_address)
+
+    def test_17_delivery_setting_and_perimeter_calculation(self):
+        """Test DeliverySetting model and calculate_distance_km/is_within_delivery_perimeter."""
+        from delivery.models import DeliverySetting
+        from orders.utils import calculate_distance_km, is_within_delivery_perimeter, get_active_delivery_setting
+
+        setting = DeliverySetting.get_settings()
+        self.assertIsNotNone(setting)
+        self.assertEqual(setting.latitude, 9.5564)
+        self.assertEqual(setting.longitude, 76.7909)
+        self.assertEqual(setting.max_delivery_radius_km, 20.0)
+
+        # Distance calculation
+        dist = calculate_distance_km(9.5564, 76.7909, 9.5667, 76.7583) # Ponkunnam ~3.7 km
+        self.assertLess(dist, 5.0)
+
+        # Ponkunnam is inside 20 km perimeter
+        is_serviceable, dist_km, msg = is_within_delivery_perimeter(9.5667, 76.7583)
+        self.assertTrue(is_serviceable)
+        self.assertIn("inside our service area", msg)
+
+        # Ernakulam (~71 km) is outside perimeter
+        is_serviceable, dist_km, msg = is_within_delivery_perimeter(9.9816, 76.2999)
+        self.assertFalse(is_serviceable)
+        self.assertIn("Sorry, delivery is currently available only within 20 km of Kanjirappally.", msg)
+
+    def test_18_staff_save_delivery_perimeter_endpoint(self):
+        """Test Admin/Staff configuring Delivery Center and radius via POST."""
+        staff = User.objects.create_user(username='staff_admin', email='staff_admin@test.com', password='Password123!', role='staff')
+        self.client.login(username='staff_admin', password='Password123!')
+
+        resp = self.client.post(reverse('staff_save_delivery_perimeter'), {
+            'name': 'Kanjirappally Central Hub',
+            'address': 'Main Town Road, Kanjirappally',
+            'latitude': '9.5564',
+            'longitude': '76.7909',
+            'max_delivery_radius_km': '20.0'
+        })
+        self.assertEqual(resp.status_code, 302)
+
+        from delivery.models import DeliverySetting
+        setting = DeliverySetting.get_settings()
+        self.assertEqual(setting.name, 'Kanjirappally Central Hub')
+        self.assertEqual(setting.latitude, 9.5564)
+        self.assertEqual(setting.longitude, 76.7909)
+        self.assertEqual(setting.max_delivery_radius_km, 20.0)
+
+    def test_19_delivery_perimeter_outside_shows_exact_service_area_message(self):
+        """Test placing an order outside perimeter displays the exact required warning message."""
+        self.client.login(username='customer_one', password='Password123!')
+        CartItem.objects.create(user=self.customer1, food_item=self.food1, quantity=1)
+
+        # Bangalore coordinates (~550 km away)
+        resp = self.client.post(reverse('place_order'), {
+            'latitude': 12.9716,
+            'longitude': 77.5946,
+            'delivery_address': 'MG Road Bangalore',
+            'payment_method': 'cod'
+        }, follow=True)
+        self.assertEqual(resp.status_code, 200)
+
+        # Check messages for exact phrase
+        messages_list = [m.message for m in resp.context['messages']]
+        self.assertIn("Sorry, delivery is currently available only within 20 km of Kanjirappally.", messages_list)
+
+    def test_20_order_gps_linked_to_courier_and_privacy(self):
+        """Test customer coordinates correctly link to Order ID, and courier navigation does not expose private sensitive info."""
+        self.client.login(username='customer_one', password='Password123!')
+        CartItem.objects.create(user=self.customer1, food_item=self.food1, quantity=1)
+
+        # Place valid order inside perimeter
+        resp = self.client.post(reverse('place_order'), {
+            'latitude': 9.5564,
+            'longitude': 76.7909,
+            'delivery_address': 'Kanjirappally Town, near yellow gate',
+            'payment_method': 'cod'
+        })
+        self.assertEqual(resp.status_code, 302)
+
+        order = Order.objects.filter(user=self.customer1).order_by('-created_at').first()
+        self.assertIsNotNone(order)
+        self.assertEqual(order.latitude, 9.5564)
+        self.assertEqual(order.longitude, 76.7909)
+
+        # Assign to courier
+        assign = DeliveryAssignment.objects.create(
+            order=order,
+            delivery_boy=self.courier_profile,
+            status='assigned'
+        )
+
+        # Courier views track page
+        self.client.login(username='courier_arun', password='Password123!')
+        track_resp = self.client.get(reverse('delivery_boy_track', kwargs={'assignment_id': assign.id}))
+        self.assertEqual(track_resp.status_code, 200)
+
+        # Verify coordinates are present in context
+        self.assertEqual(track_resp.context['cust_lat'], 9.5564)
+        self.assertEqual(track_resp.context['cust_lon'], 76.7909)
+
+        # Verify Google Maps turn-by-turn navigation URL is present
+        content = track_resp.content.decode('utf-8')
+        self.assertIn('https://www.google.com/maps/dir/?api=1&', content)
+        self.assertIn('destination=9.5564,76.7909', content)
+
+        # Verify Privacy: sensitive fields like password hash, email, and DOB are NOT displayed to the courier
+        self.assertNotIn('cust1@test.com', content)
+        self.assertNotIn('1995-03-20', content)
+
+    def test_21_nine_couriers_setup_and_api(self):
+        """Test exact 9 courier records setup with required phone numbers and API retrieval."""
+        from django.core.management import call_command
+        call_command('seed_couriers')
+        
+        required_phones = [
+            "7510672351", "7510672352", "7510672353",
+            "7510672354", "7510672355", "7510672356",
+            "7510672357", "7510672358", "7510672359"
+        ]
+        for ph in required_phones:
+            self.assertTrue(
+                User.objects.filter(role='delivery_boy', phone=ph).exists(),
+                f"Courier phone {ph} not found in database"
+            )
+            
+        # Test API endpoint as Staff user
+        staff_u = User.objects.create_user(username='staff_test_user', password='Password123!', role='staff', is_staff=True)
+        self.client.login(username='staff_test_user', password='Password123!')
+        response = self.client.get(reverse('api_list_couriers'))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['status'], 'success')
+        self.assertGreaterEqual(data['total_count'], 9)
+        
+        phone_set = {c['phone'] for c in data['couriers']}
+        for ph in required_phones:
+            self.assertIn(ph, phone_set)
+
+    def test_22_full_staff_courier_customer_workflow(self):
+        """Test complete 15-step Staff -> Courier5 -> Customer workflow using Jagan / 7510571727 & courier / 7510672355."""
+        from django.core.management import call_command
+        call_command('seed_couriers')
+
+        # 1. Customer Jagan (phone: 7510571727) places order
+        jagan = User.objects.create_user(
+            username='jagan_cust',
+            first_name='Jagan',
+            email='jagan@test.com',
+            password='password123',
+            role='customer',
+            phone='7510571727',
+            latitude=9.5564,
+            longitude=76.7909
+        )
+        self.client.login(username='jagan_cust', password='password123')
+        CartItem.objects.create(user=jagan, food_item=self.food1, quantity=1)
+
+        place_resp = self.client.post(reverse('place_order'), {
+            'latitude': 9.5564,
+            'longitude': 76.7909,
+            'delivery_address': 'Parathode, Kanjirappally',
+            'payment_method': 'cod'
+        })
+        self.assertEqual(place_resp.status_code, 302)
+
+        order = Order.objects.filter(user=jagan).order_by('-created_at').first()
+        self.assertIsNotNone(order)
+        self.assertEqual(order.user.first_name, 'Jagan')
+        self.assertEqual(order.user.phone, '7510571727')
+
+        # 2. Chef updates status to ready_pickup (Ready for Pickup)
+        self.client.login(username='chef_mary', password='Password123!')
+        chef_resp = self.client.post(reverse('chef_order_status_update', kwargs={'order_id': order.order_id}), {
+            'status': 'ready_pickup'
+        })
+        self.assertEqual(chef_resp.status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'ready_pickup')
+
+        # 3. Staff sees Ready for Pickup order & assigns to Courier 5 (courier / 7510672355)
+        staff_u = User.objects.filter(role='staff').first() or User.objects.create_user(username='staff_test', password='password123', role='staff', is_staff=True)
+        self.client.login(username=staff_u.username, password='password123')
+        staff_dash = self.client.get(reverse('staff_dashboard'))
+        self.assertEqual(staff_dash.status_code, 200)
+        self.assertIn(order.order_id, staff_dash.content.decode('utf-8'))
+
+        courier5 = User.objects.filter(phone='7510672355').first()
+        self.assertIsNotNone(courier5)
+        courier5_profile = courier5.delivery_boy_profile
+
+        assign_resp = self.client.post(reverse('staff_assign_delivery', kwargs={'order_id': order.order_id}), {
+            'delivery_boy_id': courier5_profile.id
+        })
+        self.assertEqual(assign_resp.status_code, 302)
+
+        order.refresh_from_db()
+        self.assertTrue(hasattr(order, 'delivery_assignment'))
+        self.assertEqual(order.delivery_assignment.delivery_boy, courier5_profile)
+        self.assertEqual(order.status, 'ready_pickup')
+
+        # 4. Courier logs in with username: 'courier5', password: 'password123'
+        self.client.login(username='courier5', password='password123')
+        courier_dash = self.client.get(reverse('delivery_boy_dashboard'))
+        self.assertEqual(courier_dash.status_code, 200)
+
+        dash_content = courier_dash.content.decode('utf-8')
+        self.assertIn(order.order_id, dash_content)
+        self.assertIn('Jagan', dash_content)
+        self.assertIn('7510571727', dash_content)
+
+        # 5. Courier marks Picked Up
+        assign_id = order.delivery_assignment.id
+        pickup_resp = self.client.post(reverse('pickup_order', kwargs={'assignment_id': assign_id}))
+        self.assertEqual(pickup_resp.status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'picked_up')
+
+        # 6. Courier marks Out for Delivery (in_transit)
+        start_resp = self.client.post(reverse('start_delivery', kwargs={'assignment_id': assign_id}))
+        self.assertEqual(start_resp.status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'in_transit')
+
+        # 7. Courier marks Delivered
+        done_resp = self.client.post(reverse('complete_delivery', kwargs={'assignment_id': assign_id}))
+        self.assertEqual(done_resp.status_code, 302)
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'delivered')
+
+    def test_23_courier_identification_and_visibility(self):
+        """Verify all 9 couriers have exact Courier Number/Name, Username, and Phone visibility for Staff."""
+        call_command('seed_couriers')
+
+        expected_map = {
+            'courier1': ('Courier 1', '7510672352'),
+            'courier2': ('Courier 2', '7510672351'),
+            'courier3': ('Courier 3', '7510672353'),
+            'courier4': ('Courier 4', '7510672354'),
+            'courier5': ('Courier 5', '7510672355'),
+            'courier6': ('Courier 6', '7510672356'),
+            'courier7': ('Courier 7', '7510672357'),
+            'courier8': ('Courier 8', '7510672358'),
+            'courier9': ('Courier 9', '7510672359'),
+        }
+
+        for username, (exp_name, exp_phone) in expected_map.items():
+            user = User.objects.get(username=username)
+            profile = user.delivery_boy_profile
+            self.assertEqual(profile.courier_name, exp_name)
+            self.assertEqual(user.phone, exp_phone)
+
+        # Verify Staff dropdown and assigned order display
+        order = Order.objects.create(
+            user=self.customer1,
+            total_amount=Decimal('450.00'),
+            status='ready_pickup',
+            delivery_address='Main Street'
+        )
+
+        c5_profile = User.objects.get(username='courier5').delivery_boy_profile
+
+        staff_u = User.objects.filter(role='staff').first()
+        if not staff_u:
+            staff_u = User.objects.create_user(username='staff_test', password='password123', role='staff', is_staff=True)
+        else:
+            staff_u.set_password('password123')
+            staff_u.save()
+        self.client.login(username=staff_u.username, password='password123')
+        assign_resp = self.client.post(reverse('staff_assign_delivery', kwargs={'order_id': order.order_id}), {
+            'delivery_boy_id': c5_profile.id
+        })
+        self.assertEqual(assign_resp.status_code, 302)
+
+        # Check Staff dashboard output
+        staff_dash = self.client.get(reverse('staff_dashboard'))
+        self.assertEqual(staff_dash.status_code, 200)
+        content = staff_dash.content.decode('utf-8')
+
+        self.assertIn('Courier 5', content)
+        self.assertIn('courier5', content)
+        self.assertIn('7510672355', content)
+        self.assertIn('KL-34-A-1005', content)
+
+        # Check API list couriers
+        api_resp = self.client.get(reverse('api_list_couriers'))
+        self.assertEqual(api_resp.status_code, 200)
+        api_data = api_resp.json()
+        self.assertEqual(api_data['status'], 'success')
+        c5_api_item = next(item for item in api_data['couriers'] if item['username'] == 'courier5')
+        self.assertEqual(c5_api_item['courier_name'], 'Courier 5')
+        self.assertEqual(c5_api_item['phone'], '7510672355')
+
+    def test_24_admin_revenue_and_food_sales_analytics(self):
+        """Test Admin Revenue and Food Sales Analytics calculations, date filtering, and order/item exclusions."""
+        # 1. Create Admin User
+        admin_user = User.objects.create_user(
+            username='admin_boss',
+            email='admin@test.com',
+            password='Password123!',
+            role='admin',
+            is_staff=True,
+            is_superuser=True
+        )
+
+        # 2. Create Foods
+        dosa = FoodItem.objects.create(
+            chef=self.chef_user,
+            name='Crispy Dosa',
+            description='Ghee roast dosa',
+            price=Decimal('50.00'),
+            category=self.cat_veg,
+            meal_session=self.session_lunch,
+            stock_quantity=50,
+            is_available=True
+        )
+        chapati = FoodItem.objects.create(
+            chef=self.chef_user,
+            name='Soft Chapati',
+            description='Whole wheat chapati',
+            price=Decimal('40.00'),
+            category=self.cat_veg,
+            meal_session=self.session_lunch,
+            stock_quantity=50,
+            is_available=True
+        )
+
+        # 3. Create Valid Completed Order 1 (2 Dosa * 50 = 100)
+        order1 = Order.objects.create(
+            user=self.customer1,
+            total_amount=Decimal('100.00'),
+            status='delivered',
+            delivery_address='Kanjirappally Town'
+        )
+        OrderItem.objects.create(order=order1, food_item=dosa, quantity=2, price=Decimal('50.00'))
+        Payment.objects.create(order=order1, payment_method='upi', status='success', amount=Decimal('100.00'))
+
+        # 4. Create Valid Completed Order 2 (3 Dosa * 50 = 150 + 1 Chapati * 40 = 40; Total = 190)
+        order2 = Order.objects.create(
+            user=self.customer2,
+            total_amount=Decimal('190.00'),
+            status='confirmed',
+            delivery_address='Ponkunnam'
+        )
+        OrderItem.objects.create(order=order2, food_item=dosa, quantity=3, price=Decimal('50.00'))
+        OrderItem.objects.create(order=order2, food_item=chapati, quantity=1, price=Decimal('40.00'))
+        Payment.objects.create(order=order2, payment_method='cod', status='pending', amount=Decimal('190.00'))
+
+        # 5. Create Cancelled Order (MUST BE EXCLUDED from revenue calculations)
+        order_cancelled = Order.objects.create(
+            user=self.customer1,
+            total_amount=Decimal('250.00'),
+            status='cancelled',
+            delivery_address='Kanjirappally'
+        )
+        OrderItem.objects.create(order=order_cancelled, food_item=dosa, quantity=5, price=Decimal('50.00'))
+        Payment.objects.create(order=order_cancelled, payment_method='upi', status='failed', amount=Decimal('250.00'))
+
+        # 6. Admin logs in
+        self.client.login(username='admin_boss', password='Password123!')
+
+        # 7. GET Admin Dashboard
+        resp = self.client.get(reverse('admin_dashboard'))
+        self.assertEqual(resp.status_code, 200)
+
+        # Context Assertions
+        self.assertEqual(resp.context['filtered_revenue'], 290.00) # 100 + 190
+        self.assertEqual(resp.context['filtered_orders_count'], 2)
+        self.assertEqual(resp.context['filtered_items_sold'], 6) # 2 Dosa + 3 Dosa + 1 Chapati = 6 items
+
+        # Top selling food
+        self.assertIsNotNone(resp.context['most_purchased_food'])
+        self.assertEqual(resp.context['most_purchased_food']['name'], 'Crispy Dosa')
+
+        # Food sales analytics list check
+        sales_analysis = resp.context['food_sales_analysis']
+        dosa_stat = next(item for item in sales_analysis if item['id'] == dosa.id)
+        chapati_stat = next(item for item in sales_analysis if item['id'] == chapati.id)
+
+        self.assertEqual(dosa_stat['qty_sold'], 5) # 2 + 3 = 5 (cancelled order's 5 is excluded)
+        self.assertEqual(dosa_stat['orders_count'], 2)
+        self.assertEqual(dosa_stat['revenue'], 250.00) # 5 * 50 = 250
+
+        self.assertEqual(chapati_stat['qty_sold'], 1)
+        self.assertEqual(chapati_stat['orders_count'], 1)
+        self.assertEqual(chapati_stat['revenue'], 40.00)
+
+        # Response HTML check
+        content = resp.content.decode('utf-8')
+        self.assertIn('Revenue &amp; Food Sales Analytics', content)
+        self.assertIn('Crispy Dosa', content)
+        self.assertIn('Soft Chapati', content)
+        self.assertIn('290', content)
+
+        # 8. Test Date Filtering (period=today)
+        resp_today = self.client.get(reverse('admin_dashboard') + '?period=today')
+        self.assertEqual(resp_today.status_code, 200)
+        self.assertEqual(resp_today.context['filtered_revenue'], 290.00)
+
+        # 9. Test Date Filtering (period=custom date range)
+        today_str = timezone.localtime().strftime('%Y-%m-%d')
+        resp_custom = self.client.get(reverse('admin_dashboard') + f'?period=custom&start_date={today_str}&end_date={today_str}')
+        self.assertEqual(resp_custom.status_code, 200)
+        self.assertEqual(resp_custom.context['filtered_revenue'], 290.00)
+
+
+
+
+
 

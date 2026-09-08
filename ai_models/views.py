@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.db.models import Avg, Sum, Count
 from food.models import FoodItem, ReviewSentiment
@@ -9,6 +10,7 @@ from accounts.decorators import role_required
 from delivery.models import DeliveryAssignment
 from .models import FoodDemandForecast, FoodWastePrediction, StockPrediction, CustomerBehavior
 
+@never_cache
 @login_required
 @role_required('admin', 'staff')
 def ai_analytics_dashboard(request):

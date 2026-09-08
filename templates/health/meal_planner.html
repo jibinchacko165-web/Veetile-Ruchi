@@ -1,129 +1,139 @@
 {% extends 'base.html' %}
 
+{% block title %}AI Smart Meal Planner — Veetile-Ruchi{% endblock %}
+
 {% block content %}
-<h1 class="mb-1" style="color: var(--text-light);">AI Smart Meal Planner</h1>
-<p class="mb-3" style="color: var(--text-muted);">
-    Daily meal schedules formulated using Decision Trees and KNN matching your calories cap of <strong>{{ target_calories|floatformat:0 }} kcal</strong>.
-</p>
-
-<!-- Daily Plan Grid -->
-<div class="grid-2 mb-3">
-    <!-- Breakfast -->
-    <div class="card" style="border-top: 3px solid var(--primary);">
-        <span class="badge badge-primary mb-2">🌅 Breakfast Course</span>
-        {% if plan.Breakfast %}
-            <div style="display: flex; gap: 1rem; align-items: center;">
-                <div style="width: 90px; height: 90px; border-radius: 8px; overflow: hidden; background: #2d2d34; flex-shrink: 0;">
-                    <img src="{{ plan.Breakfast.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ plan.Breakfast.name }}" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div>
-                    <h4>{{ plan.Breakfast.name }}</h4>
-                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">{{ plan.Breakfast.description }}</p>
-                    <p style="font-weight: 700; color: var(--primary-light); font-size: 0.95rem; margin-top: 0.25rem;">
-                        {{ plan.Breakfast.nutrition.calories|default:'350' }} kcal | Sugar: {{ plan.Breakfast.nutrition.sugar }}g
-                    </p>
-                </div>
-            </div>
-            <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-                <a href="{% url 'food_detail' plan.Breakfast.id %}" class="btn" style="padding: 0.3rem 0.8rem; font-size: 0.75rem;">View Recipe</a>
-            </div>
-        {% else %}
-            <p style="color: var(--text-muted); font-size: 0.9rem;">No breakfast courses match preferences.</p>
-        {% endif %}
+<div style="max-width: 1050px; margin: 1.5rem auto;">
+    <div style="margin-bottom: 2rem;">
+        <h1 style="color: var(--primary-brown); font-size: 2rem; font-weight: 700; margin: 0;">
+            🥗 AI Smart Meal Planner
+        </h1>
+        <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem; font-weight: 400;">
+            Daily personalized Kerala meal schedule formulated using AI Decision Trees and KNN matching your daily calorie target of <span style="color: var(--primary-orange); font-weight: 600;">{{ target_calories|floatformat:0 }} kcal</span>.
+        </p>
     </div>
 
-    <!-- Lunch -->
-    <div class="card" style="border-top: 3px solid var(--accent);">
-        <span class="badge badge-accent mb-2">☀️ Lunch Course</span>
-        {% if plan.Lunch %}
-            <div style="display: flex; gap: 1rem; align-items: center;">
-                <div style="width: 90px; height: 90px; border-radius: 8px; overflow: hidden; background: #2d2d34; flex-shrink: 0;">
-                    <img src="{{ plan.Lunch.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ plan.Lunch.name }}" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div>
-                    <h4>{{ plan.Lunch.name }}</h4>
-                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">{{ plan.Lunch.description }}</p>
-                    <p style="font-weight: 700; color: var(--primary-light); font-size: 0.95rem; margin-top: 0.25rem;">
-                        {{ plan.Lunch.nutrition.calories|default:'650' }} kcal | Sugar: {{ plan.Lunch.nutrition.sugar }}g
-                    </p>
-                </div>
-            </div>
-            <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-                <a href="{% url 'food_detail' plan.Lunch.id %}" class="btn" style="padding: 0.3rem 0.8rem; font-size: 0.75rem;">View Recipe</a>
-            </div>
-        {% else %}
-            <p style="color: var(--text-muted); font-size: 0.9rem;">No lunch courses match preferences.</p>
-        {% endif %}
-    </div>
-
-    <!-- Evening Snack -->
-    <div class="card" style="border-top: 3px solid var(--warning);">
-        <span class="badge badge-warning mb-2">☕ Evening Snack Course</span>
-        {% if plan.Breakfast %}
-            {% if plan.Evening_Snack or plan.Breakfast %}
-                {% with snack=plan.Evening_Snack|default:plan.Breakfast %}
+    <!-- Daily Plan Grid -->
+    <div class="grid-2 mb-4">
+        <!-- Breakfast -->
+        <div class="card" style="border-top: 4px solid var(--primary-orange); padding: 1.5rem;">
+            <span class="badge badge-primary mb-3" style="font-size: 0.82rem;">🌅 Breakfast Course</span>
+            {% if plan.Breakfast %}
                 <div style="display: flex; gap: 1rem; align-items: center;">
-                    <div style="width: 90px; height: 90px; border-radius: 8px; overflow: hidden; background: #2d2d34; flex-shrink: 0;">
-                        <img src="{{ snack.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ snack.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                    <div style="width: 90px; height: 90px; border-radius: 10px; overflow: hidden; background: #F4EBE1; flex-shrink: 0; border: 1.5px solid var(--border-warm);">
+                        <img src="{{ plan.Breakfast.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ plan.Breakfast.name }}" style="width: 100%; height: 100%; object-fit: cover;">
                     </div>
-                    <div>
-                        <h4>{{ snack.name }}</h4>
-                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">{{ snack.description }}</p>
-                        <p style="font-weight: 700; color: var(--primary-light); font-size: 0.95rem; margin-top: 0.25rem;">
-                            {{ snack.nutrition.calories|default:'200' }} kcal | Sugar: {{ snack.nutrition.sugar }}g
+                    <div style="flex: 1;">
+                        <h4 style="color: var(--primary-brown); font-weight: 600; font-size: 1.1rem; margin: 0 0 0.25rem 0;">{{ plan.Breakfast.name }}</h4>
+                        <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0 0 0.35rem 0; font-weight: 400;">{{ plan.Breakfast.description }}</p>
+                        <p style="color: var(--primary-orange); font-size: 0.95rem; margin: 0; font-weight: 600;">
+                            {{ plan.Breakfast.nutrition.calories|default:'350' }} kcal • Sugar: {{ plan.Breakfast.nutrition.sugar }}g
                         </p>
                     </div>
                 </div>
-                <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-                    <a href="{% url 'food_detail' snack.id %}" class="btn" style="padding: 0.3rem 0.8rem; font-size: 0.75rem;">View Recipe</a>
+                <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem; border-top: 1px solid var(--border-warm); padding-top: 0.75rem;">
+                    <a href="{% url 'food_detail' plan.Breakfast.id %}" class="btn btn-outline btn-sm">View Recipe & Order</a>
                 </div>
-                {% endwith %}
+            {% else %}
+                <p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 400;">No breakfast courses match preferences.</p>
             {% endif %}
-        {% else %}
-            <p style="color: var(--text-muted); font-size: 0.9rem;">No evening snack courses match preferences.</p>
-        {% endif %}
-    </div>
-
-    <!-- Dinner -->
-    <div class="card" style="border-top: 3px solid var(--success);">
-        <span class="badge badge-success mb-2">🌙 Dinner Course</span>
-        {% if plan.Dinner %}
-            <div style="display: flex; gap: 1rem; align-items: center;">
-                <div style="width: 90px; height: 90px; border-radius: 8px; overflow: hidden; background: #2d2d34; flex-shrink: 0;">
-                    <img src="{{ plan.Dinner.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ plan.Dinner.name }}" style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
-                <div>
-                    <h4>{{ plan.Dinner.name }}</h4>
-                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">{{ plan.Dinner.description }}</p>
-                    <p style="font-weight: 700; color: var(--primary-light); font-size: 0.95rem; margin-top: 0.25rem;">
-                        {{ plan.Dinner.nutrition.calories|default:'500' }} kcal | Sugar: {{ plan.Dinner.nutrition.sugar }}g
-                    </p>
-                </div>
-            </div>
-            <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-                <a href="{% url 'food_detail' plan.Dinner.id %}" class="btn" style="padding: 0.3rem 0.8rem; font-size: 0.75rem;">View Recipe</a>
-            </div>
-        {% else %}
-            <p style="color: var(--text-muted); font-size: 0.9rem;">No dinner courses match preferences.</p>
-        {% endif %}
-    </div>
-</div>
-
-<!-- Daily target calibration summary card -->
-<div class="card mt-3">
-    <h3 style="color: var(--text-light);">Total Planned Macro Calibrations</h3>
-    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.5rem;">
-        Sum calculations comparing today's food scheduler vs health conditions parameters.
-    </p>
-    
-    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; border-top: 1px solid var(--dark-border); padding-top: 1rem;">
-        <div>
-            <span style="font-size: 0.8rem; color: var(--text-muted);">Calorie Target</span>
-            <p style="font-size: 1.25rem; font-weight: 700; color: var(--success);">{{ target_calories }} kcal</p>
         </div>
-        <div>
-            <span style="font-size: 0.8rem; color: var(--text-muted);">Sugar Guideline</span>
-            <p style="font-size: 1.25rem; font-weight: 700; color: var(--primary);">Fits Daily Limit</p>
+
+        <!-- Lunch -->
+        <div class="card" style="border-top: 4px solid var(--primary-green); padding: 1.5rem;">
+            <span class="badge badge-green mb-3" style="font-size: 0.82rem;">☀️ Lunch Sadya</span>
+            {% if plan.Lunch %}
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <div style="width: 90px; height: 90px; border-radius: 10px; overflow: hidden; background: #F4EBE1; flex-shrink: 0; border: 1.5px solid var(--border-warm);">
+                        <img src="{{ plan.Lunch.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ plan.Lunch.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                    <div style="flex: 1;">
+                        <h4 style="color: var(--primary-brown); font-weight: 600; font-size: 1.1rem; margin: 0 0 0.25rem 0;">{{ plan.Lunch.name }}</h4>
+                        <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0 0 0.35rem 0; font-weight: 400;">{{ plan.Lunch.description }}</p>
+                        <p style="color: var(--primary-green); font-size: 0.95rem; margin: 0; font-weight: 600;">
+                            {{ plan.Lunch.nutrition.calories|default:'650' }} kcal • Sugar: {{ plan.Lunch.nutrition.sugar }}g
+                        </p>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem; border-top: 1px solid var(--border-warm); padding-top: 0.75rem;">
+                    <a href="{% url 'food_detail' plan.Lunch.id %}" class="btn btn-outline btn-sm">View Recipe & Order</a>
+                </div>
+            {% else %}
+                <p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 400;">No lunch courses match preferences.</p>
+            {% endif %}
+        </div>
+
+        <!-- Evening Snack -->
+        <div class="card" style="border-top: 4px solid var(--warning); padding: 1.5rem;">
+            <span class="badge badge-warning mb-3" style="font-size: 0.82rem;">☕ Evening Snack</span>
+            {% if plan.Breakfast %}
+                {% if plan.Evening_Snack or plan.Breakfast %}
+                    {% with snack=plan.Evening_Snack|default:plan.Breakfast %}
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <div style="width: 90px; height: 90px; border-radius: 10px; overflow: hidden; background: #F4EBE1; flex-shrink: 0; border: 1.5px solid var(--border-warm);">
+                            <img src="{{ snack.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ snack.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                        <div style="flex: 1;">
+                            <h4 style="color: var(--primary-brown); font-weight: 600; font-size: 1.1rem; margin: 0 0 0.25rem 0;">{{ snack.name }}</h4>
+                            <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0 0 0.35rem 0; font-weight: 400;">{{ snack.description }}</p>
+                            <p style="color: var(--warning); font-size: 0.95rem; margin: 0; font-weight: 600;">
+                                {{ snack.nutrition.calories|default:'200' }} kcal • Sugar: {{ snack.nutrition.sugar }}g
+                            </p>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem; border-top: 1px solid var(--border-warm); padding-top: 0.75rem;">
+                        <a href="{% url 'food_detail' snack.id %}" class="btn btn-outline btn-sm">View Recipe & Order</a>
+                    </div>
+                    {% endwith %}
+                {% endif %}
+            {% else %}
+                <p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 400;">No evening snack courses match preferences.</p>
+            {% endif %}
+        </div>
+
+        <!-- Dinner -->
+        <div class="card" style="border-top: 4px solid var(--primary-brown); padding: 1.5rem;">
+            <span class="badge badge-primary mb-3" style="font-size: 0.82rem;">🌙 Dinner Course</span>
+            {% if plan.Dinner %}
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <div style="width: 90px; height: 90px; border-radius: 10px; overflow: hidden; background: #F4EBE1; flex-shrink: 0; border: 1.5px solid var(--border-warm);">
+                        <img src="{{ plan.Dinner.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ plan.Dinner.name }}" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                    <div style="flex: 1;">
+                        <h4 style="color: var(--primary-brown); font-weight: 600; font-size: 1.1rem; margin: 0 0 0.25rem 0;">{{ plan.Dinner.name }}</h4>
+                        <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0 0 0.35rem 0; font-weight: 400;">{{ plan.Dinner.description }}</p>
+                        <p style="color: var(--primary-brown); font-size: 0.95rem; margin: 0; font-weight: 600;">
+                            {{ plan.Dinner.nutrition.calories|default:'500' }} kcal • Sugar: {{ plan.Dinner.nutrition.sugar }}g
+                        </p>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem; border-top: 1px solid var(--border-warm); padding-top: 0.75rem;">
+                    <a href="{% url 'food_detail' plan.Dinner.id %}" class="btn btn-outline btn-sm">View Recipe & Order</a>
+                </div>
+            {% else %}
+                <p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 400;">No dinner courses match preferences.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Daily target calibration summary card -->
+    <div class="card" style="padding: 1.5rem;">
+        <h3 style="color: var(--primary-brown); font-weight: 600; font-size: 1.25rem; margin: 0 0 0.35rem 0;">
+            📊 Total Planned Caloric & Macro Calibrations
+        </h3>
+        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.25rem; font-weight: 400;">
+            Sum calculations comparing today's food scheduler vs personal health condition parameters.
+        </p>
+        
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; border-top: 1.5px solid var(--border-warm); padding-top: 1.25rem;">
+            <div style="background: var(--bg-cream); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-warm);">
+                <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500; display: block;">Daily Calorie Target:</span>
+                <p style="font-size: 1.4rem; font-weight: 700; color: var(--primary-green); margin: 0.2rem 0 0 0;">{{ target_calories }} kcal</p>
+            </div>
+            <div style="background: var(--bg-cream); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-warm);">
+                <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 500; display: block;">Sugar & Sodium Guideline:</span>
+                <p style="font-size: 1.4rem; font-weight: 700; color: var(--primary-orange); margin: 0.2rem 0 0 0;">✓ Fits Daily Limit</p>
+            </div>
         </div>
     </div>
 </div>

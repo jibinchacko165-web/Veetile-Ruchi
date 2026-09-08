@@ -12,5 +12,6 @@ urlpatterns = [
     path('api/update-profile-gps/', views.update_profile_gps, name='update_profile_gps'),
     path('api/live-gps/<str:order_id>/', views.get_live_gps_location, name='get_live_gps_location'),
     path('api/notifications/', views.get_courier_notifications, name='get_courier_notifications'),
+    path('api/couriers/', views.api_list_couriers, name='api_list_couriers'),
     path('feedback/<str:order_id>/', views.submit_delivery_feedback, name='submit_delivery_feedback'),
 ]

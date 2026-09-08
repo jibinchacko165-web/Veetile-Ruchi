@@ -249,8 +249,8 @@ class AccountsModuleTests(TestCase):
         response = self.client.post(reverse('register'), {
             'username': 'new_chef',
             'email': 'newchef@test.com',
-            'password': 'password123',
-            'confirm_password': 'password123',
+            'password': 'StrongPassword@123',
+            'confirm_password': 'StrongPassword@123',
             'role': 'chef',
             'dob': '1990-01-01',
             'phone': '9876543299',
@@ -262,6 +262,91 @@ class AccountsModuleTests(TestCase):
         self.assertEqual(new_user.role, 'chef')
         self.assertTrue(hasattr(new_user, 'chef_profile'))
         self.assertFalse(new_user.chef_profile.is_approved)
+
+    def test_registration_strong_password_rules(self):
+        """Verify that weak passwords failing criteria are rejected with friendly error messages."""
+        weak_passwords = [
+            ('short', 'Password must be at least 8 characters long.'),
+            ('nouppercase123@', 'Password must contain at least one uppercase letter (A-Z).'),
+            ('NOLOWERCASE123@', 'Password must contain at least one lowercase letter (a-z).'),
+            ('NoNumberSpecial@', 'Password must contain at least one number (0-9).'),
+            ('NoSpecialChar123', 'Password must contain at least one special character'),
+        ]
+        for pwd, expected_err in weak_passwords:
+            resp = self.client.post(reverse('register'), {
+                'username': f'test_user_{pwd[:4]}',
+                'email': f'{pwd[:4]}@test.com',
+                'password': pwd,
+                'confirm_password': pwd,
+                'role': 'customer',
+                'dob': '1995-01-01',
+                'phone': '9876543210'
+            })
+            self.assertEqual(resp.status_code, 200)
+            self.assertContains(resp, expected_err)
+
+    def test_customer_registration_does_not_require_address(self):
+        """Customer registration must succeed without address or GPS parameters."""
+        resp = self.client.post(reverse('register'), {
+            'username': 'clean_customer',
+            'email': 'cleancustomer@test.com',
+            'password': 'StrongPass@123',
+            'confirm_password': 'StrongPass@123',
+            'role': 'customer',
+            'dob': '1998-05-15',
+            'phone': '9876599999'
+        })
+        self.assertEqual(resp.status_code, 302)
+        user = User.objects.get(username='clean_customer')
+        self.assertEqual(user.address, '')
+
+    def test_saved_locations_crud_and_default_handling(self):
+        """Verify SavedLocation model and profile views for Add, Set Default, and Delete."""
+        from accounts.models import SavedLocation
+        self.client.login(username='test_customer', password='password123')
+
+        # 1. Add Saved Location
+        resp1 = self.client.post(reverse('profile'), {
+            'action': 'add_saved_location',
+            'name': 'My Kakkanad Office',
+            'location_type': 'work',
+            'description': 'InfoPark Phase 2, Floor 4',
+            'landmark': 'Near InfoPark Express Gate',
+            'latitude': 10.0159,
+            'longitude': 76.3419,
+            'is_default': 'on'
+        })
+        self.assertEqual(resp1.status_code, 302)
+        loc1 = SavedLocation.objects.filter(user=self.customer, name='My Kakkanad Office').first()
+        self.assertIsNotNone(loc1)
+        self.assertTrue(loc1.is_default)
+
+        # 2. Add Second Saved Location as Default -> should unset first
+        resp2 = self.client.post(reverse('profile'), {
+            'action': 'add_saved_location',
+            'name': 'My Home',
+            'location_type': 'home',
+            'description': 'River View Villa No 12',
+            'landmark': 'Near Aluva Temple',
+            'latitude': 10.1076,
+            'longitude': 76.3516,
+            'is_default': 'on'
+        })
+        self.assertEqual(resp2.status_code, 302)
+        loc2 = SavedLocation.objects.filter(user=self.customer, name='My Home').first()
+        self.assertIsNotNone(loc2)
+        self.assertTrue(loc2.is_default)
+
+        loc1.refresh_from_db()
+        self.assertFalse(loc1.is_default)
+
+        # 3. Delete Saved Location
+        resp3 = self.client.post(reverse('profile'), {
+            'action': 'delete_saved_location',
+            'location_id': loc1.id
+        })
+        self.assertEqual(resp3.status_code, 302)
+        self.assertFalse(SavedLocation.objects.filter(id=loc1.id).exists())
 
     def test_login_and_role_redirect(self):
         login_success = self.client.login(username='test_chef', password='password123')
@@ -335,12 +420,12 @@ class AccountsModuleTests(TestCase):
         response = self.client.post(reverse('profile'), {
             'action': 'change_password',
             'current_password': 'password123',
-            'new_password': 'newpassword456',
-            'confirm_password': 'newpassword456'
+            'new_password': 'BrandNewPassword@456',
+            'confirm_password': 'BrandNewPassword@456'
         })
         self.assertRedirects(response, reverse('profile') + '?tab=view')
         self.customer.refresh_from_db()
-        self.assertTrue(self.customer.check_password('newpassword456'))
+        self.assertTrue(self.customer.check_password('BrandNewPassword@456'))
 
     def test_otp_forgot_password_and_reset_workflow(self):
         """Test full OTP flow: request OTP -> verify OTP -> reset password -> login with new password"""
@@ -422,5 +507,79 @@ class AccountsModuleTests(TestCase):
         })
         self.assertEqual(exp_resp.status_code, 200)
         self.assertFalse(PasswordResetOTP.objects.filter(id=otp_record.id).exists())
+
+
+class DjangoSessionFrameworkTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.customer = User.objects.create_user(username='sess_customer', password='Password@123', role='customer')
+        self.chef = User.objects.create_user(username='sess_chef', password='Password@123', role='chef')
+        ChefProfile.objects.create(user=self.chef, is_approved=True)
+        self.staff = User.objects.create_user(username='sess_staff', password='Password@123', role='staff')
+        self.courier = User.objects.create_user(username='sess_courier', password='Password@123', role='delivery_boy')
+        DeliveryBoyProfile.objects.create(user=self.courier, vehicle_number='KL-01-SESS')
+        self.admin = User.objects.create_user(username='sess_admin', password='Password@123', role='admin', is_staff=True, is_superuser=True)
+
+    def test_database_session_created_and_stored_in_db(self):
+        from django.contrib.sessions.models import Session
+        login_resp = self.client.post(reverse('login'), {'username': 'sess_customer', 'password': 'Password@123'})
+        self.assertEqual(login_resp.status_code, 302)
+        session_key = self.client.session.session_key
+        self.assertTrue(session_key)
+        self.assertTrue(Session.objects.filter(session_key=session_key).exists())
+
+    def test_session_persists_across_multiple_page_requests(self):
+        self.client.post(reverse('login'), {'username': 'sess_customer', 'password': 'Password@123'})
+        r1 = self.client.get(reverse('food_catalog'))
+        self.assertEqual(r1.status_code, 200)
+        self.assertEqual(int(self.client.session['_auth_user_id']), self.customer.id)
+        r2 = self.client.get(reverse('profile'))
+        self.assertEqual(r2.status_code, 200)
+        self.assertEqual(int(self.client.session['_auth_user_id']), self.customer.id)
+
+    def test_logout_completely_flushes_session(self):
+        from django.contrib.sessions.models import Session
+        self.client.post(reverse('login'), {'username': 'sess_customer', 'password': 'Password@123'})
+        old_session_key = self.client.session.session_key
+        self.client.get(reverse('logout'))
+        self.assertNotIn('_auth_user_id', self.client.session)
+        self.assertFalse(Session.objects.filter(session_key=old_session_key).exists())
+
+    def test_all_five_roles_session_creation_and_dashboard_isolation(self):
+        role_targets = [
+            (self.customer, 'sess_customer', reverse('food_catalog')),
+            (self.chef, 'sess_chef', reverse('chef_dashboard')),
+            (self.staff, 'sess_staff', reverse('staff_dashboard')),
+            (self.courier, 'sess_courier', reverse('delivery_boy_dashboard')),
+            (self.admin, 'sess_admin', reverse('admin_dashboard')),
+        ]
+        for user_obj, username, expected_url in role_targets:
+            res = self.client.post(reverse('login'), {'username': username, 'password': 'Password@123'})
+            self.assertEqual(res.status_code, 302)
+            self.assertEqual(int(self.client.session['_auth_user_id']), user_obj.id)
+            redir = self.client.get(reverse('dashboard_redirect'))
+            self.assertRedirects(redir, expected_url)
+            self.client.get(reverse('logout'))
+
+    def test_no_cache_middleware_headers(self):
+        """Verify NoCacheMiddleware attaches anti-caching headers to protected view responses."""
+        self.client.post(reverse('login'), {'username': 'sess_customer', 'password': 'Password@123'})
+        response = self.client.get(reverse('food_catalog'))
+        self.assertIn('no-cache', response.headers.get('Cache-Control', ''))
+        self.assertIn('no-store', response.headers.get('Cache-Control', ''))
+        self.assertIn('must-revalidate', response.headers.get('Cache-Control', ''))
+        self.assertEqual(response.headers.get('Pragma'), 'no-cache')
+        self.assertEqual(response.headers.get('Expires'), '0')
+
+    def test_logout_response_headers_and_session_flush(self):
+        """Verify logout flushes session and sets strict anti-caching headers on redirect response."""
+        self.client.post(reverse('login'), {'username': 'sess_customer', 'password': 'Password@123'})
+        logout_res = self.client.get(reverse('logout'))
+        self.assertEqual(logout_res.status_code, 302)
+        self.assertIn('no-store', logout_res.headers.get('Cache-Control', ''))
+        self.assertNotIn('_auth_user_id', self.client.session)
+
+
+
 
 

@@ -1,99 +1,129 @@
 {% extends 'base.html' %}
 
+{% block title %}AI Business Intelligence & Reports — Veetile-Ruchi{% endblock %}
+
 {% block content %}
-<h1 class="mb-1" style="color: var(--text-light);">AI Advanced Reports & Business Intelligence</h1>
-<p class="mb-3" style="color: var(--text-muted);">
-    Predictive analytics engine logs generated using Random Forest Regressors, K-Means Clustering, and Naive Bayes classifiers.
-</p>
-
-<div class="grid-2">
-    <!-- 1. Demand & Waste Forecasting Logs -->
-    <div class="card mb-3">
-        <h3 class="mb-3" style="color: var(--primary);">📈 AI Food Demand & Waste Forecasts</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Predicted portions required for the upcoming operational cycle.</p>
-        <div style="overflow-x: auto; max-height: 300px; overflow-y: auto;">
-            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
-                <thead>
-                    <tr style="border-bottom: 2px solid var(--dark-border); color: var(--text-muted);">
-                        <th style="padding: 0.5rem;">Dish</th>
-                        <th style="padding: 0.5rem;">Forecast Date</th>
-                        <th style="padding: 0.5rem;">Est. Demand</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in demand_forecasts %}
-                    <tr style="border-bottom: 1px solid var(--dark-border);">
-                        <td style="padding: 0.5rem; color: var(--text-light); font-weight: 600;">{{ item.food_item.name }}</td>
-                        <td style="padding: 0.5rem; color: var(--text-muted);">{{ item.forecast_date|date:"Y-m-d" }}</td>
-                        <td style="padding: 0.5rem; color: var(--primary-light); font-weight: 700;">{{ item.predicted_quantity }} portions</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="3" style="padding: 1rem; text-align: center; color: var(--text-muted);">No logs compiled. Place orders to run forecaster.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+<div style="max-width: 1100px; margin: 1.5rem auto;">
+    <div style="margin-bottom: 2rem;">
+        <h1 style="color: var(--primary-brown); font-size: 2.2rem; font-weight: 800; margin: 0;">
+            📊 AI Business Intelligence & Reports
+        </h1>
+        <p style="color: var(--text-muted); font-size: 1rem; margin-top: 0.25rem;">
+            Predictive machine learning models generated using Random Forest Regressors, K-Means Customer Clustering, and Naive Bayes NLP.
+        </p>
     </div>
 
-    <!-- 2. Customer Behavioral Clustering segments -->
-    <div class="card mb-3">
-        <h3 class="mb-3" style="color: var(--accent);">👥 K-Means Customer Segments</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Grouping user purchasing frequencies to optimize discount distributions.</p>
-        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-            {% for seg in behavior_segments %}
-                <div style="background-color: var(--dark-bg); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--dark-border); display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <strong>{{ seg.behavior_segment|upper }}</strong>
-                        <span style="display: block; font-size: 0.75rem; color: var(--text-muted);">Avg Spend: ₹{{ seg.avg_spend|floatformat:2 }} | Avg Order Count: {{ seg.avg_orders|floatformat:1 }}</span>
-                    </div>
-                    <span class="badge badge-accent">{{ seg.count }} Users</span>
-                </div>
-            {% empty %}
-                <p style="color: var(--text-muted); text-align: center; padding: 1rem;">No behavioral profiles compiled currently.</p>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-
-<div class="grid-2">
-    <!-- 3. Delivery predictions calibration metrics -->
-    <div class="card mb-3">
-        <h3 class="mb-3" style="color: var(--warning);">🕒 AI Transit Time Predictor Calibration</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Comparing linear regression time estimates with actual delivery coordinates duration logs.</p>
-        
-        <div style="background-color: var(--dark-bg); padding: 1rem; border-radius: 12px; border: 1px dashed var(--warning); text-align: center;">
-            <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 1rem;">
-                <div>
-                    <span style="font-size: 0.8rem; color: var(--text-muted);">Avg. AI Estimate</span>
-                    <h2 style="color: var(--warning); font-size: 2.2rem; margin-top: 0.25rem;">{{ avg_predicted_time }}m</h2>
-                </div>
-                <div style="font-size: 1.5rem; color: var(--dark-border);">|</div>
-                <div>
-                    <span style="font-size: 0.8rem; color: var(--text-muted);">Avg. Actual Transit</span>
-                    <h2 style="color: var(--success); font-size: 2.2rem; margin-top: 0.25rem;">{{ avg_actual_time }}m</h2>
-                </div>
-            </div>
-            <p style="font-size: 0.8rem; color: var(--text-muted);">
-                Compiled over {{ completed_deliveries_count }} verified delivery assignments.
+    <div class="grid-2">
+        <!-- 1. Demand & Waste Forecasting Logs -->
+        <div class="card mb-4" style="border-top: 4px solid var(--primary-orange); padding: 1.5rem;">
+            <h3 style="color: var(--primary-brown); font-size: 1.25rem; font-weight: 800; margin: 0 0 0.35rem 0;">
+                📈 AI Food Demand & Waste Forecasts
+            </h3>
+            <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1rem;">
+                Predicted portions required for upcoming kitchen operations.
             </p>
+            <div style="overflow-x: auto; max-height: 320px; overflow-y: auto;">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--border-warm); background: var(--bg-cream); color: var(--primary-brown); font-weight: 800;">
+                            <th style="padding: 0.6rem 0.75rem;">Dish</th>
+                            <th style="padding: 0.6rem 0.75rem;">Forecast Date</th>
+                            <th style="padding: 0.6rem 0.75rem;">Est. Demand</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in demand_forecasts %}
+                        <tr style="border-bottom: 1px solid var(--border-warm);">
+                            <td style="padding: 0.65rem 0.75rem; color: var(--primary-brown); font-weight: 700;">{{ item.food_item.name }}</td>
+                            <td style="padding: 0.65rem 0.75rem; color: var(--text-muted);">{{ item.forecast_date|date:"Y-m-d" }}</td>
+                            <td style="padding: 0.65rem 0.75rem; color: var(--primary-orange); font-weight: 800;">{{ item.predicted_quantity }} portions</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" style="padding: 1.5rem; text-align: center; color: var(--text-muted);">No logs compiled. Place orders to run forecaster.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 2. Customer Behavioral Clustering segments -->
+        <div class="card mb-4" style="border-top: 4px solid var(--primary-green); padding: 1.5rem;">
+            <h3 style="color: var(--primary-brown); font-size: 1.25rem; font-weight: 800; margin: 0 0 0.35rem 0;">
+                👥 K-Means Customer Segments
+            </h3>
+            <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1rem;">
+                Clustering user ordering habits to optimize discounts and personalized menus.
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                {% for seg in behavior_segments %}
+                    <div style="background-color: var(--bg-cream); padding: 0.9rem; border-radius: var(--radius-sm); border: 1px solid var(--border-warm); display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: var(--primary-brown); font-size: 1rem;">{{ seg.behavior_segment|upper }}</strong>
+                            <span style="display: block; font-size: 0.82rem; color: var(--text-muted); margin-top: 0.1rem;">
+                                Avg Spend: <strong style="color: var(--primary-orange);">₹{{ seg.avg_spend|floatformat:2 }}</strong> • Avg Orders: <strong>{{ seg.avg_orders|floatformat:1 }}</strong>
+                            </span>
+                        </div>
+                        <span class="badge badge-green" style="font-weight: 800;">{{ seg.count }} Users</span>
+                    </div>
+                {% empty %}
+                    <p style="color: var(--text-muted); text-align: center; padding: 1.5rem;">No behavioral profiles compiled currently.</p>
+                {% endfor %}
+            </div>
         </div>
     </div>
 
-    <!-- 4. Review Sentiment Classification summary -->
-    <div class="card mb-3">
-        <h3 class="mb-3" style="color: var(--success);">💬 Naive Bayes Review Sentiments</h3>
-        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">Sentiment summaries retrieved using TF-IDF text parsing algorithms.</p>
-        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-            {% for stat in sentiment_stats %}
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid var(--dark-border);">
-                    <span class="badge {% if stat.sentiment == 'positive' %}badge-success{% elif stat.sentiment == 'negative' %}badge-danger{% else %}badge-warning{% endif %}">{{ stat.sentiment|upper }}</span>
-                    <span><strong>{{ stat.count }}</strong> reviews (Avg. Rating: {{ stat.avg_rating|floatformat:1 }}★)</span>
+    <div class="grid-2">
+        <!-- 3. Delivery predictions calibration metrics -->
+        <div class="card mb-4" style="border-top: 4px solid var(--warning); padding: 1.5rem;">
+            <h3 style="color: var(--primary-brown); font-size: 1.25rem; font-weight: 800; margin: 0 0 0.35rem 0;">
+                🕒 AI Delivery Time Calibration
+            </h3>
+            <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1rem;">
+                Comparing machine learning travel time estimates with real courier GPS logs.
+            </p>
+            
+            <div style="background-color: var(--bg-cream); padding: 1.25rem; border-radius: var(--radius-sm); border: 1.5px solid var(--border-warm); text-align: center;">
+                <div style="display: flex; justify-content: space-around; align-items: center; margin-bottom: 1rem;">
+                    <div>
+                        <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">AI Estimated Transit</span>
+                        <h2 style="color: var(--primary-orange); font-size: 2.2rem; font-weight: 800; margin: 0.2rem 0 0 0;">{{ avg_predicted_time }}m</h2>
+                    </div>
+                    <div style="font-size: 1.8rem; color: var(--border-warm);">|</div>
+                    <div>
+                        <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: 700;">Actual Delivery Transit</span>
+                        <h2 style="color: var(--primary-green); font-size: 2.2rem; font-weight: 800; margin: 0.2rem 0 0 0;">{{ avg_actual_time }}m</h2>
+                    </div>
                 </div>
-            {% empty %}
-                <p style="color: var(--text-muted); text-align: center; padding: 1.5rem;">No reviews registered currently.</p>
-            {% endfor %}
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">
+                    ✓ Calibrated over {{ completed_deliveries_count }} verified local delivery assignments.
+                </p>
+            </div>
+        </div>
+
+        <!-- 4. Review Sentiment Classification summary -->
+        <div class="card mb-4" style="border-top: 4px solid var(--primary-green); padding: 1.5rem;">
+            <h3 style="color: var(--primary-brown); font-size: 1.25rem; font-weight: 800; margin: 0 0 0.35rem 0;">
+                💬 Naive Bayes Review Sentiments
+            </h3>
+            <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1rem;">
+                Customer review sentiment analysis retrieved using NLP text tokenization.
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 0.6rem;">
+                {% for stat in sentiment_stats %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-cream); border-radius: var(--radius-sm); border: 1px solid var(--border-warm);">
+                        <span class="badge {% if stat.sentiment == 'positive' %}badge-success{% elif stat.sentiment == 'negative' %}badge-danger{% else %}badge-warning{% endif %}" style="font-weight: 800;">
+                            {{ stat.sentiment|upper }}
+                        </span>
+                        <span style="font-size: 0.95rem; color: var(--primary-brown);">
+                            <strong>{{ stat.count }}</strong> reviews (Rating: <strong style="color: var(--gold-accent);">{{ stat.avg_rating|floatformat:1 }}★</strong>)
+                        </span>
+                    </div>
+                {% empty %}
+                    <p style="color: var(--text-muted); text-align: center; padding: 1.5rem;">No customer reviews registered currently.</p>
+                {% endfor %}
+            </div>
         </div>
     </div>
 </div>

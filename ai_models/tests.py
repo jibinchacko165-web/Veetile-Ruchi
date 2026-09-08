@@ -57,3 +57,43 @@ class AIMLTests(TestCase):
         self.assertTrue(len(steps) >= 3)
         self.assertEqual(steps[0]['lat'], 10.015)
         self.assertEqual(steps[-1]['lat'], 10.025)
+
+    def test_recommend_health_and_time_aware_foods(self):
+        """Tests that AI recommendation system respects active meal session and multi-condition filters."""
+        from ai_models.ml_engine import recommend_health_and_time_aware_foods
+        from health.models import HealthProfile
+        from food.models import FoodItem, MealSession, Category
+        from accounts.models import User
+
+        user = User.objects.create_user(username='test_health_user', email='th@test.com', password='Password123!')
+        profile = HealthProfile.objects.create(
+            user=user,
+            has_diabetes=True,
+            has_cholesterol=True,
+            has_bp=False
+        )
+
+        sess_lunch = MealSession.objects.create(name='Lunch', start_time='12:00:00', end_time='16:00:00')
+        cat_veg = Category.objects.create(name='Vegetarian')
+
+        food_lunch = FoodItem.objects.create(
+            chef=user,
+            name='Kerala Sadya Lunch',
+            description='Steamed Matta rice served with Avial and Thoran',
+            price=200.0,
+            category=cat_veg,
+            meal_session=sess_lunch,
+            is_available=True,
+            stock_quantity=10
+        )
+
+        recs, reason = recommend_health_and_time_aware_foods(
+            [food_lunch],
+            profile,
+            active_session_name='Lunch'
+        )
+
+        self.assertEqual(len(recs), 1)
+        self.assertEqual(recs[0].name, 'Kerala Sadya Lunch')
+        self.assertIn('Diabetes + High Cholesterol', reason)
+

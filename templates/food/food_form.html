@@ -1,18 +1,18 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<a href="{% url 'chef_dashboard' %}" class="nav-link mb-3" style="display: inline-block;">&larr; Back to Dashboard</a>
+<a href="{% url 'chef_dashboard' %}" class="btn btn-outline btn-sm mb-3" style="display: inline-flex; align-items: center; gap: 0.3rem;">&larr; Back to Dashboard</a>
 
-<div class="card" style="max-width: 800px; margin: 0 auto;">
-    <h2 class="mb-3" style="color: var(--text-light);">{% if food %}Edit Homemade Food{% else %}Add Homemade Food{% endif %}</h2>
-    <hr style="border: 1px solid var(--dark-border); margin-bottom: 2rem;">
+<div class="card" style="max-width: 800px; margin: 0 auto; padding: 1.75rem;">
+    <h2 class="mb-3" style="color: var(--primary-brown); font-size: 1.6rem; font-weight: 700;">{% if food %}Edit Homemade Food{% else %}Add Homemade Food{% endif %}</h2>
+    <hr style="border: 1px solid var(--border-warm); margin-bottom: 2rem;">
 
     <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="grid-2">
             <!-- Left Side: Basic details -->
             <div>
-                <h3 class="mb-2" style="color: var(--primary);">Basic Information</h3>
+                <h3 class="mb-2" style="color: var(--primary-orange); font-size: 1.2rem; font-weight: 600;">Basic Information</h3>
                 <div class="form-group">
                     <label class="form-label" for="name">Dish Name</label>
                     <input type="text" name="name" id="name" class="form-control" value="{{ food.name|default:'' }}" required placeholder="e.g. Grandma's Chicken Curry">
@@ -34,30 +34,34 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="session">Meal Session</label>
-                    <select name="session" id="session" class="form-control" required>
+                    <label class="form-label" for="session" style="color: var(--primary-orange); font-weight: 700;">
+                        ⏱️ Meal Session (Mandatory for Time-Based Availability)
+                    </label>
+                    <select name="session" id="session" class="form-control" required style="border: 1.5px solid var(--primary-orange);">
                         {% for sess in sessions %}
-                            <option value="{{ sess.id }}" {% if food.meal_session.id == sess.id %}selected{% endif %}>{{ sess.name }}</option>
+                            <option value="{{ sess.id }}" {% if food.meal_session.id == sess.id %}selected{% endif %}>
+                                {{ sess.name }} (Available: {{ sess.start_time|time:"g:i A" }} – {{ sess.end_time|time:"g:i A" }})
+                            </option>
                         {% endfor %}
                     </select>
                 </div>
 
                 <!-- Food Photo Upload Section -->
-                <div class="form-group mb-3" style="background: rgba(255, 107, 53, 0.05); padding: 1rem; border-radius: 12px; border: 1px dashed var(--primary);">
-                    <label class="form-label" for="image_file" style="color: var(--primary); font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
+                <div class="form-group mb-3" style="background: var(--bg-cream); padding: 1rem; border-radius: 12px; border: 1.5px dashed var(--border-warm);">
+                    <label class="form-label" for="image_file" style="color: var(--primary-orange); font-weight: 600; display: flex; align-items: center; gap: 0.4rem;">
                         📷 Upload Food Photo
                     </label>
-                    <input type="file" name="image_file" id="image_file" accept="image/*" class="form-control" style="padding: 0.4rem; background: var(--dark-bg); color: var(--text-light); margin-bottom: 0.75rem;" onchange="previewImage(this)">
+                    <input type="file" name="image_file" id="image_file" accept="image/*" class="form-control" style="padding: 0.4rem; margin-bottom: 0.75rem;" onchange="previewImage(this)">
                     
                     {% if food.image %}
                         <div id="image-preview-container" style="margin-top: 0.5rem; text-align: center;">
                             <span style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Current Photo Preview:</span>
-                            <img id="image-preview" src="{{ food.image }}" alt="Food Photo Preview" style="max-width: 100%; max-height: 160px; border-radius: 10px; object-fit: cover; border: 1px solid var(--dark-border);">
+                            <img id="image-preview" src="{{ food.image }}" alt="Food Photo Preview" style="max-width: 100%; max-height: 160px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border-warm);">
                         </div>
                     {% else %}
                         <div id="image-preview-container" style="margin-top: 0.5rem; text-align: center; display: none;">
                             <span style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Photo Preview:</span>
-                            <img id="image-preview" src="" alt="Food Photo Preview" style="max-width: 100%; max-height: 160px; border-radius: 10px; object-fit: cover; border: 1px solid var(--dark-border);">
+                            <img id="image-preview" src="" alt="Food Photo Preview" style="max-width: 100%; max-height: 160px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border-warm);">
                         </div>
                     {% endif %}
                 </div>
@@ -68,8 +72,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem;">
-                        <input type="checkbox" name="is_available" {% if food.is_available or not food %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--primary);">
+                    <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" name="is_available" {% if food.is_available or not food %}checked{% endif %} style="width: 18px; height: 18px; accent-color: var(--primary-orange);">
                         Available for ordering
                     </label>
                 </div>
@@ -81,8 +85,8 @@
 
             <!-- Right Side: Nutritional information -->
             <div>
-                <h3 class="mb-2" style="color: var(--accent);">AI & Nutritional Information</h3>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.5rem;">
+                <h3 class="mb-2" style="color: var(--primary-green); font-size: 1.2rem; font-weight: 600;">AI & Nutritional Information</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 400;">
                     These inputs feed the AI recommendation engine. Accuracy supports healthy food filtering.
                 </p>
                 <div class="form-group">
@@ -99,46 +103,41 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="sodium">Sodium (mg)</label>
-                    <input type="number" step="0.1" name="sodium" id="sodium" class="form-control" value="{{ food.nutrition.sodium|default:'120.0' }}" required>
+                    <input type="number" step="0.1" name="sodium" id="sodium" class="form-control" value="{{ food.nutrition.sodium|default:'150.0' }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="carbs">Carbohydrates (g)</label>
+                    <input type="number" step="0.1" name="carbs" id="carbs" class="form-control" value="{{ food.nutrition.carbs|default:'40.0' }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="fats">Fats (g)</label>
+                    <input type="number" step="0.1" name="fats" id="fats" class="form-control" value="{{ food.nutrition.fats|default:'8.0' }}" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="protein">Protein (g)</label>
-                    <input type="number" step="0.1" name="protein" id="protein" class="form-control" value="{{ food.nutrition.protein|default:'15.0' }}" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="fat">Fat (g)</label>
-                    <input type="number" step="0.1" name="fat" id="fat" class="form-control" value="{{ food.nutrition.fat|default:'8.0' }}" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="carbohydrates">Carbohydrates (g)</label>
-                    <input type="number" step="0.1" name="carbohydrates" id="carbohydrates" class="form-control" value="{{ food.nutrition.carbohydrates|default:'40.0' }}" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label" for="fiber">Dietary Fiber (g)</label>
-                    <input type="number" step="0.1" name="fiber" id="fiber" class="form-control" value="{{ food.nutrition.fiber|default:'3.0' }}" required>
+                    <input type="number" step="0.1" name="protein" id="protein" class="form-control" value="{{ food.nutrition.protein|default:'12.0' }}" required>
                 </div>
             </div>
         </div>
 
-        <button type="submit" class="btn" style="width: 100%; padding: 0.8rem; font-size: 1.1rem; border-radius: 8px; margin-top: 2rem;">
+        <button type="submit" class="btn" style="width: 100%; padding: 0.85rem; font-size: 1.1rem; border-radius: 10px; margin-top: 1rem;">
             Save Food Item
         </button>
     </form>
 </div>
 
 <script>
-function previewImage(input) {
-    var previewContainer = document.getElementById('image-preview-container');
-    var previewImage = document.getElementById('image-preview');
-    
-    if (input.files && input.files[0]) {
-        var reader = new FileReader();
-        reader.onload = function(e) {
-            previewImage.src = e.target.result;
-            previewContainer.style.display = 'block';
+    function previewImage(input) {
+        const previewContainer = document.getElementById('image-preview-container');
+        const previewImg = document.getElementById('image-preview');
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                previewContainer.style.display = 'block';
+            };
+            reader.readAsDataURL(input.files[0]);
         }
-        reader.readAsDataURL(input.files[0]);
     }
-}
 </script>
 {% endblock %}

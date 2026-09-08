@@ -1,88 +1,222 @@
 {% extends 'base.html' %}
 
-{% block extra_head %}
-<script>
-    let checkoutMap, checkoutMarker;
+{% block title %}Checkout & Delivery Details — Veetile-Ruchi{% endblock %}
 
-    function updateCoordinateInputs() {
-        const selectedOption = document.getElementById('gps_sim_presets').value;
-        if (selectedOption !== 'custom') {
-            const coords = selectedOption.split(',');
-            const lat = parseFloat(coords[0]);
-            const lng = parseFloat(coords[1]);
-            document.getElementById('latitude').value = lat.toFixed(6);
-            document.getElementById('longitude').value = lng.toFixed(6);
-            if (checkoutMap && checkoutMarker) {
-                checkoutMarker.setLatLng([lat, lng]);
-                checkoutMap.panTo([lat, lng]);
+{% block extra_head %}
+<style>
+    .location-option-card {
+        border: 2px solid var(--border-warm);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: #ffffff;
+    }
+    .location-option-card:hover {
+        border-color: var(--primary-orange);
+        background: #FFFDF9;
+    }
+    .location-option-card.selected {
+        border-color: var(--primary-orange);
+        background: #FFF9F3;
+        box-shadow: 0 4px 12px rgba(217, 119, 54, 0.12);
+    }
+    .payment-option-card {
+        border: 2px solid var(--border-warm);
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: #ffffff;
+    }
+    .payment-option-card.selected {
+        border-color: var(--primary-orange);
+        background: #FFF9F3;
+    }
+    .kerala-search-result-item {
+        padding: 0.6rem 0.85rem;
+        border-bottom: 1px solid var(--border-warm);
+        cursor: pointer;
+        transition: background 0.15s ease;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .kerala-search-result-item:hover {
+        background: #FFF5EC;
+    }
+</style>
+<script>
+    let checkoutMap, checkoutMarker, hubMarker, perimeterCircle;
+    const CENTRAL_HUB_LAT = parseFloat("{{ delivery_setting.latitude|default:9.5564 }}");
+    const CENTRAL_HUB_LON = parseFloat("{{ delivery_setting.longitude|default:76.7909 }}");
+    const MAX_DELIVERY_RADIUS_KM = parseFloat("{{ delivery_setting.max_delivery_radius_km|default:20.0 }}");
+    const HUB_NAME = "{{ delivery_setting.name|default:'Central Kitchen Hub (Kanjirappally)'|escapejs }}";
+
+    let isCurrentLocationServiceable = true;
+    let currentDistanceKm = 0.0;
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = deg2rad(lat2 - lat1);
+        const dLon = deg2rad(lon2 - lon1);
+        const a = 
+            Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2); 
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
+        return Math.round(R * c * 10) / 10;
+    }
+
+    function deg2rad(deg) {
+        return deg * (Math.PI/180);
+    }
+
+    function updatePerimeterStatus(lat, lon) {
+        const dist = calculateDistance(lat, lon, CENTRAL_HUB_LAT, CENTRAL_HUB_LON);
+        currentDistanceKm = dist;
+        const badgeElem = document.getElementById('perimeter-status-badge');
+        const submitBtn = document.getElementById('btn-place-order');
+
+        if (!badgeElem) return;
+
+        if (dist <= MAX_DELIVERY_RADIUS_KM) {
+            isCurrentLocationServiceable = true;
+            badgeElem.style.background = '#E8F5E9';
+            badgeElem.style.color = '#2E7D32';
+            badgeElem.style.border = '1px solid #A5D6A7';
+            badgeElem.innerHTML = `🟢 <strong>Inside Service Area</strong> (${dist} km from ${HUB_NAME}) — Fast Delivery Available!`;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                submitBtn.style.cursor = 'pointer';
+                submitBtn.title = "Proceed to place your order";
+            }
+        } else {
+            isCurrentLocationServiceable = false;
+            badgeElem.style.background = '#FFEBEE';
+            badgeElem.style.color = '#C62828';
+            badgeElem.style.border = '1.5px solid #FFCDD2';
+            badgeElem.innerHTML = `🔴 <strong>Sorry, delivery is currently available only within 20 km of Kanjirappally.</strong> (${dist} km away, radius limit is ${MAX_DELIVERY_RADIUS_KM} km).`;
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = '0.45';
+                submitBtn.style.cursor = 'not-allowed';
+                submitBtn.title = "Sorry, delivery is currently available only within 20 km of Kanjirappally.";
             }
         }
     }
 
-    document.addEventListener("DOMContentLoaded", function() {
-        const initLat = parseFloat("{{ user.latitude|default:9.462534 }}");
-        const initLng = parseFloat("{{ user.longitude|default:76.72185 }}");
-
-        checkoutMap = L.map('checkout-map-picker').setView([initLat, initLng], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap'
-        }).addTo(checkoutMap);
-
-        const pinIcon = L.divIcon({
-            html: '<div style="background-color: #ff6b35; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 15px; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5);">📍</div>',
-            className: 'custom-leaflet-icon',
-            iconSize: [30, 30],
-            iconAnchor: [15, 15]
-        });
-
-        checkoutMarker = L.marker([initLat, initLng], {icon: pinIcon, draggable: true}).addTo(checkoutMap);
-
-        checkoutMarker.on('dragend', function(e) {
-            const pos = checkoutMarker.getLatLng();
-            document.getElementById('latitude').value = pos.lat.toFixed(6);
-            document.getElementById('longitude').value = pos.lng.toFixed(6);
-            document.getElementById('gps_sim_presets').value = 'custom';
-        });
-
-        checkoutMap.on('click', function(e) {
-            checkoutMarker.setLatLng(e.latlng);
-            document.getElementById('latitude').value = e.latlng.lat.toFixed(6);
-            document.getElementById('longitude').value = e.latlng.lng.toFixed(6);
-            document.getElementById('gps_sim_presets').value = 'custom';
-        });
-        
-        document.getElementById('latitude').addEventListener('change', syncFromInputs);
-        document.getElementById('longitude').addEventListener('change', syncFromInputs);
-
-        function syncFromInputs() {
-            const lat = parseFloat(document.getElementById('latitude').value);
-            const lng = parseFloat(document.getElementById('longitude').value);
-            if (!isNaN(lat) && !isNaN(lng)) {
-                checkoutMarker.setLatLng([lat, lng]);
-                checkoutMap.panTo([lat, lng]);
-                document.getElementById('gps_sim_presets').value = 'custom';
-            }
+    function validateCheckoutPerimeter() {
+        if (!isCurrentLocationServiceable) {
+            alert("Sorry, delivery is currently available only within 20 km of Kanjirappally.");
+            return false;
         }
-    });
+        return true;
+    }
 
-    function getBrowserCurrentGPS() {
+    function selectSavedLocation(locId, lat, lon, name, landmark, desc) {
+        document.querySelectorAll('.location-option-card').forEach(el => el.classList.remove('selected'));
+        const card = document.getElementById('loc_card_' + locId);
+        if (card) card.classList.add('selected');
+
+        document.getElementById('saved_location_id').value = locId;
+        document.getElementById('latitude').value = lat;
+        document.getElementById('longitude').value = lon;
+        document.getElementById('delivery_address').value = `${name}: ${desc || ''} | Landmark: ${landmark || ''}`;
+
+        const customDiv = document.getElementById('custom_location_container');
+        if (customDiv) customDiv.style.display = 'none';
+
+        if (checkoutMap && checkoutMarker) {
+            checkoutMarker.setLatLng([lat, lon]);
+            checkoutMap.panTo([lat, lon]);
+        }
+
+        updatePerimeterStatus(lat, lon);
+    }
+
+    function pickPresetPlace(name, lat, lon, landmark, desc) {
+        document.getElementById('latitude').value = lat;
+        document.getElementById('longitude').value = lon;
+        document.getElementById('delivery_address').value = `${name}: ${desc || ''} | Landmark: ${landmark || ''}`;
+        
+        const resultsContainer = document.getElementById('kerala_search_results');
+        if (resultsContainer) resultsContainer.style.display = 'none';
+        
+        const searchInput = document.getElementById('kerala_search_input');
+        if (searchInput) searchInput.value = name;
+
+        if (checkoutMap && checkoutMarker) {
+            checkoutMarker.setLatLng([lat, lon]);
+            checkoutMap.panTo([lat, lon]);
+        }
+
+        updatePerimeterStatus(lat, lon);
+    }
+
+    function applyCheckoutPresetPlace() {
+        const select = document.getElementById('checkout_preset_select');
+        if (!select || !select.value) return;
+
+        const opt = select.options[select.selectedIndex];
+        const lat = parseFloat(opt.getAttribute('data-lat'));
+        const lon = parseFloat(opt.getAttribute('data-lon'));
+        const landmark = opt.getAttribute('data-landmark');
+        const desc = opt.getAttribute('data-desc');
+
+        pickPresetPlace(opt.value, lat, lon, landmark, desc);
+    }
+
+    function filterKeralaPlaces(query) {
+        const cleanQ = (query || '').toLowerCase().trim();
+        const resultsContainer = document.getElementById('kerala_search_results');
+        if (!resultsContainer) return;
+
+        if (!cleanQ) {
+            resultsContainer.style.display = 'none';
+            return;
+        }
+
+        const items = resultsContainer.querySelectorAll('.kerala-search-result-item');
+        let visibleCount = 0;
+        items.forEach(item => {
+            const text = (item.getAttribute('data-search-text') || '').toLowerCase();
+            if (text.includes(cleanQ)) {
+                item.style.display = 'flex';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        resultsContainer.style.display = visibleCount > 0 ? 'block' : 'none';
+    }
+
+    function getBrowserLiveGPS() {
         if (navigator.geolocation) {
+            const statusElem = document.getElementById('gps_detect_status');
+            if (statusElem) statusElem.innerHTML = "⏳ Detecting live GPS coordinates from your device...";
+
             navigator.geolocation.getCurrentPosition(
                 function(position) {
                     const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
+                    const lon = position.coords.longitude;
                     document.getElementById('latitude').value = lat.toFixed(6);
-                    document.getElementById('longitude').value = lng.toFixed(6);
-                    if (checkoutMap && checkoutMarker) {
-                        checkoutMarker.setLatLng([lat, lng]);
-                        checkoutMap.panTo([lat, lng]);
+                    document.getElementById('longitude').value = lon.toFixed(6);
+                    if (statusElem) {
+                        statusElem.innerHTML = `🟢 Current GPS location captured: Lat ${lat.toFixed(4)}, Lon ${lon.toFixed(4)}`;
                     }
-                    document.getElementById('gps_sim_presets').value = 'custom';
-                    alert('Live device GPS coordinates detected: Lat ' + lat.toFixed(5) + ', Lng ' + lng.toFixed(5));
+
+                    if (checkoutMap && checkoutMarker) {
+                        checkoutMarker.setLatLng([lat, lon]);
+                        checkoutMap.panTo([lat, lon]);
+                    }
+                    updatePerimeterStatus(lat, lon);
                 },
                 function(error) {
-                    alert('Please allow location access to continue with your order.');
+                    if (statusElem) statusElem.innerHTML = "🟡 Geolocation alert: " + error.message + ". You can also pick from Kerala places or click on map.";
                 },
                 { enableHighAccuracy: true, timeout: 10000 }
             );
@@ -91,163 +225,361 @@
         }
     }
 
-    function togglePaymentMethod() {
-        const upiRadio = document.getElementById('pay_upi');
+    function selectPayment(method) {
+        document.getElementById('pay_method_input').value = method;
+        document.querySelectorAll('.payment-option-card').forEach(el => el.classList.remove('selected'));
+        const card = document.getElementById('pay_card_' + method);
+        if (card) card.classList.add('selected');
+
         const qrContainer = document.getElementById('upi_qr_container');
-        if (upiRadio && upiRadio.checked) {
-            qrContainer.style.display = 'block';
-        } else {
-            qrContainer.style.display = 'none';
+        if (qrContainer) {
+            qrContainer.style.display = (method === 'upi') ? 'block' : 'none';
         }
     }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const initLat = parseFloat(document.getElementById('latitude').value) || CENTRAL_HUB_LAT;
+        const initLng = parseFloat(document.getElementById('longitude').value) || CENTRAL_HUB_LON;
+
+        checkoutMap = L.map('checkout-map-picker').setView([initLat, initLng], 12);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(checkoutMap);
+
+        const hubIcon = L.divIcon({
+            html: '<div style="background-color: #D97736; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 17px; border: 2px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.35);">🏠</div>',
+            className: 'custom-hub-icon',
+            iconSize: [34, 34],
+            iconAnchor: [17, 17]
+        });
+        hubMarker = L.marker([CENTRAL_HUB_LAT, CENTRAL_HUB_LON], { icon: hubIcon }).addTo(checkoutMap);
+        hubMarker.bindPopup(`<b>${HUB_NAME}</b><br>Delivery Center Hub`);
+
+        perimeterCircle = L.circle([CENTRAL_HUB_LAT, CENTRAL_HUB_LON], {
+            radius: MAX_DELIVERY_RADIUS_KM * 1000,
+            color: '#D97736',
+            fillColor: '#F59E0B',
+            fillOpacity: 0.12,
+            weight: 2,
+            dashArray: '5, 5'
+        }).addTo(checkoutMap);
+
+        const pinIcon = L.divIcon({
+            html: '<div style="background-color: #2563eb; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 17px; border: 2px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.35);">📍</div>',
+            className: 'custom-leaflet-icon',
+            iconSize: [34, 34],
+            iconAnchor: [17, 17]
+        });
+
+        checkoutMarker = L.marker([initLat, initLng], { icon: pinIcon, draggable: true }).addTo(checkoutMap);
+        checkoutMarker.bindPopup("<b>Your Delivery Destination</b><br>Drag pin to adjust");
+
+        checkoutMarker.on('dragend', function(e) {
+            const pos = checkoutMarker.getLatLng();
+            document.getElementById('latitude').value = pos.lat.toFixed(6);
+            document.getElementById('longitude').value = pos.lng.toFixed(6);
+            updatePerimeterStatus(pos.lat, pos.lng);
+        });
+
+        checkoutMap.on('click', function(e) {
+            checkoutMarker.setLatLng(e.latlng);
+            document.getElementById('latitude').value = e.latlng.lat.toFixed(6);
+            document.getElementById('longitude').value = e.latlng.lng.toFixed(6);
+            updatePerimeterStatus(e.latlng.lat, e.latlng.lng);
+        });
+
+        updatePerimeterStatus(initLat, initLng);
+    });
 </script>
 {% endblock %}
 
 {% block content %}
-<a href="{% url 'cart_view' %}" class="nav-link mb-3" style="display: inline-block;">&larr; Back to Basket</a>
-<h1 class="mb-3" style="color: var(--text-light);">Checkout Details</h1>
+<div style="max-width: 1050px; margin: 1.5rem auto;">
+    <a href="{% url 'cart_view' %}" class="btn btn-outline btn-sm" style="margin-bottom: 1.25rem; display: inline-flex; align-items: center; gap: 0.3rem;">
+        &larr; Back to Basket
+    </a>
 
-<div class="grid-2">
-    <!-- Left side: Order details form -->
-    <div class="card">
-        <h3 class="mb-3" style="color: var(--text-light);">Delivery Details</h3>
-        
-        <form method="POST" action="{% url 'place_order' %}">
-            {% csrf_token %}
-            {% if coupon %}
-                <input type="hidden" name="coupon_id" value="{{ coupon.id }}">
-            {% endif %}
-            
-            <!-- GPS Location Simulation & Detection adjusters -->
-            <div class="form-group" style="background-color: var(--dark-bg); padding: 1rem; border-radius: 8px; border: 1px solid var(--dark-border);">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;">
-                    <label class="form-label" style="color: var(--primary); margin: 0;">📍 GPS Delivery Location Capture</label>
-                    <button type="button" onclick="getBrowserCurrentGPS()" class="btn" style="padding: 0.35rem 0.85rem; font-size: 0.8rem; background: var(--primary-orange); color: white;">
-                        📡 Detect My Live Device GPS
+    <h1 style="color: var(--primary-green); font-size: 2rem; font-weight: 700; margin-bottom: 0.35rem;">
+        🚚 Order Delivery & Checkout
+    </h1>
+    <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem; font-weight: 400;">
+        Select your delivery location and preferred payment method.
+    </p>
+
+    <!-- Delivery Perimeter Status Badge -->
+    <div id="perimeter-status-badge" style="padding: 0.85rem 1.25rem; border-radius: 10px; font-size: 0.95rem; font-weight: 500; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; background: #E8F5E9; color: #2E7D32; border: 1px solid #A5D6A7;">
+        🟢 Checking delivery service perimeter...
+    </div>
+
+    <form method="POST" action="{% url 'place_order' %}" id="checkout-form" onsubmit="return validateCheckoutPerimeter()">
+        {% csrf_token %}
+        {% if coupon %}
+            <input type="hidden" name="coupon_id" value="{{ coupon.id }}">
+        {% endif %}
+        <input type="hidden" name="saved_location_id" id="saved_location_id" value="{{ default_location.id|default:'' }}">
+        <input type="hidden" name="payment_method" id="pay_method_input" value="cod">
+
+        <div class="grid-2" style="gap: 1.5rem;">
+            <!-- Left Column: Delivery Location Selection -->
+            <div>
+                <!-- STEP 1: SELECT LOCATION -->
+                <div class="card mb-4" style="padding: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="color: var(--text-heading); font-weight: 600; font-size: 1.25rem; margin: 0;">
+                            1. Select Delivery Location
+                        </h3>
+                        <a href="{% url 'profile' %}?tab=locations" target="_blank" style="color: var(--primary-green); font-size: 0.88rem; font-weight: 500; text-decoration: none;">
+                            + Manage Locations
+                        </a>
+                    </div>
+
+                    <!-- List of User's Saved Locations -->
+                    {% if saved_locations %}
+                        <div style="margin-bottom: 1.25rem;">
+                            <span style="font-weight: 500; color: var(--text-muted); font-size: 0.85rem; display: block; margin-bottom: 0.5rem;">
+                                YOUR SAVED PLACES:
+                            </span>
+
+                            {% for loc in saved_locations %}
+                                <div id="loc_card_{{ loc.id }}" class="location-option-card {% if default_location and default_location.id == loc.id %}selected{% endif %}" onclick="selectSavedLocation('{{ loc.id }}', {{ loc.latitude }}, {{ loc.longitude }}, '{{ loc.name|escapejs }}', '{{ loc.landmark|default:''|escapejs }}', '{{ loc.description|default:''|escapejs }}')">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <span class="badge" style="background: var(--primary-orange); color: white; font-size: 0.75rem; font-weight: 500;">
+                                                {{ loc.get_location_type_display }}
+                                            </span>
+                                            <span style="color: var(--primary-brown); font-size: 1.05rem; font-weight: 600; margin-left: 0.4rem;">{{ loc.name }}</span>
+                                            {% if loc.is_default %}
+                                                <span style="color: var(--success); font-size: 0.8rem; font-weight: 500; margin-left: 0.4rem;">★ Default</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% if loc.landmark %}
+                                        <p style="margin: 0.35rem 0 0 0; font-size: 0.88rem; color: var(--text-main); font-weight: 400;">
+                                             {{ loc.landmark }}
+                                        </p>
+                                    {% endif %}
+                                    {% if loc.description %}
+                                        <p style="margin: 0.2rem 0 0 0; font-size: 0.85rem; color: var(--text-muted); font-weight: 400;">
+                                            📝 {{ loc.description }}
+                                        </p>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+
+                            <!-- Option to use Live GPS / Custom Map Pin -->
+                            <div id="loc_card_custom" class="location-option-card" onclick="selectCustomLocation()">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span style="font-size: 1.3rem;">📍</span>
+                                    <div>
+                                        <span style="color: var(--primary-brown); font-size: 1rem; font-weight: 600;">Use Another Location / Live Device GPS</span>
+                                        <p style="margin: 0; font-size: 0.82rem; color: var(--text-muted); font-weight: 400;">Search Kerala local places, use device GPS, or pin custom house on map</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- Custom / Live GPS Location Container -->
+                    <div id="custom_location_container" style="{% if saved_locations %}display: none;{% endif %} background: #FDFBF7; padding: 1.25rem; border-radius: 12px; border: 1.5px solid var(--border-warm);">
+                        
+                        <!-- 1. Use Current Location GPS CTA Button -->
+                        <div style="background: #ffffff; padding: 1rem; border-radius: 10px; border: 1.5px solid var(--border-warm); margin-bottom: 1.25rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                                <div>
+                                    <strong style="color: var(--primary-brown); font-size: 0.95rem; display: block;">
+                                        📍 Customer Device Location
+                                    </strong>
+                                    <span style="color: var(--text-muted); font-size: 0.82rem;">
+                                        Auto-detect your current GPS coordinates with one click
+                                    </span>
+                                </div>
+                                <button type="button" class="btn" onclick="getBrowserLiveGPS()" style="padding: 0.55rem 1.1rem; font-size: 0.88rem; font-weight: 600; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.4rem;">
+                                    📍 Use Current Location
+                                </button>
+                            </div>
+                            <p id="gps_detect_status" style="font-size: 0.82rem; color: var(--text-muted); margin: 0.5rem 0 0 0; font-weight: 400;">
+                                Click above to acquire your current GPS coordinates.
+                            </p>
+                        </div>
+
+                        <!-- 2. Kerala Local Place Search (House, Junction, Temple, Church, School, Hospital, Bus Stop, Shop) -->
+                        <div class="form-group mb-3">
+                            <label class="form-label" for="kerala_search_input" style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                                🔍 Search Kerala Local Place / Landmark:
+                            </label>
+                            <input type="text" id="kerala_search_input" class="form-control" 
+                                   placeholder="Type house, junction, temple, church, hospital, school, shop, or area..." 
+                                   onkeyup="filterKeralaPlaces(this.value)" 
+                                   style="padding: 0.65rem 0.9rem; font-size: 0.92rem; border-radius: 8px; border: 1.5px solid var(--border-warm);">
+
+                            <!-- Search Results Dropdown List -->
+                            <div id="kerala_search_results" style="display: none; max-height: 220px; overflow-y: auto; background: #ffffff; border: 1.5px solid var(--primary-orange); border-radius: 8px; margin-top: 0.35rem; box-shadow: var(--shadow-sm); z-index: 10; position: relative;">
+                                {% for place in kerala_preset_places %}
+                                    <div class="kerala-search-result-item" 
+                                         data-search-text="{{ place.name }} {{ place.category }} {{ place.landmark }} {{ place.desc }}"
+                                         onclick="pickPresetPlace('{{ place.name|escapejs }}', {{ place.lat }}, {{ place.lon }}, '{{ place.landmark|default:''|escapejs }}', '{{ place.desc|default:''|escapejs }}')">
+                                        <div>
+                                            <strong style="color: var(--primary-brown); font-size: 0.9rem; display: block;">{{ place.name }}</strong>
+                                            <span style="font-size: 0.8rem; color: var(--text-muted);">{{ place.landmark }}</span>
+                                        </div>
+                                        <span class="badge" style="background: var(--bg-cream); color: var(--primary-brown); border: 1px solid var(--border-warm); font-size: 0.72rem; font-weight: 500;">
+                                            {{ place.category }}
+                                        </span>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- 3. Quick Preset Kerala Places Dropdown -->
+                        <div class="form-group mb-3">
+                            <label class="form-label" for="checkout_preset_select" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.35rem; display: block;">
+                                Or select from verified Kerala locations:
+                            </label>
+                            <select id="checkout_preset_select" class="form-control" onchange="applyCheckoutPresetPlace()" style="font-size: 0.92rem; padding: 0.65rem; border-radius: 8px; border: 1.5px solid var(--border-warm); background: #ffffff;">
+                                <option value="">-- Choose Recognizable Kerala Place --</option>
+                                {% for place in kerala_preset_places %}
+                                    <option value="{{ place.name }}" data-lat="{{ place.lat }}" data-lon="{{ place.lon }}" data-landmark="{{ place.landmark }}" data-desc="{{ place.desc }}">
+                                        {{ place.name }} ({{ place.category }}) — {{ place.landmark }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- 4. Interactive Map Container -->
+                        <div style="margin-bottom: 0.5rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                                <span style="font-weight: 600; font-size: 0.88rem; color: var(--primary-brown);">Service Area & Delivery Map</span>
+                                <span style="font-size: 0.78rem; color: var(--text-muted);">Drag blue pin or click map to set location</span>
+                            </div>
+                            <div id="checkout-map-picker" style="height: 220px; width: 100%; border-radius: 10px; border: 1.5px solid var(--border-warm); z-index: 1;"></div>
+                            <div style="margin-top: 0.4rem; font-size: 0.78rem; color: var(--text-muted); display: flex; justify-content: space-between;">
+                                <span>🏠 Kitchen Hub: {{ delivery_setting.name }}</span>
+                                <span>Circle: {{ delivery_setting.max_delivery_radius_km }} km Radius</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Hidden Lat/Lon and Delivery Address Input -->
+                    <input type="hidden" name="latitude" id="latitude" value="{{ default_location.latitude|default:delivery_setting.latitude }}">
+                    <input type="hidden" name="longitude" id="longitude" value="{{ default_location.longitude|default:delivery_setting.longitude }}">
+                    
+                    <div class="form-group mt-3">
+                        <label class="form-label" for="delivery_address" style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                            📍 Delivery Address & Landmark:
+                        </label>
+                        <input type="text" name="delivery_address" id="delivery_address" class="form-control" 
+                               placeholder="e.g. Near St. Dominic's Cathedral, Jubilee Junction, House #14" 
+                               value="{% if default_location %}{{ default_location.name }}: {{ default_location.description|default:'' }}{% endif %}" 
+                               style="padding: 0.75rem; font-size: 0.95rem; border-radius: 8px; border: 1.5px solid var(--border-warm); margin-bottom: 0.75rem;">
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label class="form-label" for="customer_delivery_notes" style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                            📝 Customer Delivery Notes (Gate, House & Safe Delivery Instructions):
+                        </label>
+                        <textarea name="customer_delivery_notes" id="customer_delivery_notes" class="form-control" rows="2"
+                                  placeholder="e.g. Leave at front gate, call on arrival, ring doorbell twice, watch out for dog..." 
+                                  style="padding: 0.75rem; font-size: 0.92rem; border-radius: 8px; border: 1.5px solid var(--border-warm);"></textarea>
+                    </div>
+                </div>
+
+                <!-- STEP 2: SELECT PAYMENT METHOD -->
+                <div class="card" style="padding: 1.5rem;">
+                    <h3 style="color: var(--text-heading); font-weight: 600; font-size: 1.25rem; margin-bottom: 1rem;">
+                        2. Payment Method
+                    </h3>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                        <!-- Cash on Delivery -->
+                        <div id="pay_card_cod" class="payment-option-card selected" onclick="selectPayment('cod')">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-size: 1.5rem;">💵</span>
+                                <div>
+                                    <span style="color: var(--text-heading); font-size: 1rem; font-weight: 600; display: block;">Cash on Delivery</span>
+                                    <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 400;">Pay cash when food arrives</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Instant UPI -->
+                        <div id="pay_card_upi" class="payment-option-card" onclick="selectPayment('upi')">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-size: 1.5rem;">📱</span>
+                                <div>
+                                    <span style="color: var(--text-heading); font-size: 1rem; font-weight: 600; display: block;">Instant UPI</span>
+                                    <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 400;">GPay, PhonePe, Paytm QR</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- UPI QR Details (revealed if UPI chosen) -->
+                    <div id="upi_qr_container" style="display: none; background: #FFFBF5; padding: 1.25rem; border-radius: 12px; border: 1.5px solid var(--primary-green); text-align: center;">
+                        <span style="font-size: 2rem; display: block; margin-bottom: 0.25rem;">📱</span>
+                        <h4 style="color: var(--primary-green); font-weight: 600; margin-bottom: 0.3rem;">Scan QR to Pay via UPI</h4>
+                        <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.75rem; font-weight: 400;">
+                            UPI ID: <span style="color: var(--primary-green); font-weight: 600;">veetileruchi@okaxis</span>
+                        </p>
+                        <div style="display: inline-block; padding: 10px; background: #ffffff; border-radius: 12px; border: 1.5px solid var(--border-warm); margin-bottom: 1rem;">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=upi://pay?pa=veetileruchi@okaxis%26pn=VeetileRuchi%26am={{ total }}%26cu=INR" alt="UPI QR Code" style="display: block; width: 160px; height: 160px;">
+                        </div>
+                        <div class="form-group" style="max-width: 320px; margin: 0 auto; text-align: left;">
+                            <label class="form-label" style="font-size: 0.85rem;">Enter UPI Transaction / Ref ID (Optional):</label>
+                            <input type="text" name="upi_ref" class="form-control" placeholder="12-digit UPI reference number" style="text-align: center; font-size: 0.95rem;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Order Summary & Place Order CTA -->
+            <div>
+                <div class="card" style="padding: 1.5rem; position: sticky; top: 1.5rem;">
+                    <h3 style="color: var(--text-heading); font-weight: 600; font-size: 1.25rem; margin-bottom: 1rem;">
+                        Order Summary
+                    </h3>
+
+                    <div style="display: flex; flex-direction: column; gap: 0.65rem; max-height: 220px; overflow-y: auto; margin-bottom: 1rem; padding-right: 0.5rem;">
+                        {% for item in cart_items %}
+                            <div style="display: flex; justify-content: space-between; font-size: 0.92rem; border-bottom: 1px dashed var(--border-warm); padding-bottom: 0.4rem;">
+                                <span>{{ item.food_item.name }} <span style="color: var(--primary-green); font-weight: 600;">× {{ item.quantity }}</span></span>
+                                <span style="color: var(--text-main); font-weight: 600;">₹{% widthratio item.food_item.price 1 item.quantity %}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 0.6rem; border-top: 1.5px solid var(--border-warm); padding-top: 0.85rem; margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.95rem;">
+                            <span style="color: var(--text-muted);">Subtotal</span>
+                            <span style="font-weight: 600;">₹{{ subtotal|floatformat:2 }}</span>
+                        </div>
+                        {% if discount > 0 %}
+                            <div style="display: flex; justify-content: space-between; font-size: 0.95rem; color: var(--success); font-weight: 500;">
+                                <span>Discount</span>
+                                <span>- ₹{{ discount|floatformat:2 }}</span>
+                            </div>
+                        {% endif %}
+                        <div style="display: flex; justify-content: space-between; font-size: 0.95rem;">
+                            <span style="color: var(--text-muted);">Delivery Charge</span>
+                            <span style="color: var(--success); font-weight: 600;">FREE</span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; font-size: 1.4rem; font-weight: 700; margin-bottom: 1.5rem;">
+                        <span style="color: var(--text-heading);">Total to Pay</span>
+                        <span style="color: var(--primary-green);">₹{{ total|floatformat:2 }}</span>
+                    </div>
+
+                    <button type="submit" id="btn-place-order" class="btn" style="width: 100%; padding: 0.95rem; font-size: 1.15rem; font-weight: 600; border-radius: 12px;">
+                        ✓ Confirm & Place Order
                     </button>
-                </div>
-                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 1rem;">
-                    We capture your exact coordinates to plan optimal navigation routes. Select a location preset or pin your exact location on the map.
-                </p>
-                
-                <div class="form-group">
-                    <label class="form-label" for="gps_sim_presets">Select Delivery GPS Coordinates</label>
-                    <select id="gps_sim_presets" class="form-control" onchange="updateCoordinateInputs()">
-                        <option value="{{ user.latitude }},{{ user.longitude }}" selected>Use Profile Coordinates ({{ user.latitude|floatformat:4 }}, {{ user.longitude|floatformat:4 }})</option>
-                        <option value="9.462534,76.721846">Google Maps Target GPS (9°27'45.1"N, 76°43'18.7"E)</option>
-                        <option value="10.025,76.315">Sector A (10.025, 76.315) - 2 km away</option>
-                        <option value="10.040,76.290">Sector B (10.040, 76.290) - 5 km away</option>
-                        <option value="10.075,76.350">Sector C (10.075, 76.350) - 10 km away</option>
-                        <option value="custom">Custom Live Coordinates</option>
-                    </select>
-                </div>
-                
-                <div style="margin-bottom: 1rem;">
-                    <label class="form-label">Pin Location on Interactive Map</label>
-                    <div id="checkout-map-picker" style="height: 180px; width: 100%; border-radius: 8px; border: 1px solid var(--dark-border); z-index: 1;"></div>
-                </div>
-
-                <div style="display: flex; gap: 1rem;">
-                    <div style="flex: 1;">
-                        <label class="form-label" for="latitude">Captured Latitude</label>
-                        <input type="number" step="0.000001" name="latitude" id="latitude" class="form-control" value="{{ user.latitude }}" required>
-                    </div>
-                    <div style="flex: 1;">
-                        <label class="form-label" for="longitude">Captured Longitude</label>
-                        <input type="number" step="0.000001" name="longitude" id="longitude" class="form-control" value="{{ user.longitude }}" required>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Payment Methods -->
-            <div class="form-group">
-                <label class="form-label" style="font-weight: 700; font-size: 1.1rem; color: var(--text-light);">Select Payment Method</label>
-                <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem;">
-                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; background: var(--dark-bg); padding: 0.85rem 1rem; border-radius: 10px; border: 1.5px solid var(--dark-border);">
-                        <input type="radio" name="payment_method" value="cod" id="pay_cod" checked style="accent-color: var(--primary); transform: scale(1.2);" onchange="togglePaymentMethod()">
-                        <div>
-                            <strong style="font-size: 1rem;">Cash On Delivery (COD)</strong>
-                            <span style="display: block; font-size: 0.8rem; color: var(--text-muted);">Pay with cash upon food arrival.</span>
-                        </div>
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; background: var(--dark-bg); padding: 0.85rem 1rem; border-radius: 10px; border: 1.5px solid var(--dark-border);">
-                        <input type="radio" name="payment_method" value="upi" id="pay_upi" style="accent-color: var(--primary); transform: scale(1.2);" onchange="togglePaymentMethod()">
-                        <div>
-                            <strong style="font-size: 1rem; color: #8B4513;">📲 Instant Online Payment / UPI Scanner</strong>
-                            <span style="display: block; font-size: 0.8rem; color: var(--text-muted);">Scan QR Scanner with Google Pay, PhonePe, Paytm or any UPI App.</span>
-                        </div>
-                    </label>
-                </div>
-
-                <!-- UPI QR Code Scanner Display Box -->
-                <div id="upi_qr_container" style="display: none; margin-top: 1rem; padding: 1.5rem; background: #FFFBF5; border: 2px solid #D2691E; border-radius: 16px; text-align: center; box-shadow: 0 4px 15px rgba(210, 105, 30, 0.12);">
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.75rem;">
-                        <span style="font-size: 1.4rem;">📷</span>
-                        <h4 style="margin: 0; color: #8B4513; font-weight: 700; font-size: 1.15rem;">Scan & Pay via UPI App</h4>
-                    </div>
-                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 1rem;">
-                        Open Google Pay, PhonePe, Paytm, or any UPI Scanner app and scan the QR code below:
+                    
+                    <p style="text-align: center; font-size: 0.82rem; color: var(--text-muted); margin-top: 0.75rem; margin-bottom: 0; font-weight: 400;">
+                        🔒 100% Hygienic Homemade Food Guaranteed
                     </p>
-
-                    <!-- QR Scanner Image Box -->
-                    <div style="display: inline-block; padding: 12px; background: #ffffff; border-radius: 16px; border: 2px solid #E8D8C8; box-shadow: 0 6px 20px rgba(0,0,0,0.08);">
-                        <img src="/static/images/payment_qr.jpg" alt="UPI Online Payment QR Code Scanner" style="width: 220px; height: 220px; border-radius: 8px; display: block; object-fit: contain;">
-                    </div>
-
-                    <!-- Payment Amount Badge -->
-                    <div style="margin-top: 1rem; background: #F8F4ED; padding: 0.6rem 1.2rem; border-radius: 20px; display: inline-block; border: 1px solid #E5D5C5;">
-                        <span style="font-size: 0.85rem; color: #555;">Amount to Pay: </span>
-                        <strong style="font-size: 1.1rem; color: #8B4513;">₹{{ total|floatformat:2 }}</strong>
-                    </div>
-
-                    <!-- UPI ID info -->
-                    <div style="margin-top: 0.75rem; font-size: 0.82rem; color: #666;">
-                        <span>UPI ID: </span><strong style="color: #333; background: #eee; padding: 0.2rem 0.5rem; border-radius: 4px; font-family: monospace;">veetileruchi@upi</strong>
-                    </div>
-
-                    <div style="margin-top: 1rem; text-align: left;">
-                        <label class="form-label" for="upi_ref" style="font-size: 0.85rem; color: #555;">UTR / UTR Reference No. (Optional)</label>
-                        <input type="text" name="upi_ref" id="upi_ref" class="form-control" placeholder="e.g. 4239xxxxxxxx" style="font-size: 0.9rem;">
-                    </div>
                 </div>
             </div>
-
-            <button type="submit" class="btn" style="width: 100%; padding: 0.8rem; font-size: 1.1rem; border-radius: 8px; margin-top: 1.5rem;">
-                Place Order (₹{{ total|floatformat:2 }})
-            </button>
-        </form>
-    </div>
-
-    <!-- Right side: summary receipt -->
-    <div class="card" style="height: fit-content;">
-        <h3 class="mb-3" style="color: var(--text-light);">Receipt Review</h3>
-        
-        <div style="display: flex; flex-direction: column; gap: 1rem; border-bottom: 1px solid var(--dark-border); padding-bottom: 1rem; margin-bottom: 1rem; max-height: 250px; overflow-y: auto;">
-            {% for item in cart_items %}
-                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem;">
-                    <span style="color: var(--text-muted);">{{ item.food_item.name }} <strong style="color: var(--text-light);">x{{ item.quantity }}</strong></span>
-                    <span>₹{% widthratio item.food_item.price 1 item.quantity %}</span>
-                </div>
-            {% endfor %}
         </div>
-        
-        <div style="display: flex; flex-direction: column; gap: 0.75rem; border-bottom: 1px solid var(--dark-border); padding-bottom: 1rem; margin-bottom: 1rem;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
-                <span style="color: var(--text-muted);">Subtotal</span>
-                <span>₹{{ subtotal|floatformat:2 }}</span>
-            </div>
-            {% if discount > 0 %}
-                <div style="display: flex; justify-content: space-between; font-size: 0.9rem; color: var(--success);">
-                    <span>Discount Code Applied</span>
-                    <span>- ₹{{ discount|floatformat:2 }}</span>
-                </div>
-            {% endif %}
-        </div>
-
-        <div style="display: flex; justify-content: space-between; font-size: 1.3rem; font-weight: 700; color: var(--primary);">
-            <span>Order Total</span>
-            <span>₹{{ total|floatformat:2 }}</span>
-        </div>
-    </div>
+    </form>
 </div>
 {% endblock %}

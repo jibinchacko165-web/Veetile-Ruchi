@@ -2,10 +2,12 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate, update_session_auth_hash
 import secrets
 import re
+import os
 from datetime import timedelta
 from django.utils import timezone
 from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -14,12 +16,36 @@ from django.core.mail import send_mail
 from django.urls import reverse
 from django.conf import settings
 from django.db.models import Q
-from .models import User, ChefProfile, DeliveryBoyProfile, PasswordResetOTP
+from .models import User, ChefProfile, DeliveryBoyProfile, PasswordResetOTP, SavedLocation
 from .decorators import role_required
 from health.models import HealthProfile
 from orders.models import Notification
+from orders.utils import KERALA_PRESET_PLACES
+
+def validate_strong_password(password):
+    """
+    Validates password against strong criteria:
+    - Min 8 chars
+    - 1 uppercase [A-Z]
+    - 1 lowercase [a-z]
+    - 1 number [0-9]
+    - 1 special character (@, #, $, %, etc.)
+    """
+    if not password or len(password) < 8:
+        return False, "Password must be at least 8 characters long."
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain at least one uppercase letter (A-Z)."
+    if not re.search(r'[a-z]', password):
+        return False, "Password must contain at least one lowercase letter (a-z)."
+    if not re.search(r'[0-9]', password):
+        return False, "Password must contain at least one number (0-9)."
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>_~+=\-\[\]\\/]', password):
+        return False, "Password must contain at least one special character (e.g. @, #, $, %, etc.)."
+    return True, ""
 
 def register_view(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard_redirect')
     if request.method == 'POST':
         username = request.POST.get('username', '').strip()
         email = request.POST.get('email', '').strip()
@@ -28,15 +54,6 @@ def register_view(request):
         confirm_password = request.POST.get('confirm_password', '')
         role = request.POST.get('role', 'customer')
         phone = request.POST.get('phone', '').strip()
-        
-        try:
-            latitude = float(request.POST.get('latitude', '') or 10.0)
-        except (ValueError, TypeError):
-            latitude = 10.0
-        try:
-            longitude = float(request.POST.get('longitude', '') or 76.0)
-        except (ValueError, TypeError):
-            longitude = 76.0
 
         form_data = {
             'username': username,
@@ -47,8 +64,6 @@ def register_view(request):
             'specialty': request.POST.get('specialty', ''),
             'kitchen_name': request.POST.get('kitchen_name', ''),
             'vehicle_number': request.POST.get('vehicle_number', ''),
-            'latitude': latitude,
-            'longitude': longitude,
         }
 
         parsed_dob = None
@@ -75,8 +90,9 @@ def register_view(request):
             messages.error(request, "Passwords do not match. Please enter matching passwords.")
             return render(request, 'accounts/register.html', {'form_data': form_data})
 
-        if len(password) < 6:
-            messages.error(request, "Password must be at least 6 characters long.")
+        is_valid_pwd, pwd_err = validate_strong_password(password)
+        if not is_valid_pwd:
+            messages.error(request, pwd_err)
             return render(request, 'accounts/register.html', {'form_data': form_data})
 
         if User.objects.filter(username__iexact=username).exists():
@@ -102,6 +118,7 @@ def register_view(request):
                 return render(request, 'accounts/register.html', {'form_data': form_data})
 
         try:
+            # Create user cleanly without requiring address or GPS during signup
             user = User.objects.create_user(
                 username=username,
                 email=email,
@@ -110,8 +127,8 @@ def register_view(request):
                 role=role,
                 phone=clean_phone if clean_phone else phone,
                 address='',
-                latitude=latitude,
-                longitude=longitude
+                latitude=9.462534,
+                longitude=76.72185
             )
         except Exception as e:
             messages.error(request, f"Registration could not be completed: {str(e)}")
@@ -133,14 +150,14 @@ def register_view(request):
                 user=user, 
                 vehicle_number=vehicle_num, 
                 status='available',
-                current_latitude=latitude, 
-                current_longitude=longitude
+                current_latitude=9.462534, 
+                current_longitude=76.72185
             )
         elif role == 'customer':
             HealthProfile.objects.create(user=user)
 
         request.session['prefill_username'] = username
-        messages.success(request, f"Registration successful for '{username}'! Please enter your password to sign in.")
+        messages.success(request, f"Registration successful for '{username}'! Please sign in with your password.")
         return redirect(f"{reverse('login')}?username={username}")
         
     return render(request, 'accounts/register.html')
@@ -162,10 +179,13 @@ def login_view(request):
         # 1. Try direct authentication (supports username & backend email matching)
         user = authenticate(request=request, username=identifier, password=password)
 
-        # 2. If username authentication fails, try looking up by email
+        # 2. If username authentication fails, try looking up by email, phone, or case-insensitive username
         if user is None:
             try:
-                existing_user = User.objects.filter(email__iexact=identifier).first()
+                from django.db.models import Q
+                existing_user = User.objects.filter(
+                    Q(username__iexact=identifier) | Q(email__iexact=identifier) | Q(phone=identifier)
+                ).first()
                 if existing_user:
                     user = authenticate(
                         request=request,
@@ -189,12 +209,20 @@ def login_view(request):
 
     return render(request, 'accounts/login.html', {'prefilled_username': prefilled_username})
 
+@never_cache
 def logout_view(request):
-    """Safely logs out the user without modifying credentials or account state."""
+    """Safely logs out the user and flushes session data."""
     logout(request)
+    if hasattr(request, 'session'):
+        request.session.flush()
     messages.info(request, "You have been logged out.")
-    return redirect('login')
+    response = redirect('login')
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0, private'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
+@never_cache
 @login_required
 def dashboard_redirect(request):
     """Redirects the user to their respective dashboard depending on their role."""
@@ -211,6 +239,7 @@ def dashboard_redirect(request):
         return redirect('admin_dashboard')
     return redirect('food_catalog')
 
+@never_cache
 @login_required
 def profile_view(request):
     """
@@ -232,7 +261,71 @@ def profile_view(request):
     if request.method == 'POST':
         action = request.POST.get('action', 'edit_profile')
 
-        if action == 'change_password':
+        # ───── PROFILE PICTURE UPLOAD ─────
+        if action == 'upload_profile_picture':
+            pic = request.FILES.get('profile_picture')
+            if not pic:
+                messages.error(request, "Please select an image file to upload.")
+                return redirect(f"{reverse('profile')}?tab=view")
+            
+            ext = os.path.splitext(pic.name)[1].lower()
+            if ext not in ['.jpg', '.jpeg', '.png', '.webp']:
+                messages.error(request, "Invalid file format. Please upload a JPG, PNG, or WEBP image.")
+                return redirect(f"{reverse('profile')}?tab=view")
+
+            if pic.size > 5 * 1024 * 1024:
+                messages.error(request, "Image size exceeds maximum limit of 5MB.")
+                return redirect(f"{reverse('profile')}?tab=view")
+
+            user.profile_picture = pic
+            user.save()
+            messages.success(request, "Profile picture updated successfully!")
+            return redirect(f"{reverse('profile')}?tab=view")
+
+        # ───── SAVED LOCATIONS: ADD ─────
+        elif action == 'add_saved_location':
+            loc_name = request.POST.get('name', '').strip() or 'My Location'
+            loc_type = request.POST.get('location_type', 'home')
+            description = request.POST.get('description', '').strip()
+            landmark = request.POST.get('landmark', '').strip()
+            try:
+                lat = float(request.POST.get('latitude', 9.462534))
+                lon = float(request.POST.get('longitude', 76.72185))
+            except (ValueError, TypeError):
+                lat = 9.462534
+                lon = 76.72185
+            is_default = request.POST.get('is_default') == 'on'
+
+            SavedLocation.objects.create(
+                user=user,
+                name=loc_name,
+                location_type=loc_type,
+                description=description,
+                landmark=landmark,
+                latitude=lat,
+                longitude=lon,
+                is_default=is_default
+            )
+            messages.success(request, f"Saved location '{loc_name}' added successfully!")
+            return redirect(f"{reverse('profile')}?tab=locations")
+
+        # ───── SAVED LOCATIONS: DELETE ─────
+        elif action == 'delete_saved_location':
+            loc_id = request.POST.get('location_id')
+            SavedLocation.objects.filter(id=loc_id, user=user).delete()
+            messages.success(request, "Saved location removed successfully.")
+            return redirect(f"{reverse('profile')}?tab=locations")
+
+        # ───── SAVED LOCATIONS: SET DEFAULT ─────
+        elif action == 'set_default_saved_location':
+            loc_id = request.POST.get('location_id')
+            loc = get_object_or_404(SavedLocation, id=loc_id, user=user)
+            loc.is_default = True
+            loc.save()
+            messages.success(request, f"'{loc.name}' is now your default delivery location.")
+            return redirect(f"{reverse('profile')}?tab=locations")
+
+        elif action == 'change_password':
             current_password = request.POST.get('current_password', '')
             new_password = request.POST.get('new_password', '')
             confirm_password = request.POST.get('confirm_password', '')
@@ -245,8 +338,9 @@ def profile_view(request):
                 messages.error(request, "New passwords do not match. Please verify.")
                 return redirect(f"{reverse('profile')}?tab=password")
 
-            if len(new_password) < 6:
-                messages.error(request, "New password must be at least 6 characters long.")
+            is_valid_pwd, pwd_err = validate_strong_password(new_password)
+            if not is_valid_pwd:
+                messages.error(request, pwd_err)
                 return redirect(f"{reverse('profile')}?tab=password")
 
             user.set_password(new_password)
@@ -341,11 +435,15 @@ def profile_view(request):
             messages.success(request, "Profile updated successfully.")
             return redirect(f"{reverse('profile')}?tab=view")
 
+    saved_locations = user.saved_locations.all() if hasattr(user, 'saved_locations') else []
+
     context = {
         'user': user,
         'chef_profile': chef_profile,
         'courier_profile': courier_profile,
         'health_profile': health_profile,
+        'saved_locations': saved_locations,
+        'kerala_preset_places': KERALA_PRESET_PLACES,
         'active_tab': active_tab,
     }
     return render(request, 'accounts/profile.html', context)
@@ -547,7 +645,7 @@ def password_reset_view(request):
             if user:
                 request.session['reset_user_id'] = user.id
                 messages.success(request, f"Identity verified for account '{user.username}'! Please enter your new password below.")
-                return render(request, 'accounts/password_reset.html', {'step': 'reset', 'verified_user': user})
+                return render(request, 'accounts/password_reset.html', {'step': 'reset', 'verified_user': user, 'reset_user_id': user.id})
             else:
                 request.session.pop('reset_user_id', None)
                 messages.error(request, "Invalid Email Address or Date of Birth. Verification failed. Please check your details and try again.")
@@ -570,8 +668,9 @@ def password_reset_view(request):
                 messages.error(request, "Passwords do not match. Please re-enter matching passwords.")
                 return render(request, 'accounts/password_reset.html', {'step': 'reset', 'verified_user': verified_user})
 
-            if len(new_password) < 6:
-                messages.error(request, "Password must be at least 6 characters long.")
+            is_valid_pwd, pwd_err = validate_strong_password(new_password)
+            if not is_valid_pwd:
+                messages.error(request, pwd_err)
                 return render(request, 'accounts/password_reset.html', {'step': 'reset', 'verified_user': verified_user})
 
             target_username = verified_user.username
@@ -588,6 +687,7 @@ def password_reset_view(request):
         'step': step,
         'verified_user': verified_user,
         'pending_user': pending_user,
+        'reset_user_id': reset_user_id,
     }
     return render(request, 'accounts/password_reset.html', context)
 

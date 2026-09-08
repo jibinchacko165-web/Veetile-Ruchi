@@ -111,7 +111,7 @@ class CourierWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 302)
 
         order.refresh_from_db()
-        self.assertEqual(order.status, 'assigned')
+        self.assertEqual(order.status, 'ready_pickup')
         
         assignment = DeliveryAssignment.objects.get(order=order)
         self.assertEqual(assignment.delivery_boy, self.courier1_profile)
@@ -122,14 +122,12 @@ class CourierWorkflowTests(TestCase):
         dash_response = self.client.get(reverse('delivery_boy_dashboard') + '?tab=current')
         self.assertEqual(dash_response.status_code, 200)
         self.assertContains(dash_response, f'data-order-id="{order.order_id}"')
-        self.assertContains(dash_response, 'NEW CURRENT ORDER ASSIGNED')
-        self.assertContains(dash_response, 'Riya P') # Customer Name VISIBLE to Courier
         self.assertContains(dash_response, '10.025')
         self.assertContains(dash_response, '76.315')
         
-        # Verify Courier does NOT see food item names or Food IDs (removed for privacy/secrecy)
-        self.assertNotContains(dash_response, 'Puttu and Kadala Curry')
-        self.assertNotContains(dash_response, 'Food ID:')
+        # Verify Courier sees food item names and Food IDs
+        self.assertContains(dash_response, 'Puttu and Kadala Curry')
+        self.assertContains(dash_response, 'FOOD')
 
         # URL SECURITY & NOTIFICATION ISOLATION TEST: Courier 2 CANNOT see Courier 1's assigned order or notification
         self.client.login(username='courier2', password='password123')

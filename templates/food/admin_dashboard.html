@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Veetile-Ruchi Admin Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -200,10 +203,18 @@
             .kpi-grid { grid-template-columns: repeat(2, 1fr); }
         }
         @media (max-width: 768px) {
-            .sidebar { transform: translateX(-260px); }
-            .sidebar.open { transform: translateX(0); }
+            .sidebar { transform: translateX(-260px); z-index: 1000; }
+            .sidebar.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.3); }
             .main-content { margin-left: 0; }
             .kpi-grid { grid-template-columns: 1fr 1fr; }
+            #menu-toggle { display: block !important; }
+        }
+        @media (max-width: 480px) {
+            .kpi-grid { grid-template-columns: 1fr; }
+            .topbar { padding: 0 0.8rem; }
+            .content-area { padding: 1rem 0.6rem; }
+            .topbar-search { width: 120px; font-size: 0.78rem; }
+            .topbar-date { display: none; }
         }
 
         /* ═══════════════════════════════ SCROLLBAR ═════════════════════════ */
@@ -213,6 +224,21 @@
     </style>
 </head>
 <body>
+
+<!-- Mobile Sidebar Backdrop Overlay -->
+<div id="sidebar-overlay" onclick="toggleAdminSidebar()" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.6); z-index:995; backdrop-filter:blur(2px);"></div>
+
+<script>
+    function toggleAdminSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        if (!sidebar) return;
+        sidebar.classList.toggle('open');
+        if (overlay) {
+            overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
+        }
+    }
+</script>
 
 <!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
 <nav class="sidebar" id="sidebar">
@@ -276,7 +302,7 @@
     <!-- TOP BAR -->
     <header class="topbar">
         <div class="topbar-left">
-            <button onclick="document.getElementById('sidebar').classList.toggle('open')" style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:#64748B;display:none;" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
+            <button type="button" onclick="toggleAdminSidebar()" style="background:none;border:none;cursor:pointer;font-size:1.26rem;color:#1E293B;display:none;padding:0.4rem;" id="menu-toggle"><i class="fa-solid fa-bars"></i></button>
             <div>
                 <div class="page-title">Admin Dashboard</div>
                 <div class="page-breadcrumb">Veetile-Ruchi &rsaquo; Control Panel</div>
@@ -464,26 +490,187 @@
             </div>
         </div>
 
-        <!-- ── REVENUE SUMMARY CARDS ── -->
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
-            {% with rev_pct=weekly_revenue|add:"0" %}
-            <div class="card" style="text-align:center;">
-                <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94A3B8; margin-bottom:0.4rem;">Today</div>
-                <div style="font-size:1.6rem; font-weight:800; color:#D2691E;">₹{{ today_revenue|floatformat:0 }}</div>
+        <!-- ── REVENUE & FOOD SALES ANALYTICS SECTION ── -->
+        <div class="card" style="margin-bottom: 1.8rem; background: #FFFFFF; border: 1.5px solid #E2E8F0; border-radius: 16px; padding: 1.5rem; box-shadow: 0 4px 14px rgba(0,0,0,0.03);">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem; border-bottom: 1.5px solid #F1F5F9; padding-bottom: 1rem;">
+                <div>
+                    <h3 style="font-size: 1.15rem; font-weight: 800; color: #1E293B; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                        <span>📊</span> Revenue &amp; Food Sales Analytics
+                    </h3>
+                    <p style="font-size: 0.84rem; color: #64748B; margin: 0.25rem 0 0 0;">
+                        Dynamic, database-driven sales tracking, food quantity reporting, and date-range filtering.
+                    </p>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 0.6rem; background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 50px; padding: 0.4rem 0.9rem; font-size: 0.82rem; font-weight: 700; color: #1D4ED8;">
+                    <span>📅 Active Filter Period:</span>
+                    <strong style="color: #1E40AF;">{{ date_filter_label }}</strong>
+                </div>
             </div>
-            <div class="card" style="text-align:center;">
-                <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94A3B8; margin-bottom:0.4rem;">This Week</div>
-                <div style="font-size:1.6rem; font-weight:800; color:#2563EB;">₹{{ weekly_revenue|floatformat:0 }}</div>
+
+            <!-- Revenue Summary Grid (6 Key Metrics) -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                <div style="background: #FFF7ED; border: 1.5px solid #FFEDD5; border-radius: 12px; padding: 1rem; text-align: center;">
+                    <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #C2410C; margin-bottom: 0.3rem;">💰 Total Revenue (All Time)</div>
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #EA580C;">₹{{ total_revenue|floatformat:0 }}</div>
+                </div>
+
+                <div style="background: #F0FDF4; border: 1.5px solid #DCFCE7; border-radius: 12px; padding: 1rem; text-align: center;">
+                    <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #15803D; margin-bottom: 0.3rem;">📅 Today's Revenue</div>
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #16A34A;">₹{{ today_revenue|floatformat:0 }}</div>
+                </div>
+
+                <div style="background: #F5F3FF; border: 1.5px solid #DDD6FE; border-radius: 12px; padding: 1rem; text-align: center;">
+                    <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #6D28D9; margin-bottom: 0.3rem;">📆 This Month's Revenue</div>
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #7C3AED;">₹{{ monthly_revenue|floatformat:0 }}</div>
+                </div>
+
+                <div style="background: #EFF6FF; border: 1.5px solid #DBEAFE; border-radius: 12px; padding: 1rem; text-align: center;">
+                    <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #1D4ED8; margin-bottom: 0.3rem;">🛒 Orders (Selected Period)</div>
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #2563EB;">{{ filtered_orders_count }}</div>
+                </div>
+
+                <div style="background: #FEF2F2; border: 1.5px solid #FEE2E2; border-radius: 12px; padding: 1rem; text-align: center;">
+                    <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #B91C1C; margin-bottom: 0.3rem;">🍽️ Food Items Sold</div>
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #DC2626;">{{ filtered_items_sold }}</div>
+                </div>
+
+                <div style="background: #FEFCE8; border: 1.5px solid #FEF08A; border-radius: 12px; padding: 1rem; text-align: center;">
+                    <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: #A16207; margin-bottom: 0.3rem;">⭐ Top Purchased Food</div>
+                    <div style="font-size: 1.1rem; font-weight: 800; color: #CA8A04; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        {% if most_purchased_food %}
+                            {{ most_purchased_food.badge_icon }} {{ most_purchased_food.name }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                    {% if most_purchased_food %}
+                        <div style="font-size: 0.75rem; color: #854D0E; font-weight: 600; margin-top: 0.15rem;">{{ most_purchased_food.qty_sold }} portions sold</div>
+                    {% endif %}
+                </div>
             </div>
-            <div class="card" style="text-align:center;">
-                <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94A3B8; margin-bottom:0.4rem;">This Month</div>
-                <div style="font-size:1.6rem; font-weight:800; color:#7C3AED;">₹{{ monthly_revenue|floatformat:0 }}</div>
+
+            <!-- Date Filter Toolbar Form -->
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 1.1rem; margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.85rem;">
+                    <span style="font-size: 0.85rem; font-weight: 700; color: #334155; display: flex; align-items: center; gap: 0.4rem;">
+                        <i class="fa-solid fa-filter" style="color: #F97316;"></i> Date-Based Sales Filtering Controls:
+                    </span>
+                    
+                    <!-- Quick Filter Preset Links -->
+                    <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                        <a href="?period=all" class="badge" style="padding: 0.35rem 0.75rem; font-size: 0.78rem; text-decoration: none; {% if period == 'all' or not period %}background: #F97316; color: white;{% else %}background: #E2E8F0; color: #475569;{% endif %}">All Time</a>
+                        <a href="?period=today" class="badge" style="padding: 0.35rem 0.75rem; font-size: 0.78rem; text-decoration: none; {% if period == 'today' %}background: #F97316; color: white;{% else %}background: #E2E8F0; color: #475569;{% endif %}">Today</a>
+                        <a href="?period=yesterday" class="badge" style="padding: 0.35rem 0.75rem; font-size: 0.78rem; text-decoration: none; {% if period == 'yesterday' %}background: #F97316; color: white;{% else %}background: #E2E8F0; color: #475569;{% endif %}">Yesterday</a>
+                        <a href="?period=last_7_days" class="badge" style="padding: 0.35rem 0.75rem; font-size: 0.78rem; text-decoration: none; {% if period == 'last_7_days' %}background: #F97316; color: white;{% else %}background: #E2E8F0; color: #475569;{% endif %}">Last 7 Days</a>
+                        <a href="?period=this_month" class="badge" style="padding: 0.35rem 0.75rem; font-size: 0.78rem; text-decoration: none; {% if period == 'this_month' %}background: #F97316; color: white;{% else %}background: #E2E8F0; color: #475569;{% endif %}">This Month</a>
+                        <a href="?period=previous_month" class="badge" style="padding: 0.35rem 0.75rem; font-size: 0.78rem; text-decoration: none; {% if period == 'previous_month' %}background: #F97316; color: white;{% else %}background: #E2E8F0; color: #475569;{% endif %}">Previous Month</a>
+                    </div>
+                </div>
+
+                <form method="GET" action="" style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; font-size: 0.84rem;">
+                    <!-- Specific Date Input -->
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <label style="font-weight: 600; color: #475569;">Specific Date:</label>
+                        <input type="date" name="date" value="{{ selected_date_str }}" style="padding: 0.4rem 0.6rem; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 0.82rem; font-weight: 600; font-family: inherit;">
+                    </div>
+
+                    <!-- Specific Month Input -->
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <label style="font-weight: 600; color: #475569;">Specific Month:</label>
+                        <input type="month" name="month" value="{{ selected_month_str }}" style="padding: 0.4rem 0.6rem; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 0.82rem; font-weight: 600; font-family: inherit;">
+                    </div>
+
+                    <!-- Custom Date Range -->
+                    <div style="display: flex; align-items: center; gap: 0.4rem;">
+                        <label style="font-weight: 600; color: #475569;">Custom Range:</label>
+                        <input type="hidden" name="period" value="custom">
+                        <input type="date" name="start_date" value="{{ start_date_str }}" style="padding: 0.4rem 0.6rem; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 0.82rem; font-weight: 600;">
+                        <span style="color: #94A3B8;">to</span>
+                        <input type="date" name="end_date" value="{{ end_date_str }}" style="padding: 0.4rem 0.6rem; border: 1px solid #CBD5E1; border-radius: 6px; font-size: 0.82rem; font-weight: 600;">
+                    </div>
+
+                    <button type="submit" class="btn" style="padding: 0.45rem 1.1rem; font-size: 0.82rem; font-weight: 700; background: #F97316; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                        Apply Filter
+                    </button>
+                    <a href="?" style="font-size: 0.8rem; color: #64748B; text-decoration: underline; margin-left: 0.4rem;">Reset Filter</a>
+                </form>
             </div>
-            <div class="card" style="text-align:center;">
-                <div style="font-size:0.75rem; font-weight:700; text-transform:uppercase; color:#94A3B8; margin-bottom:0.4rem;">Total Revenue</div>
-                <div style="font-size:1.6rem; font-weight:800; color:#16A34A;">₹{{ total_revenue|floatformat:0 }}</div>
+
+            <!-- Top-Selling Foods Leaderboard Cards (Requirement 5) -->
+            <div style="margin-bottom: 1.5rem;">
+                <div style="font-size: 0.95rem; font-weight: 800; color: #1E293B; margin-bottom: 0.85rem; display: flex; align-items: center; gap: 0.4rem;">
+                    <span>🏆</span> Top-Selling Foods Leaderboard
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.85rem;">
+                    {% for top_food in top_selling_foods %}
+                        <div style="background: #FFFFFF; border: 1.5px solid {% if top_food.rank == 1 %}#FEF08A{% elif top_food.rank == 2 %}#E2E8F0{% elif top_food.rank == 3 %}#FFEDD5{% else %}#F1F5F9{% endif %}; border-radius: 12px; padding: 0.9rem; position: relative;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                                <span style="font-size: 1.4rem;">{{ top_food.badge_icon }}</span>
+                                <span style="font-size: 0.72rem; font-weight: 800; color: #F97316; font-family: monospace; background: #FFF7ED; padding: 0.15rem 0.5rem; border-radius: 4px;">{{ top_food.food_code }}</span>
+                            </div>
+                            <div style="font-weight: 800; color: #1E293B; font-size: 0.95rem;">{{ top_food.name }}</div>
+                            <div style="font-size: 0.78rem; color: #64748B;">Category: {{ top_food.category }}</div>
+                            <div style="margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px dashed #E2E8F0; display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem;">
+                                <span>Total Sold: <strong style="color: #DC2626;">{{ top_food.qty_sold }}</strong></span>
+                                <span style="color: #16A34A; font-weight: 700;">₹{{ top_food.revenue|floatformat:0 }}</span>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div style="grid-column: 1/-1; text-align: center; padding: 1.5rem; color: #94A3B8; font-size: 0.88rem; background: #F8FAFC; border-radius: 8px;">
+                            No food sales recorded for the selected filter period.
+                        </div>
+                    {% endfor %}
+                </div>
             </div>
-            {% endwith %}
+
+            <!-- Detailed Food Sales Report Table (Requirement 4) -->
+            <div>
+                <div style="font-size: 0.95rem; font-weight: 800; color: #1E293B; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
+                    <span>📋</span> Detailed Food Sales Report ({{ date_filter_label }})
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;">Rank</th>
+                                <th>Food ID</th>
+                                <th>Food Name</th>
+                                <th>Category</th>
+                                <th style="text-align: right;">Quantity Sold</th>
+                                <th style="text-align: right;">Orders Count</th>
+                                <th style="text-align: right;">Total Revenue</th>
+                                <th style="text-align: right;">Revenue Share</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in food_sales_analysis %}
+                            <tr>
+                                <td style="font-weight: 800; font-size: 0.95rem;">{{ item.badge_icon }}</td>
+                                <td style="font-family: monospace; font-weight: 700; color: #F97316;">{{ item.food_code }}</td>
+                                <td style="font-weight: 700; color: #1E293B;">{{ item.name }}</td>
+                                <td style="color: #64748B;">{{ item.category }}</td>
+                                <td style="text-align: right; font-weight: 800; color: #DC2626;">{{ item.qty_sold }}</td>
+                                <td style="text-align: right; font-weight: 700; color: #2563EB;">{{ item.orders_count }}</td>
+                                <td style="text-align: right; font-weight: 800; color: #16A34A;">₹{{ item.revenue|floatformat:0 }}</td>
+                                <td style="text-align: right;">
+                                    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;">
+                                        <div class="progress-bar" style="width: 50px; margin: 0;"><div class="progress-fill" style="width: {{ item.percentage }}%; background: #F97316;"></div></div>
+                                        <span style="font-size: 0.78rem; font-weight: 700; color: #475569;">{{ item.percentage }}%</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 2rem; color: #94A3B8;">No food sales records matching the selected date filter.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
 
         <!-- ── AI INSIGHTS & ACTIVE DELIVERIES ── -->
@@ -1202,6 +1389,15 @@
                 scales: { r: { ticks: { display: false } } }
             }
         });
+    });
+
+    // Anti-caching & BFCache invalidation for session security on Back button
+    window.addEventListener('pageshow', function (event) {
+        var perfEntries = performance.getEntriesByType && performance.getEntriesByType('navigation');
+        var isBackForward = (perfEntries && perfEntries.length > 0 && perfEntries[0].type === 'back_forward') || (performance.navigation && performance.navigation.type === 2);
+        if (event.persisted || isBackForward) {
+            window.location.reload();
+        }
     });
 </script>
 </body>

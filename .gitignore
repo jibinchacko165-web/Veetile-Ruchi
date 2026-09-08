@@ -12,3 +12,6 @@ venv/
 media/
 staticfiles/
 scratch/
+walkthrough.md
+implementation_plan.md
+

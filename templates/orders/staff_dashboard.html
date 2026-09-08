@@ -13,7 +13,7 @@
         </div>
         
         <!-- Navigation Tab Switcher -->
-        <div style="display: flex; background: var(--accent-warm); padding: 5px; border-radius: 50px; border: 1.5px solid var(--border-light); flex-wrap: wrap; gap: 4px;">
+        <div class="scrollable-pill-bar" style="background: var(--accent-warm, #FAF7F0); padding: 5px; border-radius: 50px; border: 1.5px solid var(--border-light);">
             <a href="{% url 'staff_dashboard' %}?tab=orders" 
                style="padding: 0.55rem 1.2rem; border-radius: 50px; font-weight: 600; font-size: 0.9rem; text-decoration: none; transition: var(--transition); {% if active_tab != 'tracking' and active_tab != 'chefs' %} background: var(--primary-orange); color: white; box-shadow: 0 4px 12px rgba(210,105,30,0.3); {% else %} color: var(--text-muted); {% endif %}">
                 📋 Customer Orders
@@ -25,6 +25,10 @@
             <a href="{% url 'staff_dashboard' %}?tab=chefs" 
                style="padding: 0.55rem 1.2rem; border-radius: 50px; font-weight: 600; font-size: 0.9rem; text-decoration: none; transition: var(--transition); {% if active_tab == 'chefs' %} background: var(--primary-orange); color: white; box-shadow: 0 4px 12px rgba(210,105,30,0.3); {% else %} color: var(--text-muted); {% endif %}">
                 👨‍🍳 Chef Approvals
+            </a>
+            <a href="{% url 'staff_dashboard' %}?tab=perimeter" 
+               style="padding: 0.55rem 1.2rem; border-radius: 50px; font-weight: 600; font-size: 0.9rem; text-decoration: none; transition: var(--transition); {% if active_tab == 'perimeter' %} background: var(--primary-orange); color: white; box-shadow: 0 4px 12px rgba(210,105,30,0.3); {% else %} color: var(--text-muted); {% endif %}">
+                📍 Service Area & Perimeter
             </a>
         </div>
     </div>
@@ -90,13 +94,17 @@
                         <div>
                             <p style="margin-bottom: 0.3rem;"><strong>Assigned Delivery Boy:</strong></p>
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <span style="font-size: 1.2rem;">🛵</span>
+                                <span style="font-size: 1.2rem;">🚚</span>
                                 <div>
-                                    <strong style="color: var(--primary-orange); font-family: monospace; font-size: 0.95rem;">
-                                        Vehicle #{{ assign.delivery_boy.vehicle_number }}
+                                    <strong style="color: var(--primary-brown); font-size: 0.98rem; display: block;">
+                                        Assigned Courier: {{ assign.delivery_boy.courier_name }}
                                     </strong>
-                                    <div style="font-size: 0.8rem; color: var(--text-muted);">
-                                        Driver: {{ assign.delivery_boy.user.username|title }} ({% if assign.delivery_boy.user.phone %}{{ assign.delivery_boy.user.phone }}{% else %}No Phone{% endif %})
+                                    <div style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4;">
+                                        👤 Username: <span style="font-family: monospace; color: var(--primary-orange); font-weight: 700;">{{ assign.delivery_boy.courier_username }}</span><br>
+                                        📞 Phone: <strong>{{ assign.delivery_boy.user.phone|default:"No Phone" }}</strong><br>
+                                        {% if assign.delivery_boy.vehicle_number %}
+                                            🛵 Vehicle: <span style="font-family: monospace; font-weight: 600;">{{ assign.delivery_boy.vehicle_number }}</span>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -138,18 +146,22 @@
 
     <!-- Active Courier Fleet Panel -->
     <div class="card" style="grid-column: span 2; margin-top: 1.5rem;">
-        <h3 class="mb-2" style="color: var(--primary-brown); font-weight: 700;">🛵 Registered Delivery Fleet</h3>
+        <h3 class="mb-2" style="color: var(--primary-brown); font-weight: 700;">🚚 Registered Delivery Fleet</h3>
         <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.25rem;">
             Overview of registered delivery boys and their current availability status.
         </p>
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;">
             {% for c in all_couriers %}
                 <div style="background-color: var(--accent-warm); border: 1.5px solid var(--border-light); border-radius: 12px; padding: 0.85rem; text-align: center;">
-                    <span style="font-size: 1.4rem; display: block; margin-bottom: 0.25rem;">🛵</span>
-                    <strong style="color: var(--primary-orange); font-size: 0.9rem; font-family: monospace; display: block;">{{ c.vehicle_number }}</strong>
-                    <div style="font-size: 0.82rem; color: var(--text-main); font-weight: 600; margin-top: 0.2rem;">{{ c.user.username|title }}</div>
+                    <span style="font-size: 1.4rem; display: block; margin-bottom: 0.25rem;">🚚</span>
+                    <strong style="color: var(--primary-brown); font-size: 0.95rem; display: block;">{{ c.courier_name }}</strong>
+                    <div style="font-size: 0.82rem; color: var(--primary-orange); font-family: monospace; font-weight: 700; margin-top: 0.1rem;">👤 {{ c.courier_username }}</div>
+                    <div style="font-size: 0.8rem; color: var(--primary-green); font-weight: 600; margin-top: 0.15rem;">📞 {{ c.user.phone|default:"No Phone" }}</div>
+                    {% if c.vehicle_number %}
+                        <div style="font-size: 0.78rem; color: var(--text-muted); font-family: monospace; margin-top: 0.1rem;">🛵 {{ c.vehicle_number }}</div>
+                    {% endif %}
                     <span class="badge {% if c.status == 'available' %}badge-success{% else %}badge-warning{% endif %}" style="font-size: 0.72rem; margin-top: 0.4rem; padding: 0.2rem 0.6rem;">
-                        {% if c.status == 'available' %}🟢 Available{% else %}🟡 On Delivery{% endif %}
+                        {% if c.status == 'available' %}🟢 Available{% else %}🟡 {{ c.get_status_display }}{% endif %}
                     </span>
                 </div>
             {% empty %}
@@ -238,6 +250,7 @@
                                 <li style="display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; margin-bottom: 0.4rem; padding-bottom: 0.3rem; border-bottom: 1px dashed var(--border-light);">
                                     <span>
                                         <strong>{{ item.food_item.name }}</strong>
+                                        <span style="color: var(--text-muted); font-size: 0.78rem; font-family: monospace;"> (FOOD{{ item.food_item.id|stringformat:"04d" }})</span>
                                         <span style="color: var(--text-muted); font-size: 0.82rem;">x{{ item.quantity }}</span>
                                     </span>
                                     <span style="font-weight: 600; color: var(--primary-brown);">
@@ -281,44 +294,53 @@
                     
                     <!-- Assigned Delivery Boy Status or Selector -->
                     {% if order.delivery_assignment %}
-                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-                            <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem;">
-                                <span style="font-size: 1.2rem;">🛵</span>
-                                <span>Assigned Courier: 
-                                    <strong style="color: var(--primary-orange); font-family: monospace;">Vehicle #{{ order.delivery_assignment.delivery_boy.vehicle_number }}</strong>
-                                    ({{ order.delivery_assignment.delivery_boy.user.username|title }} - 📞 {{ order.delivery_assignment.delivery_boy.user.phone|default:"Phone number not added" }})
-                                </span>
+                        <div style="background: #EEF2FF; border: 1.5px solid #6366F1; border-radius: 12px; padding: 0.85rem 1rem; width: 100%;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem;">
+                                <div>
+                                    <div style="font-weight: 800; color: #1E1B4B; font-size: 1.05rem; margin-bottom: 0.3rem; display: flex; align-items: center; gap: 0.4rem;">
+                                        <span>🚚</span> Assigned Courier: <strong style="color: #4338CA;">{{ order.delivery_assignment.delivery_boy.courier_name }}</strong>
+                                    </div>
+                                    <div style="font-size: 0.88rem; color: #374151; display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: center;">
+                                        <span>👤 Username: <strong style="color: var(--primary-orange); font-family: monospace;">{{ order.delivery_assignment.delivery_boy.courier_username }}</strong></span>
+                                        <span>📞 Phone: <strong>{{ order.delivery_assignment.delivery_boy.user.phone|default:"No Phone" }}</strong></span>
+                                        {% if order.delivery_assignment.delivery_boy.vehicle_number %}
+                                            <span>🛵 Vehicle: <strong style="font-family: monospace; color: #1F2937;">{{ order.delivery_assignment.delivery_boy.vehicle_number }}</strong></span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div>
+                                    <span class="badge" style="font-size: 0.82rem; background-color: {% if order.status == 'delivered' %}var(--success){% elif order.status == 'in_transit' %}#3b82f6{% else %}#d97736{% endif %}; color: #ffffff; padding: 0.4rem 0.85rem;">
+                                        {% if order.status == 'delivered' %}
+                                            ✅ Delivered
+                                        {% elif order.status == 'in_transit' %}
+                                            🛵 In Transit
+                                        {% else %}
+                                            📡 Transmitted to Courier
+                                        {% endif %}
+                                    </span>
+                                </div>
                             </div>
-                            <span class="badge" style="font-size: 0.8rem; background-color: {% if order.status == 'delivered' %}var(--success){% elif order.status == 'in_transit' %}#3b82f6{% else %}#d97736{% endif %}; color: #ffffff;">
-                                {% if order.status == 'delivered' %}
-                                    ✅ Delivered
-                                {% elif order.status == 'in_transit' %}
-                                    🛵 In Transit
-                                {% else %}
-                                    📡 Transmitted (Assigned to Courier)
-                                {% endif %}
-                            </span>
                         </div>
-                    {% elif order.status == 'ready_pickup' %}
-                        <!-- Prominent "Assign Delivery Boy" Section for Ready Orders -->
+                    {% elif not order.delivery_assignment and order.status != 'cancelled' and order.status != 'delivered' %}
+                        <!-- Prominent "Assign Delivery Boy" Section for Active Unassigned Orders -->
                         <div style="background: #FFF3E0; border: 2px solid #D97736; border-radius: 12px; padding: 1rem; width: 100%;">
                             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
                                 <div>
                                     <strong style="color: #8B4513; font-size: 1rem; display: flex; align-items: center; gap: 0.4rem;">
-                                        <span>📦</span> Food Ready for Pickup – Delivery Assignment
+                                        <span>📦</span> Assign Delivery Personnel
                                     </strong>
                                     <span style="font-size: 0.82rem; color: #666; display: block; margin-top: 0.2rem;">
-                                        Select an available delivery boy and click "Assign Delivery Boy".
+                                        Select a specific delivery boy / vehicle number and click "Assign Delivery Boy".
                                     </span>
                                 </div>
 
                                 <form method="POST" action="{% url 'staff_assign_delivery' order.order_id %}" style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; flex: 1; max-width: 520px;">
                                     {% csrf_token %}
                                     <select name="delivery_boy_id" class="form-control" style="padding: 0.55rem 0.85rem; font-size: 0.88rem; flex: 1; min-width: 220px; font-weight: 600;" required>
-                                        <option value="" disabled selected>-- Select Available Delivery Boy --</option>
-                                        {% for db in delivery_boys %}
+                                        <option value="" disabled selected>-- Select Courier (9 Registered) --</option>
+                                        {% for db in all_couriers %}
                                             <option value="{{ db.id }}">
-                                                {{ db.user.username|title }} 📱 {{ db.user.phone|default:"No Phone" }} {% if db.status == 'available' %}🟢 Available{% else %}🟡 {{ db.get_status_display }}{% endif %} (Vehicle #{{ db.vehicle_number }})
+                                                {{ db.courier_name }} — {{ db.courier_username }} — {{ db.user.phone|default:"No Phone" }} ({% if db.status == 'available' %}🟢 Available{% else %}🟡 {{ db.get_status_display }}{% endif %}){% if db.vehicle_number %} [Vehicle #{{ db.vehicle_number }}]{% endif %}
                                             </option>
                                         {% empty %}
                                             <option value="" disabled>No Registered Delivery Boys</option>
@@ -432,5 +454,324 @@
         </table>
     </div>
 </div>
+
+{% elif active_tab == 'perimeter' %}
+<!-- =========================================================
+     TAB 4: SERVICE AREA & DELIVERY PERIMETER CONFIGURATION
+     ========================================================= -->
+<div class="card mb-4" style="background: var(--accent-warm); border-left: 6px solid var(--primary-orange);">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h2 style="color: var(--primary-brown); font-weight: 700; font-size: 1.5rem; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span>📍</span> Delivery Center & Service Area Perimeter
+            </h2>
+            <p style="color: var(--text-muted); font-size: 0.92rem; margin: 0;">
+                Configure the central kitchen hub, store GPS coordinates, and set maximum delivery radius.
+            </p>
+        </div>
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <span style="background: #E8F5E9; color: #2E7D32; border: 1px solid #A5D6A7; padding: 0.4rem 0.9rem; border-radius: 50px; font-size: 0.85rem; font-weight: 600;">
+                🟢 Active Radius: <span id="badge-radius-display">{{ delivery_setting.max_delivery_radius_km }}</span> km
+            </span>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <!-- Left Column: Delivery Center Configuration Form -->
+    <div class="card">
+        <h3 style="color: var(--primary-brown); font-weight: 700; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span>⚙️</span> Delivery Center Settings
+        </h3>
+
+        <form method="POST" action="{% url 'staff_save_delivery_perimeter' %}">
+            {% csrf_token %}
+
+            <div class="form-group mb-3">
+                <label for="hub_name" style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                    Delivery Center / Kitchen Name
+                </label>
+                <input type="text" id="hub_name" name="name" class="form-control" 
+                       value="{{ delivery_setting.name }}" required 
+                       style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.65rem 0.9rem;">
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="hub_address" style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                    Physical Address / Landmark
+                </label>
+                <input type="text" id="hub_address" name="address" class="form-control" 
+                       value="{{ delivery_setting.address }}" required 
+                       style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.65rem 0.9rem;">
+            </div>
+
+            <!-- Quick Kerala Hub Preset Selection -->
+            <div class="form-group mb-3">
+                <label style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                    Reposition via Kerala Landmark Preset
+                </label>
+                <select id="hub_preset_select" class="form-control" onchange="applyStaffHubPreset()"
+                        style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.6rem 0.9rem; background: #ffffff;">
+                    <option value="">-- Select Kerala Landmark Hub --</option>
+                    {% for place in kerala_preset_places %}
+                        <option value="{{ place.name }}" data-lat="{{ place.lat }}" data-lon="{{ place.lon }}" data-desc="{{ place.desc }}" data-landmark="{{ place.landmark }}">
+                            {{ place.name }} ({{ place.category }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Latitude and Longitude Coordinates -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;" class="mb-3">
+                <div class="form-group">
+                    <label for="hub_lat" style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                        Latitude
+                    </label>
+                    <input type="number" step="0.000001" id="hub_lat" name="latitude" class="form-control" 
+                           value="{{ delivery_setting.latitude }}" required onchange="syncPerimeterMapFromInputs()"
+                           style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.65rem 0.9rem; font-family: monospace;">
+                </div>
+                <div class="form-group">
+                    <label for="hub_lon" style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                        Longitude
+                    </label>
+                    <input type="number" step="0.000001" id="hub_lon" name="longitude" class="form-control" 
+                           value="{{ delivery_setting.longitude }}" required onchange="syncPerimeterMapFromInputs()"
+                           style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.65rem 0.9rem; font-family: monospace;">
+                </div>
+            </div>
+
+            <!-- Maximum Delivery Radius Selection -->
+            <div class="form-group mb-4">
+                <label style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.5rem; display: block;">
+                    Maximum Delivery Radius (km)
+                </label>
+                
+                <!-- Quick Radius Buttons -->
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+                    <button type="button" class="btn btn-sm btn-outline radius-preset-btn" onclick="setRadius(5)">5 km</button>
+                    <button type="button" class="btn btn-sm btn-outline radius-preset-btn" onclick="setRadius(10)">10 km</button>
+                    <button type="button" class="btn btn-sm btn-outline radius-preset-btn" onclick="setRadius(15)">15 km</button>
+                    <button type="button" class="btn btn-sm btn-outline radius-preset-btn" onclick="setRadius(20)">20 km</button>
+                    <button type="button" class="btn btn-sm btn-outline radius-preset-btn" onclick="setRadius(25)">25 km</button>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <input type="range" id="radius_slider" min="1" max="50" step="0.5" 
+                           value="{{ delivery_setting.max_delivery_radius_km }}" 
+                           oninput="updateRadiusFromSlider(this.value)"
+                           style="flex: 1; accent-color: var(--primary-orange);">
+                    <input type="number" step="0.5" min="1" max="100" id="max_radius_input" name="max_delivery_radius_km" 
+                           class="form-control" value="{{ delivery_setting.max_delivery_radius_km }}" 
+                           oninput="updateRadiusFromInput(this.value)" required
+                           style="width: 90px; border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.5rem; font-weight: 600; text-align: center;">
+                    <span style="color: var(--text-muted); font-size: 0.9rem;">km</span>
+                </div>
+            </div>
+
+            <!-- Real-time Stats Box -->
+            <div style="background: #FDFBF7; padding: 1rem; border-radius: 10px; border: 1.5px solid var(--border-light); margin-bottom: 1.5rem;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; text-align: center;">
+                    <div style="background: #ffffff; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-light);">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; display: block;">Perimeter Radius</span>
+                        <strong id="stat-radius-display" style="font-size: 1.15rem; color: var(--primary-orange);">{{ delivery_setting.max_delivery_radius_km }} km</strong>
+                    </div>
+                    <div style="background: #ffffff; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-light);">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600; display: block;">Approx. Service Area</span>
+                        <strong id="stat-area-display" style="font-size: 1.15rem; color: var(--primary-brown);">~706.8 km²</strong>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn" style="width: 100%; padding: 0.85rem; font-weight: 600; font-size: 1rem; border-radius: 10px;">
+                💾 Save Delivery Center & Perimeter
+            </button>
+        </form>
+    </div>
+
+    <!-- Right Column: Interactive Perimeter Map -->
+    <div class="card" style="display: flex; flex-direction: column;">
+        <h3 style="color: var(--primary-brown); font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+            <span>🗺️ Live Service Area Perimeter Map</span>
+            <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 400;">Drag pin or click map to move Hub</span>
+        </h3>
+        <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;">
+            The circular perimeter displays the exact service boundary. Orders outside this circle will be restricted.
+        </p>
+
+        <!-- Leaflet Map Container -->
+        <div id="admin-perimeter-map" style="height: 480px; width: 100%; border-radius: 12px; border: 2px solid var(--border-light); z-index: 1;"></div>
+
+        <div style="margin-top: 1rem; padding: 0.75rem 1rem; background: #ffffff; border-radius: 8px; border: 1px solid var(--border-light); font-size: 0.82rem; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <span>Delivery Center Coordinates: <strong id="map-coord-display" style="font-family: monospace; color: var(--primary-orange);">{{ delivery_setting.latitude }}, {{ delivery_setting.longitude }}</strong></span>
+            <span>Radius: <strong id="map-radius-text" style="color: var(--primary-brown);">{{ delivery_setting.max_delivery_radius_km }} km</strong></span>
+        </div>
+    </div>
+</div>
+
+<script>
+    let adminMap, hubMarker, perimeterCircle;
+
+    function calcApproxArea(rKm) {
+        return (Math.PI * rKm * rKm).toFixed(1);
+    }
+
+    function updateRadiusStats(rKm) {
+        const radiusNum = parseFloat(rKm);
+        document.getElementById('badge-radius-display').innerText = radiusNum;
+        document.getElementById('stat-radius-display').innerText = radiusNum + ' km';
+        document.getElementById('stat-area-display').innerText = '~' + calcApproxArea(radiusNum) + ' km²';
+        document.getElementById('map-radius-text').innerText = radiusNum + ' km';
+    }
+
+    function setRadius(r) {
+        document.getElementById('radius_slider').value = r;
+        document.getElementById('max_radius_input').value = r;
+        updateRadiusStats(r);
+        if (perimeterCircle) {
+            perimeterCircle.setRadius(r * 1000);
+            if (adminMap && hubMarker) {
+                adminMap.fitBounds(perimeterCircle.getBounds(), { padding: [30, 30] });
+            }
+        }
+    }
+
+    function updateRadiusFromSlider(val) {
+        document.getElementById('max_radius_input').value = val;
+        updateRadiusStats(val);
+        if (perimeterCircle) {
+            perimeterCircle.setRadius(parseFloat(val) * 1000);
+        }
+    }
+
+    function updateRadiusFromInput(val) {
+        const num = parseFloat(val) || 15;
+        document.getElementById('radius_slider').value = num;
+        updateRadiusStats(num);
+        if (perimeterCircle) {
+            perimeterCircle.setRadius(num * 1000);
+        }
+    }
+
+    function applyStaffHubPreset() {
+        const select = document.getElementById('hub_preset_select');
+        if (!select || !select.value) return;
+
+        const opt = select.options[select.selectedIndex];
+        const lat = parseFloat(opt.getAttribute('data-lat'));
+        const lon = parseFloat(opt.getAttribute('data-lon'));
+        const desc = opt.getAttribute('data-desc');
+        const landmark = opt.getAttribute('data-landmark');
+
+        document.getElementById('hub_name').value = opt.value;
+        document.getElementById('hub_address').value = `${desc || opt.value} | Landmark: ${landmark || ''}`;
+        document.getElementById('hub_lat').value = lat.toFixed(6);
+        document.getElementById('hub_lon').value = lon.toFixed(6);
+
+        syncPerimeterMapFromInputs();
+    }
+
+    function syncPerimeterMapFromInputs() {
+        const lat = parseFloat(document.getElementById('hub_lat').value);
+        const lon = parseFloat(document.getElementById('hub_lon').value);
+        const rKm = parseFloat(document.getElementById('max_radius_input').value) || 15;
+
+        if (isNaN(lat) || isNaN(lon)) return;
+
+        document.getElementById('map-coord-display').innerText = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+
+        if (hubMarker) {
+            hubMarker.setLatLng([lat, lon]);
+        }
+        if (perimeterCircle) {
+            perimeterCircle.setLatLng([lat, lon]);
+            perimeterCircle.setRadius(rKm * 1000);
+        }
+        if (adminMap) {
+            adminMap.panTo([lat, lon]);
+            if (perimeterCircle) {
+                adminMap.fitBounds(perimeterCircle.getBounds(), { padding: [30, 30] });
+            }
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const initLat = parseFloat("{{ delivery_setting.latitude|default:9.9816 }}");
+        const initLon = parseFloat("{{ delivery_setting.longitude|default:76.2999 }}");
+        const initRadiusKm = parseFloat("{{ delivery_setting.max_delivery_radius_km|default:15.0 }}");
+
+        updateRadiusStats(initRadiusKm);
+
+        adminMap = L.map('admin-perimeter-map').setView([initLat, initLon], 12);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(adminMap);
+
+        // Delivery Hub Marker (Custom Icon)
+        const hubIcon = L.divIcon({
+            html: '<div style="background-color: #D97736; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 20px; border: 3px solid white; box-shadow: 0 4px 14px rgba(0,0,0,0.35);">🏠</div>',
+            className: 'custom-hub-icon',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+
+        hubMarker = L.marker([initLat, initLon], { icon: hubIcon, draggable: true }).addTo(adminMap);
+        hubMarker.bindPopup("<b>Delivery Center (Kitchen Hub)</b><br>Drag to reposition").openPopup();
+
+        // Perimeter Circle
+        perimeterCircle = L.circle([initLat, initLon], {
+            radius: initRadiusKm * 1000,
+            color: '#D97736',
+            fillColor: '#F59E0B',
+            fillOpacity: 0.18,
+            weight: 2,
+            dashArray: '6, 6'
+        }).addTo(adminMap);
+
+        adminMap.fitBounds(perimeterCircle.getBounds(), { padding: [30, 30] });
+
+        // Event: Marker Drag
+        hubMarker.on('dragend', function(e) {
+            const pos = hubMarker.getLatLng();
+            document.getElementById('hub_lat').value = pos.lat.toFixed(6);
+            document.getElementById('hub_lon').value = pos.lng.toFixed(6);
+            document.getElementById('map-coord-display').innerText = `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`;
+            perimeterCircle.setLatLng(pos);
+        });
+
+        // Event: Map Click
+        adminMap.on('click', function(e) {
+            hubMarker.setLatLng(e.latlng);
+            perimeterCircle.setLatLng(e.latlng);
+            document.getElementById('hub_lat').value = e.latlng.lat.toFixed(6);
+            document.getElementById('hub_lon').value = e.latlng.lng.toFixed(6);
+            document.getElementById('map-coord-display').innerText = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
+        });
+    });
+</script>
 {% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Real-time polling every 3 seconds for Staff Dashboard updates
+    setInterval(function() {
+        if (!document.hidden) {
+            fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(res => res.text())
+                .then(htmlText => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(htmlText, 'text/html');
+                    const newCards = Array.from(doc.querySelectorAll('[data-order-id]')).map(el => el.getAttribute('data-order-id') + ':' + el.textContent.length).sort().join(',');
+                    const currentCards = Array.from(document.querySelectorAll('[data-order-id]')).map(el => el.getAttribute('data-order-id') + ':' + el.textContent.length).sort().join(',');
+                    if (newCards !== currentCards) {
+                        window.location.reload();
+                    }
+                })
+                .catch(err => console.log("Staff polling sync:", err));
+        }
+    }, 3000);
+});
+</script>
 {% endblock %}

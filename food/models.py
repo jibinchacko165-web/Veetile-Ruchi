@@ -45,6 +45,11 @@ class FoodItem(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['name', 'meal_session'], name='unique_food_item_name_per_session')
+        ]
+
 class NutritionInfo(models.Model):
     food_item = models.OneToOneField(FoodItem, on_delete=models.CASCADE, related_name='nutrition')
     calories = models.FloatField(default=0.0)      # kcal
