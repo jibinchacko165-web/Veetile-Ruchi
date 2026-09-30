@@ -106,12 +106,16 @@
                     <input type="number" step="0.1" name="sodium" id="sodium" class="form-control" value="{{ food.nutrition.sodium|default:'150.0' }}" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="carbs">Carbohydrates (g)</label>
-                    <input type="number" step="0.1" name="carbs" id="carbs" class="form-control" value="{{ food.nutrition.carbs|default:'40.0' }}" required>
+                    <label class="form-label" for="carbohydrates">Carbohydrates (g)</label>
+                    <input type="number" step="0.1" name="carbohydrates" id="carbohydrates" class="form-control" value="{{ food.nutrition.carbohydrates|default:'40.0' }}" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="fats">Fats (g)</label>
-                    <input type="number" step="0.1" name="fats" id="fats" class="form-control" value="{{ food.nutrition.fats|default:'8.0' }}" required>
+                    <label class="form-label" for="fat">Fat (g)</label>
+                    <input type="number" step="0.1" name="fat" id="fat" class="form-control" value="{{ food.nutrition.fat|default:'8.0' }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="fiber">Dietary Fiber (g)</label>
+                    <input type="number" step="0.1" name="fiber" id="fiber" class="form-control" value="{{ food.nutrition.fiber|default:'3.0' }}" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="protein">Protein (g)</label>

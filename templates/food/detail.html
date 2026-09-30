@@ -134,22 +134,38 @@
                         <h4 style="font-size: 1.05rem; font-weight: 600; color: var(--primary-brown); margin-bottom: 0.75rem;">
                             📊 Nutritional Facts & Information
                         </h4>
-                        <div class="grid-4" style="text-align: center;">
+                        <div class="grid-4" style="text-align: center; gap: 0.75rem;">
                             <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
                                 <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Calories</span>
                                 <span style="color: var(--primary-brown); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.calories }} kcal</span>
                             </div>
                             <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
                                 <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Protein</span>
-                                <span style="color: var(--primary-green); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.protein }}g</span>
+                                <span style="color: var(--primary-green); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.protein }} g</span>
                             </div>
                             <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
-                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Carbs</span>
-                                <span style="color: var(--primary-brown); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.carbs }}g</span>
+                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Carbohydrates</span>
+                                <span style="color: var(--primary-brown); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.carbohydrates }} g</span>
                             </div>
                             <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
-                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Fats</span>
-                                <span style="color: var(--primary-orange); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.fats }}g</span>
+                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Total Fat</span>
+                                <span style="color: var(--primary-orange); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.fat }} g</span>
+                            </div>
+                            <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Dietary Fiber</span>
+                                <span style="color: var(--primary-green); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.fiber }} g</span>
+                            </div>
+                            <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Sugar</span>
+                                <span style="color: var(--primary-brown); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.sugar }} g</span>
+                            </div>
+                            <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Cholesterol</span>
+                                <span style="color: var(--primary-orange); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.cholesterol }} mg</span>
+                            </div>
+                            <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Sodium</span>
+                                <span style="color: var(--primary-green); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.sodium }} mg</span>
                             </div>
                         </div>
                     </div>
