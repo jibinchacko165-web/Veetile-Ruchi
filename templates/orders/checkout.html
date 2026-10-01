@@ -265,9 +265,9 @@
         const initLng = parseFloat(document.getElementById('longitude').value) || CENTRAL_HUB_LON;
 
         checkoutMap = L.map('checkout-map-picker').setView([initLat, initLng], 12);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
             maxZoom: 19,
-            attribution: '© OpenStreetMap'
+            attribution: '&copy; OpenStreetMap, &copy; CartoDB'
         }).addTo(checkoutMap);
 
         const hubIcon = L.divIcon({

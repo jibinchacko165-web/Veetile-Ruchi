@@ -64,9 +64,9 @@
             const initLng = parseFloat("{{ user.longitude|default:76.2999 }}");
 
             profileMap = L.map('profile-location-map').setView([initLat, initLng], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
                 maxZoom: 19,
-                attribution: '© OpenStreetMap'
+                attribution: '&copy; OpenStreetMap, &copy; CartoDB'
             }).addTo(profileMap);
 
             const pinIcon = L.divIcon({
