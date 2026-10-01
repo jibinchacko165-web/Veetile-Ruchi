@@ -16,7 +16,7 @@
         const kitchenLng = 76.7909;
 
         map = L.map('live-delivery-map').setView([custLat, custLng], 13);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 19,
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
