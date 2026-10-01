@@ -5,6 +5,7 @@
 {% block extra_head %}
 <script>
     let map, courierMarker, customerMarker, kitchenMarker;
+    let googleMap, gCourierMarker, gCustomerMarker, gKitchenMarker;
     let orderStatus = "{{ order.status }}";
     const orderId = "{{ order.order_id }}";
 
@@ -54,7 +55,12 @@
         courierMarker = L.marker([initCourierLat, initCourierLng], {icon: courierIcon}).addTo(map)
             .bindPopup('<strong>Delivery Courier Partner</strong><br>Speeding with your hot meals!');
 
-        const group = new L.featureGroup([kitchenMarker, customerMarker, courierMarker]);
+        const routeLine = L.polyline([
+            [kitchenLat, kitchenLng],
+            [custLat, custLng]
+        ], {color: '#1B4D3E', weight: 4, opacity: 0.6, dashArray: '5, 10'}).addTo(map);
+
+        const group = new L.featureGroup([kitchenMarker, customerMarker, courierMarker, routeLine]);
         map.fitBounds(group.getBounds().pad(0.2));
 
         // Start 3-Second Real-Time Status & Live GPS Polling
@@ -136,14 +142,70 @@
                     }
 
                     // 4. Update Map Marker Location
-                    if (data.courier_lat && data.courier_lon && courierMarker) {
-                        courierMarker.setLatLng([parseFloat(data.courier_lat), parseFloat(data.courier_lon)]);
+                    if (data.courier_lat && data.courier_lon) {
+                        const lat = parseFloat(data.courier_lat);
+                        const lng = parseFloat(data.courier_lon);
+                        if (courierMarker) {
+                            courierMarker.setLatLng([lat, lng]);
+                        }
+                        if (typeof gCourierMarker !== 'undefined' && gCourierMarker) {
+                            gCourierMarker.setPosition({ lat: lat, lng: lng });
+                        }
                     }
                 }
             })
             .catch(err => console.log('Live status poll fallback:', err));
     }
+
+    window.initGoogleMap = function() {
+        const custLat = parseFloat("{{ order.latitude|default:9.5564 }}");
+        const custLng = parseFloat("{{ order.longitude|default:76.7909 }}");
+        const kitchenLat = 9.5564; // Kanjirappally Central Kitchen Hub
+        const kitchenLng = 76.7909;
+        const initCourierLat = parseFloat("{{ assignment.delivery_boy.current_latitude|default:9.5564 }}");
+        const initCourierLng = parseFloat("{{ assignment.delivery_boy.current_longitude|default:76.7909 }}");
+
+        googleMap = new google.maps.Map(document.getElementById('google-live-delivery-map'), {
+            zoom: 13,
+            center: { lat: (custLat + kitchenLat) / 2, lng: (custLng + kitchenLng) / 2 }
+        });
+
+        gKitchenMarker = new google.maps.Marker({
+            position: { lat: kitchenLat, lng: kitchenLng },
+            map: googleMap,
+            title: "Kanjirappally Kitchen Hub",
+            label: "🏠"
+        });
+
+        gCustomerMarker = new google.maps.Marker({
+            position: { lat: custLat, lng: custLng },
+            map: googleMap,
+            title: "Your Delivery Location",
+            label: "📍"
+        });
+
+        gCourierMarker = new google.maps.Marker({
+            position: { lat: initCourierLat, lng: initCourierLng },
+            map: googleMap,
+            title: "Delivery Courier Partner",
+            label: "🛵"
+        });
+
+        const routeCoordinates = [
+            { lat: kitchenLat, lng: kitchenLng },
+            { lat: custLat, lng: custLng }
+        ];
+        const routePath = new google.maps.Polyline({
+            path: routeCoordinates,
+            geodesic: true,
+            strokeColor: "#1B4D3E",
+            strokeOpacity: 0.6,
+            strokeWeight: 4,
+        });
+        routePath.setMap(googleMap);
+    };
 </script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|default:'' }}&callback=initGoogleMap" async defer></script>
 {% endblock %}
 
 {% block content %}
@@ -240,14 +302,25 @@
         <div style="margin-bottom: 1.5rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
                 <h3 style="color: var(--primary-brown); font-weight: 600; font-size: 1.2rem; margin: 0;">
-                    🗺️ Live GPS Location & Delivery Route Map (Kanjirappally Hub)
+                    🗺️ Live GPS Location & Delivery Route Maps
                 </h3>
                 <span id="gps-live-badge" style="font-size: 0.85rem; font-weight: 500; color: var(--primary-green);">
                     🟢 Real-time Synchronized Data
                 </span>
             </div>
             
-            <div id="live-delivery-map" style="height: 320px; width: 100%; border-radius: var(--radius-md); border: 2px solid var(--border-warm); z-index: 1;"></div>
+            <div class="grid-2" style="gap: 1rem;">
+                <!-- Leaflet Map Container -->
+                <div>
+                    <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--primary-brown); text-align: center;">Leaflet Map (OpenStreetMap)</h4>
+                    <div id="live-delivery-map" style="height: 320px; width: 100%; border-radius: var(--radius-md); border: 2px solid var(--border-warm); z-index: 1;"></div>
+                </div>
+                <!-- Google Map Container -->
+                <div>
+                    <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--primary-brown); text-align: center;">Google Maps Tracking</h4>
+                    <div id="google-live-delivery-map" style="height: 320px; width: 100%; border-radius: var(--radius-md); border: 2px solid var(--border-warm); z-index: 1;"></div>
+                </div>
+            </div>
         </div>
 
         <div class="grid-2" style="gap: 1.5rem;">
