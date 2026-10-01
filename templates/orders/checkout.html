@@ -137,6 +137,29 @@
         updatePerimeterStatus(lat, lon);
     }
 
+    function selectCustomLocation() {
+        document.querySelectorAll('.location-option-card').forEach(el => el.classList.remove('selected'));
+        const card = document.getElementById('loc_card_custom');
+        if (card) card.classList.add('selected');
+
+        const customDiv = document.getElementById('custom_location_container');
+        if (customDiv) {
+            customDiv.style.display = 'block';
+            
+            // Fix broken/incorrect OpenStreetMap tiles and duplicated map content
+            // by invalidating the map size when the container becomes visible.
+            if (checkoutMap) {
+                setTimeout(() => {
+                    checkoutMap.invalidateSize();
+                    const currentLat = parseFloat(document.getElementById('latitude').value);
+                    const currentLng = parseFloat(document.getElementById('longitude').value);
+                    checkoutMap.setView([currentLat, currentLng], 12);
+                    checkoutMarker.openPopup();
+                }, 300);
+            }
+        }
+    }
+
     function pickPresetPlace(name, lat, lon, landmark, desc) {
         document.getElementById('latitude').value = lat;
         document.getElementById('longitude').value = lon;
@@ -273,7 +296,12 @@
         });
 
         checkoutMarker = L.marker([initLat, initLng], { icon: pinIcon, draggable: true }).addTo(checkoutMap);
-        checkoutMarker.bindPopup("<b>Your Delivery Destination</b><br>Drag pin to adjust");
+        checkoutMarker.bindPopup("<b>Your Delivery Destination</b><br>Drag pin to adjust", { autoPanPadding: [50, 50] });
+
+        // If the map container is initially visible, open popup immediately
+        if (document.getElementById('custom_location_container') && document.getElementById('custom_location_container').style.display !== 'none') {
+            checkoutMarker.openPopup();
+        }
 
         checkoutMarker.on('dragend', function(e) {
             const pos = checkoutMarker.getLatLng();
