@@ -35,9 +35,9 @@
 {% endif %}
 
 <!-- Red Pop Banner for Incoming Food Orders -->
-{% for item in order_items %}
-    {% if forloop.first %}
-        <div class="card mb-4" style="background: linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 100%); border: 1.5px solid #E11D48; border-radius: var(--radius-md); padding: 1.25rem 1.75rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; box-shadow: 0 8px 24px rgba(225, 29, 72, 0.15); animation: redPop 1.6s infinite;">
+<div id="pending-orders-banner-container">
+    {% if has_pending_orders %}
+        <div id="pending-orders-banner" class="card mb-4" style="background: linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 100%); border: 1.5px solid #E11D48; border-radius: var(--radius-md); padding: 1.25rem 1.75rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; box-shadow: 0 8px 24px rgba(225, 29, 72, 0.15); animation: redPop 1.6s infinite;">
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <div style="width: 48px; height: 48px; border-radius: 50%; background: #E11D48; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3);">
                     🚨
@@ -48,7 +48,7 @@
                         <span style="background: #E11D48; color: white; padding: 0.15rem 0.55rem; border-radius: 12px; font-size: 0.72rem; font-weight: 500; text-transform: uppercase;">Urgent Prep</span>
                     </h3>
                     <p style="color: #BE123C; font-size: 0.9rem; font-weight: 400; margin: 0.25rem 0 0 0;">
-                        You have new food orders waiting in your kitchen queue! Please start preparing fresh homemade meals.
+                        You have new food orders waiting in your kitchen queue! Please accept and start preparing fresh homemade meals.
                     </p>
                 </div>
             </div>
@@ -57,7 +57,7 @@
             </a>
         </div>
     {% endif %}
-{% endfor %}
+</div>
 
 <!-- AI Operations Forecasting Panel -->
 <div class="card mb-4" style="border-top: 4px solid var(--primary-orange); padding: 1.75rem;">
@@ -220,7 +220,7 @@
                                     {% csrf_token %}
                                     <input type="hidden" name="status" value="preparing">
                                     <button type="submit" class="btn btn-sm" style="background: #E11D48; color: white; border: none; padding: 0.45rem 1.1rem; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(225, 29, 72, 0.25);">
-                                        🔥 Start Preparing
+                                        🔥 Accept & Start Preparing
                                     </button>
                                 </form>
                             {% elif item.order.status == 'preparing' %}
@@ -284,6 +284,36 @@
                             } catch(e) {}
                         }
                         lastCount = data.count;
+                        
+                        // Update the red pop banner
+                        const bannerContainer = document.getElementById('pending-orders-banner-container');
+                        if (bannerContainer) {
+                            if (data.has_pending && !document.getElementById('pending-orders-banner')) {
+                                bannerContainer.innerHTML = `
+                                    <div id="pending-orders-banner" class="card mb-4" style="background: linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 100%); border: 1.5px solid #E11D48; border-radius: var(--radius-md); padding: 1.25rem 1.75rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; box-shadow: 0 8px 24px rgba(225, 29, 72, 0.15); animation: redPop 1.6s infinite;">
+                                        <div style="display: flex; align-items: center; gap: 1rem;">
+                                            <div style="width: 48px; height: 48px; border-radius: 50%; background: #E11D48; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3);">
+                                                🚨
+                                            </div>
+                                            <div>
+                                                <h3 style="color: #9F1239; font-size: 1.15rem; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                                                    NEW INCOMING FOOD ORDERS!
+                                                    <span style="background: #E11D48; color: white; padding: 0.15rem 0.55rem; border-radius: 12px; font-size: 0.72rem; font-weight: 500; text-transform: uppercase;">Urgent Prep</span>
+                                                </h3>
+                                                <p style="color: #BE123C; font-size: 0.9rem; font-weight: 400; margin: 0.25rem 0 0 0;">
+                                                    You have new food orders waiting in your kitchen queue! Please accept and start preparing fresh homemade meals.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <a href="#kitchen-queue" class="btn btn-sm" style="background: #E11D48; color: white; border: none; padding: 0.55rem 1.4rem; font-size: 0.9rem; border-radius: var(--radius-sm); white-space: nowrap;">
+                                            View Order Queue &darr;
+                                        </a>
+                                    </div>
+                                `;
+                            } else if (!data.has_pending) {
+                                bannerContainer.innerHTML = '';
+                            }
+                        }
 
                         let html = '';
                         data.orders.forEach(item => {
@@ -301,7 +331,7 @@
                                         <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
                                         <input type="hidden" name="status" value="preparing">
                                         <button type="submit" class="btn btn-sm" style="background: #E11D48; color: white; border: none; padding: 0.45rem 1.1rem; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(225, 29, 72, 0.25);">
-                                            🔥 Start Preparing
+                                            🔥 Accept & Start Preparing
                                         </button>
                                     </form>
                                 `;

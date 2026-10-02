@@ -276,11 +276,16 @@ def chef_dashboard(request):
         )
 
     chef_foods = FoodItem.objects.all() if request.user.role == 'admin' else FoodItem.objects.filter(Q(chef=request.user) | Q(chef__isnull=True))
-    orders_items = OrderItem.objects.select_related('order', 'food_item', 'food_item__meal_session', 'food_item__category').order_by('-order__created_at')
     
+    if request.user.role == 'admin':
+        orders_items = OrderItem.objects.select_related('order', 'food_item', 'food_item__meal_session', 'food_item__category').order_by('-order__created_at')
+        order_items_all = list(OrderItem.objects.all())
+    else:
+        orders_items = OrderItem.objects.filter(food_item__in=chef_foods).select_related('order', 'food_item', 'food_item__meal_session', 'food_item__category').order_by('-order__created_at')
+        order_items_all = list(OrderItem.objects.filter(food_item__in=chef_foods))
+        
     # Calculate AI forecasting for each food
     forecasts = []
-    order_items_all = list(OrderItem.objects.all())
     today_weekday = datetime.datetime.now().weekday()
     
     for food in chef_foods:
@@ -314,11 +319,14 @@ def chef_dashboard(request):
             'out_of_stock_warning': deplete_days < 2.0
         })
         
+    has_pending_orders = any(item.order.status == 'pending' for item in orders_items)
+    
     context = {
         'chef_profile': chef_profile,
         'is_approved': is_approved,
         'foods': chef_foods,
         'order_items': orders_items,
+        'has_pending_orders': has_pending_orders,
         'forecasts': forecasts,
     }
     return render(request, 'food/chef_dashboard.html', context)
@@ -331,9 +339,16 @@ def api_chef_orders(request):
     if request.user.role not in ['chef', 'admin']:
         return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
 
-    order_items = OrderItem.objects.filter(
-        order__status__in=['pending', 'preparing', 'ready_pickup']
-    ).select_related('order', 'food_item', 'food_item__meal_session', 'food_item__category').order_by('-order__created_at')
+    if request.user.role == 'admin':
+        order_items = OrderItem.objects.filter(
+            order__status__in=['pending', 'preparing', 'ready_pickup']
+        ).select_related('order', 'food_item', 'food_item__meal_session', 'food_item__category').order_by('-order__created_at')
+    else:
+        chef_foods = FoodItem.objects.filter(Q(chef=request.user) | Q(chef__isnull=True))
+        order_items = OrderItem.objects.filter(
+            order__status__in=['pending', 'preparing', 'ready_pickup'],
+            food_item__in=chef_foods
+        ).select_related('order', 'food_item', 'food_item__meal_session', 'food_item__category').order_by('-order__created_at')
 
     data = []
     for item in order_items:
