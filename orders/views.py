@@ -419,7 +419,7 @@ def api_order_status(request, order_id):
 @never_cache
 @login_required
 def order_history(request):
-    orders = Order.objects.filter(user=request.user).select_related('payment').prefetch_related('items__food_item', 'delivery_assignment__delivery_boy__user', 'delivery_feedback').order_by('-created_at')
+    orders = Order.objects.filter(user=request.user).select_related('payment', 'delivery_assignment__delivery_boy__user', 'delivery_feedback').prefetch_related('items__food_item').order_by('-created_at')
     return render(request, 'orders/history.html', {'orders': orders})
 
 @never_cache
@@ -428,7 +428,7 @@ def order_history(request):
 def staff_dashboard(request):
     """Staff Console for food order management, chef approvals, and delivery tracking."""
     active_tab = request.GET.get('tab', 'orders')
-    orders = Order.objects.all().order_by('-created_at').select_related('user', 'payment').prefetch_related('items__food_item', 'delivery_assignment__delivery_boy__user')
+    orders = Order.objects.all().order_by('-created_at').select_related('user', 'payment', 'delivery_assignment__delivery_boy__user').prefetch_related('items__food_item')
     available_boys = DeliveryBoyProfile.objects.filter(status='available').select_related('user')
     all_couriers = DeliveryBoyProfile.objects.all().select_related('user')
     chefs = ChefProfile.objects.all().select_related('user')
