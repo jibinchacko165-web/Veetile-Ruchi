@@ -229,13 +229,8 @@
             Visualizing Chef Kitchen ({{ chef_lat }}, {{ chef_lon }}) &rarr; Live Courier GPS &rarr; Customer ({{ cust_lat }}, {{ cust_lon }})
         </p>
 
-        <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--primary-brown); text-align: center;">Leaflet Map (OpenStreetMap)</h4>
         <!-- Leaflet Map Container -->
-        <div id="delivery-nav-map" style="height: 380px; width: 100%; border-radius: 14px; border: 1.5px solid var(--dark-border); z-index: 1; margin-bottom: 1rem;"></div>
-
-        <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--primary-brown); text-align: center;">Google Maps Tracking</h4>
-        <!-- Google Map Container -->
-        <div id="google-delivery-nav-map" style="height: 380px; width: 100%; border-radius: 14px; border: 1.5px solid var(--dark-border); z-index: 1;"></div>
+        <div id="delivery-nav-map" style="height: 480px; width: 100%; border-radius: 14px; border: 1.5px solid var(--dark-border); z-index: 1; margin-bottom: 1rem;"></div>
 
         <div style="margin-top: 1rem; font-size: 0.82rem; text-align: center; color: var(--text-muted);">
             Customer Coordinates: <strong style="font-family: monospace; color: var(--primary-orange);">Lat: {{ cust_lat }} | Lng: {{ cust_lon }}</strong>
@@ -353,7 +348,6 @@
                     courierLon = lon;
 
                     courierMarker.setLatLng([lat, lon]);
-                    if (window.gCourierMarker) window.gCourierMarker.setPosition({ lat: lat, lng: lon });
                     map.panTo([lat, lon]);
 
                     const navBtn = document.getElementById("trackGpsNavBtn");
@@ -369,7 +363,6 @@
                                 const wLat = pos.coords.latitude;
                                 const wLon = pos.coords.longitude;
                                 courierMarker.setLatLng([wLat, wLon]);
-                                if (window.gCourierMarker) window.gCourierMarker.setPosition({ lat: wLat, lng: wLon });
                                 const btn = document.getElementById("trackGpsNavBtn");
                                 if (btn) btn.href = `https://www.google.com/maps/dir/?api=1&origin=${wLat},${wLon}&destination=${custLat},${custLon}`;
                                 sendGpsCoordinate(wLat, wLon);
@@ -405,59 +398,5 @@
         }
     });
 </script>
-<script>
-    window.initGoogleMap = function() {
-        const chefLat = parseFloat("{{ chef_lat }}");
-        const chefLon = parseFloat("{{ chef_lon }}");
-        const custLat = parseFloat("{{ cust_lat }}");
-        const custLon = parseFloat("{{ cust_lon }}");
-        let courierLat = parseFloat("{{ courier_lat|default:chef_lat }}");
-        let courierLon = parseFloat("{{ courier_lon|default:chef_lon }}");
-
-        window.googleMap = new google.maps.Map(document.getElementById('google-delivery-nav-map'), {
-            zoom: 13,
-            center: { lat: (chefLat + custLat) / 2, lng: (chefLon + custLon) / 2 }
-        });
-
-        window.gChefMarker = new google.maps.Marker({
-            position: { lat: chefLat, lng: chefLon },
-            map: window.googleMap,
-            title: "Chef Kitchen",
-            label: "👨‍🍳"
-        });
-
-        window.gCustMarker = new google.maps.Marker({
-            position: { lat: custLat, lng: custLon },
-            map: window.googleMap,
-            title: "Customer Destination",
-            label: "🏠"
-        });
-
-        window.gCourierMarker = new google.maps.Marker({
-            position: { lat: courierLat, lng: courierLon },
-            map: window.googleMap,
-            title: "Courier Live Location",
-            label: "🛵"
-        });
-
-        const routeSteps = [
-            {% for step in route_steps %}
-                { lat: {{ step.lat }}, lng: {{ step.lng }} }{% if not forloop.last %},{% endif %}
-            {% endfor %}
-        ];
-        if (routeSteps.length === 0) {
-            routeSteps.push({ lat: chefLat, lng: chefLon }, { lat: custLat, lng: custLon });
-        }
-        
-        const gRoutePath = new google.maps.Polyline({
-            path: routeSteps,
-            geodesic: true,
-            strokeColor: "#2a9d8f",
-            strokeOpacity: 0.8,
-            strokeWeight: 5,
-        });
-        gRoutePath.setMap(window.googleMap);
-    };
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|default:'' }}&callback=initGoogleMap" async defer></script>
 {% endblock %}

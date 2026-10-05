@@ -13,7 +13,6 @@
 
 <script>
     let map, courierMarker, customerMarker, kitchenMarker;
-    let googleMap, gCourierMarker, gCustomerMarker, gKitchenMarker;
     let orderStatus = "{{ order.status }}";
     const orderId = "{{ order.order_id }}";
 
@@ -156,64 +155,13 @@
                         if (courierMarker) {
                             courierMarker.setLatLng([lat, lng]);
                         }
-                        if (typeof gCourierMarker !== 'undefined' && gCourierMarker) {
-                            gCourierMarker.setPosition({ lat: lat, lng: lng });
-                        }
                     }
                 }
             })
             .catch(err => console.log('Live status poll fallback:', err));
     }
 
-    window.initGoogleMap = function() {
-        const custLat = parseFloat("{{ order.latitude|default:9.5564 }}");
-        const custLng = parseFloat("{{ order.longitude|default:76.7909 }}");
-        const kitchenLat = 9.5564; // Kanjirappally Central Kitchen Hub
-        const kitchenLng = 76.7909;
-        const initCourierLat = parseFloat("{{ assignment.delivery_boy.current_latitude|default:9.5564 }}");
-        const initCourierLng = parseFloat("{{ assignment.delivery_boy.current_longitude|default:76.7909 }}");
-
-        googleMap = new google.maps.Map(document.getElementById('google-live-delivery-map'), {
-            zoom: 13,
-            center: { lat: (custLat + kitchenLat) / 2, lng: (custLng + kitchenLng) / 2 }
-        });
-
-        gKitchenMarker = new google.maps.Marker({
-            position: { lat: kitchenLat, lng: kitchenLng },
-            map: googleMap,
-            title: "Kanjirappally Kitchen Hub",
-            label: "🏠"
-        });
-
-        gCustomerMarker = new google.maps.Marker({
-            position: { lat: custLat, lng: custLng },
-            map: googleMap,
-            title: "Your Delivery Location",
-            label: "📍"
-        });
-
-        gCourierMarker = new google.maps.Marker({
-            position: { lat: initCourierLat, lng: initCourierLng },
-            map: googleMap,
-            title: "Delivery Courier Partner",
-            label: "🛵"
-        });
-
-        const routeCoordinates = [
-            { lat: kitchenLat, lng: kitchenLng },
-            { lat: custLat, lng: custLng }
-        ];
-        const routePath = new google.maps.Polyline({
-            path: routeCoordinates,
-            geodesic: true,
-            strokeColor: "#1B4D3E",
-            strokeOpacity: 0.6,
-            strokeWeight: 4,
-        });
-        routePath.setMap(googleMap);
-    };
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key|default:'' }}&callback=initGoogleMap" async defer></script>
 {% endblock %}
 
 {% block content %}
@@ -317,16 +265,10 @@
                 </span>
             </div>
             
-            <div class="grid-2" style="gap: 1rem;">
+            <div style="width: 100%;">
                 <!-- Leaflet Map Container -->
                 <div>
-                    <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--primary-brown); text-align: center;">Leaflet Map (OpenStreetMap)</h4>
-                    <div id="live-delivery-map" style="height: 320px; width: 100%; border-radius: var(--radius-md); border: 2px solid var(--border-warm); z-index: 1;"></div>
-                </div>
-                <!-- Google Map Container -->
-                <div>
-                    <h4 style="font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--primary-brown); text-align: center;">Google Maps Tracking</h4>
-                    <div id="google-live-delivery-map" style="height: 320px; width: 100%; border-radius: var(--radius-md); border: 2px solid var(--border-warm); z-index: 1;"></div>
+                    <div id="live-delivery-map" style="height: 400px; width: 100%; border-radius: var(--radius-md); border: 2px solid var(--border-warm); z-index: 1;"></div>
                 </div>
             </div>
         </div>

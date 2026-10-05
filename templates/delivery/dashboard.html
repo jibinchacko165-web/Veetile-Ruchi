@@ -472,7 +472,7 @@
                         <div style="text-align: center; padding: 2.5rem 1.5rem; background: #FFF8E1; border-radius: 16px; border: 1.5px solid #FFE082;">
                             <span style="font-size: 2.8rem; display: block; margin-bottom: 0.6rem;">🛵</span>
                             <h4 style="color: #8B4513; font-weight: 800; font-size: 1.15rem; margin-bottom: 0.4rem;">
-                                Logged in as Courier: {{ profile.courier_name }} — {{ profile.courier_username }} — 📞 {{ profile.user.phone|default:"No Phone" }} {% if profile.vehicle_number %}(Vehicle #{{ profile.vehicle_number }}){% endif %}
+                                Logged in as Courier: {{ profile.courier_name }} — 📞 {{ profile.user.phone|default:"No Phone" }} {% if profile.vehicle_number %}(Vehicle #{{ profile.vehicle_number }}){% endif %}
                             </h4>
                             <p style="color: var(--text-main); font-size: 0.95rem; font-weight: 600; margin: 0 auto; max-width: 560px; line-height: 1.5;">
                                 You currently have no active delivery assignments.
