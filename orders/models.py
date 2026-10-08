@@ -63,6 +63,14 @@ class Order(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
+        is_new = not bool(self.order_id)
+        old_status = None
+        if not is_new:
+            try:
+                old_status = Order.objects.get(pk=self.pk).status
+            except Order.DoesNotExist:
+                pass
+
         if not self.order_id:
             # Generate a unique Order ID: VR-YYYYMMDD-XXXX where XXXX is random letters/numbers
             from django.utils.timezone import now
@@ -70,6 +78,41 @@ class Order(models.Model):
             random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
             self.order_id = f"VR-{date_str}-{random_str}"
         super().save(*args, **kwargs)
+        
+        if old_status and old_status != self.status:
+            self._send_status_email()
+
+    def _send_status_email(self):
+        from django.core.mail import send_mail
+        from django.conf import settings
+        
+        subject = ''
+        message = ''
+        if self.status == 'preparing':
+            subject = f"Order #{self.order_id} - Food Preparation Started"
+            message = f"Hello {self.user.username},\n\nYour order #{self.order_id} has been accepted and is now being prepared by the kitchen!"
+        elif self.status == 'in_transit':
+            subject = f"Order #{self.order_id} - Order Dispatched"
+            message = f"Hello {self.user.username},\n\nGood news! Your order #{self.order_id} has been dispatched and is out for delivery."
+        elif self.status == 'delivered':
+            subject = f"Order #{self.order_id} - Order Delivered"
+            message = f"Hello {self.user.username},\n\nYour order #{self.order_id} has been successfully delivered. Enjoy your meal!"
+        elif self.status == 'cancelled':
+            subject = f"Order #{self.order_id} - Order Cancelled"
+            message = f"Hello {self.user.username},\n\nUnfortunately, your order #{self.order_id} has been cancelled."
+            
+        if subject and message and self.user.email:
+            try:
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@veetileruchi.com'),
+                    recipient_list=[self.user.email],
+                    fail_silently=True,
+                )
+            except Exception:
+                pass
+
 
     @property
     def formatted_delivery_address(self):
