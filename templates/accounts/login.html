@@ -11,21 +11,52 @@
         
         if (field.type === 'password') {
             field.type = 'text';
-            btn.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
+            btn.innerHTML = '<i class="fa-solid fa-eye-slash" aria-hidden="true"></i>';
             btn.setAttribute('title', 'Hide Password');
+            btn.setAttribute('aria-label', 'Hide Password');
         } else {
             field.type = 'password';
-            btn.innerHTML = '<i class="fa-solid fa-eye"></i>';
+            btn.innerHTML = '<i class="fa-solid fa-eye" aria-hidden="true"></i>';
             btn.setAttribute('title', 'Show Password');
+            btn.setAttribute('aria-label', 'Show Password');
         }
     }
     document.addEventListener('DOMContentLoaded', function() {
         const u = document.getElementById('username');
         const p = document.getElementById('password');
+        const loginForm = document.getElementById('loginForm');
+
         if (u && u.value.trim() !== '') {
             if (p) p.focus();
         } else if (u) {
             u.focus();
+        }
+
+        if (loginForm) {
+            loginForm.addEventListener('submit', function(event) {
+                if (u && u.value.trim() === '') {
+                    u.setCustomValidity('Please enter your username or email address.');
+                } else if (u) {
+                    u.setCustomValidity('');
+                }
+
+                if (p && p.value.trim() === '') {
+                    p.setCustomValidity('Please enter your password.');
+                } else if (p) {
+                    p.setCustomValidity('');
+                }
+            });
+
+            if (u) {
+                u.addEventListener('input', function() {
+                    u.setCustomValidity('');
+                });
+            }
+            if (p) {
+                p.addEventListener('input', function() {
+                    p.setCustomValidity('');
+                });
+            }
         }
     });
 </script>
@@ -41,27 +72,27 @@
         <p style="color: var(--text-muted); font-size: 0.95rem; margin-top: 0.25rem; font-weight: 400;">Access your authentic Kerala food account</p>
     </div>
 
-    <form method="POST" action="{% url 'login' %}">
+    <form method="POST" action="{% url 'login' %}" id="loginForm" aria-label="Sign In Form">
         {% csrf_token %}
         <div class="form-group mb-3">
             <label class="form-label" for="username">Username or Email Address</label>
-            <input type="text" name="username" id="username" class="form-control" placeholder="e.g. rahul / user@gmail.com" value="{{ prefilled_username|default:'' }}" required style="font-size: 0.98rem;">
+            <input type="text" name="username" id="username" class="form-control" placeholder="e.g. rahul / user@gmail.com" value="{{ prefilled_username|default:'' }}" required aria-required="true" style="font-size: 0.98rem;">
         </div>
         
         <div class="form-group mb-3">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
                 <label class="form-label" for="password" style="margin-bottom: 0;">Password</label>
-                <a href="{% url 'password_reset' %}" id="forgot-password-link" style="color: var(--primary-green); text-decoration: none; font-size: 0.88rem; font-weight: 600;">Forgot password?</a>
+                <a href="{% url 'password_reset' %}" id="forgot-password-link" style="color: var(--primary-green); text-decoration: none; font-size: 0.88rem; font-weight: 600;" aria-label="Forgot your password?">Forgot password?</a>
             </div>
             <div style="position: relative;">
-                <input type="password" name="password" id="password" class="form-control" placeholder="Enter your password" required style="padding-right: 3rem; font-size: 0.98rem;">
-                <button type="button" id="login-pwd-btn" onclick="toggleLoginPassword()" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.1rem; color: var(--text-muted); padding: 4px;" title="Show Password">
-                    <i class="fa-solid fa-eye"></i>
+                <input type="password" name="password" id="password" class="form-control" placeholder="Enter your password" required aria-required="true" style="padding-right: 3rem; font-size: 0.98rem;">
+                <button type="button" id="login-pwd-btn" onclick="toggleLoginPassword()" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.1rem; color: var(--text-muted); padding: 4px;" title="Show Password" aria-label="Toggle password visibility">
+                    <i class="fa-solid fa-eye" aria-hidden="true"></i>
                 </button>
             </div>
         </div>
 
-        <button type="submit" class="btn" style="width: 100%; padding: 0.8rem; font-size: 1.05rem; font-weight: 600; border-radius: 10px; margin-top: 0.5rem;">
+        <button type="submit" class="btn" style="width: 100%; padding: 0.8rem; font-size: 1.05rem; font-weight: 600; border-radius: 10px; margin-top: 0.5rem;" aria-label="Sign In Button">
             Sign In
         </button>
     </form>
