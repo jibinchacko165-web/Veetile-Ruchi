@@ -258,6 +258,9 @@ def profile_view(request):
     except Exception:
         health_profile = None
 
+    from .forms import UserEditProfileForm
+    form = UserEditProfileForm(instance=user)
+
     if request.method == 'POST':
         action = request.POST.get('action', 'edit_profile')
 
@@ -357,83 +360,90 @@ def profile_view(request):
                 messages.success(request, f"Availability status updated to '{courier_profile.get_status_display()}'.")
             return redirect(f"{reverse('profile')}?tab=view")
 
-        elif action == 'edit_profile':
-            email_input = request.POST.get('email', '').strip()
-            phone_input = request.POST.get('phone', '').strip()
-            first_name = request.POST.get('first_name', '').strip()
-            last_name = request.POST.get('last_name', '').strip()
-            address = request.POST.get('address', '').strip()
-
-            if email_input and User.objects.filter(email__iexact=email_input).exclude(id=user.id).exists():
-                messages.error(request, "This email address is already in use by another account.")
-                return redirect(f"{reverse('profile')}?tab=edit")
-
-            if phone_input:
-                clean_phone = re.sub(r'\D', '', phone_input)
-                if not re.match(r'^[6-9]\d{9}$', clean_phone):
-                    messages.error(request, "Please enter a valid 10-digit mobile phone number (e.g. 9876543210).")
-                    return redirect(f"{reverse('profile')}?tab=edit")
-                if User.objects.filter(phone=clean_phone).exclude(id=user.id).exists():
-                    messages.error(request, "This phone number is already assigned to another account.")
-                    return redirect(f"{reverse('profile')}?tab=edit")
-                user.phone = clean_phone
-
-            user.first_name = first_name
-            user.last_name = last_name
-            if email_input:
-                user.email = email_input
-            user.address = address
-
-            try:
-                user.latitude = float(request.POST.get('latitude', '') or user.latitude)
-            except (ValueError, TypeError):
-                pass
-            try:
-                user.longitude = float(request.POST.get('longitude', '') or user.longitude)
-            except (ValueError, TypeError):
-                pass
-            user.save()
-
-            # Update Role Specific Details
-            if user.role == 'chef':
-                if not chef_profile:
-                    chef_profile = ChefProfile.objects.create(user=user)
-                chef_profile.specialty = request.POST.get('specialty', chef_profile.specialty or '').strip()
-                chef_profile.kitchen_name = request.POST.get('kitchen_name', chef_profile.kitchen_name or '').strip()
-                chef_profile.kitchen_address = request.POST.get('kitchen_address', chef_profile.kitchen_address or '').strip()
-                chef_profile.bio = request.POST.get('bio', chef_profile.bio or '').strip()
-                try:
-                    chef_profile.experience_years = int(request.POST.get('experience_years', chef_profile.experience_years))
-                except (ValueError, TypeError):
-                    pass
-                chef_profile.save()
-
-            elif user.role == 'delivery_boy':
-                if not courier_profile:
-                    courier_profile = DeliveryBoyProfile.objects.create(user=user)
-                courier_profile.vehicle_number = request.POST.get('vehicle_number', courier_profile.vehicle_number or '').strip()
-                courier_status = request.POST.get('status', courier_profile.status)
-                if courier_status in ['available', 'offline', 'on_delivery']:
-                    courier_profile.status = courier_status
-                courier_profile.current_latitude = user.latitude
-                courier_profile.current_longitude = user.longitude
-                courier_profile.save()
-
-            elif user.role == 'customer' and health_profile:
-                health_profile.has_diabetes = request.POST.get('has_diabetes') == 'on'
-                health_profile.has_bp = (request.POST.get('has_bp') == 'on' or request.POST.get('has_hypertension') == 'on')
-                health_profile.has_cholesterol = request.POST.get('has_cholesterol') == 'on'
+        elif action == 'edit_health_profile':
+            if user.role == 'customer' and health_profile:
+                health_profile.diabetes_conscious = request.POST.get('diabetes_conscious') == 'on'
+                health_profile.calorie_awareness = request.POST.get('calorie_awareness') == 'on'
+                health_profile.cholesterol_conscious = request.POST.get('cholesterol_conscious') == 'on'
                 health_profile.dietary_preference = request.POST.get('dietary_preference', health_profile.dietary_preference)
-                cal_val = request.POST.get('daily_calorie_target') or request.POST.get('caloric_limit')
+                cal_val = request.POST.get('caloric_limit') or request.POST.get('daily_calorie_target')
                 if cal_val:
                     try:
-                        health_profile.daily_calorie_target = float(cal_val)
+                        parsed_val = float(cal_val)
+                        if 500 <= parsed_val <= 10000:
+                            health_profile.daily_calorie_target = parsed_val
+                        else:
+                            messages.error(request, 'Calorie target must be between 500 and 10000 kcal.')
+                    except ValueError:
+                        messages.error(request, 'Invalid calorie target.')
+                health_profile.save()
+                messages.success(request, 'Health Preferences updated successfully.')
+            return redirect(f"{reverse('profile')}?tab=health")
+
+        elif action == 'edit_profile':
+            from .forms import UserEditProfileForm
+            form = UserEditProfileForm(request.POST, instance=user)
+            if form.is_valid():
+                form.save()
+                
+                try:
+                    user.latitude = float(request.POST.get('latitude', '') or user.latitude)
+                except (ValueError, TypeError):
+                    pass
+                try:
+                    user.longitude = float(request.POST.get('longitude', '') or user.longitude)
+                except (ValueError, TypeError):
+                    pass
+                user.save()
+
+                # Update Role Specific Details
+                if user.role == 'chef':
+                    if not chef_profile:
+                        chef_profile = ChefProfile.objects.create(user=user)
+                    chef_profile.specialty = request.POST.get('specialty', chef_profile.specialty or '').strip()
+                    chef_profile.kitchen_name = request.POST.get('kitchen_name', chef_profile.kitchen_name or '').strip()
+                    chef_profile.kitchen_address = request.POST.get('kitchen_address', chef_profile.kitchen_address or '').strip()
+                    chef_profile.bio = request.POST.get('bio', chef_profile.bio or '').strip()
+                    try:
+                        chef_profile.experience_years = int(request.POST.get('experience_years', chef_profile.experience_years))
                     except (ValueError, TypeError):
                         pass
-                health_profile.save()
+                    chef_profile.save()
 
-            messages.success(request, "Profile updated successfully.")
-            return redirect(f"{reverse('profile')}?tab=view")
+                elif user.role == 'delivery_boy':
+                    if not courier_profile:
+                        courier_profile = DeliveryBoyProfile.objects.create(user=user)
+                    courier_profile.vehicle_number = request.POST.get('vehicle_number', courier_profile.vehicle_number or '').strip()
+                    courier_status = request.POST.get('status', courier_profile.status)
+                    if courier_status in ['available', 'offline', 'on_delivery']:
+                        courier_profile.status = courier_status
+                    courier_profile.current_latitude = user.latitude
+                    courier_profile.current_longitude = user.longitude
+                    courier_profile.save()
+
+                elif user.role == 'customer' and health_profile:
+                    health_profile.diabetes_conscious = request.POST.get('diabetes_conscious') == 'on'
+                    health_profile.calorie_awareness = (request.POST.get('calorie_awareness') == 'on' or request.POST.get('has_hypertension') == 'on')
+                    health_profile.cholesterol_conscious = request.POST.get('cholesterol_conscious') == 'on'
+                    health_profile.dietary_preference = request.POST.get('dietary_preference', health_profile.dietary_preference)
+                    cal_val = request.POST.get('daily_calorie_target') or request.POST.get('caloric_limit')
+                    if cal_val:
+                        try:
+                            parsed_val = float(cal_val)
+                            if parsed_val >= 500 and parsed_val <= 10000:
+                                health_profile.daily_calorie_target = parsed_val
+                            else:
+                                messages.error(request, 'Calorie target must be between 500 and 10000 kcal.')
+                        except (ValueError, TypeError):
+                            messages.error(request, 'Invalid calorie target. Please enter a valid number.')
+                    health_profile.save()
+
+                messages.success(request, "Profile updated successfully.")
+                return redirect(f"{reverse('profile')}?tab=view")
+            else:
+                # If form is invalid, we don't redirect. We will re-render the template with the bound form.
+                # Just set active_tab to 'overview' so we stay on that tab
+                active_tab = 'overview'
 
     saved_locations = user.saved_locations.all() if hasattr(user, 'saved_locations') else []
 
@@ -445,6 +455,7 @@ def profile_view(request):
         'saved_locations': saved_locations,
         'kerala_preset_places': KERALA_PRESET_PLACES,
         'active_tab': active_tab,
+        'form': form if 'form' in locals() else None,
     }
     return render(request, 'accounts/profile.html', context)
 

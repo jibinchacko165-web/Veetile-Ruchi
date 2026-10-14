@@ -54,10 +54,12 @@ class SavedLocation(models.Model):
     location_type = models.CharField(max_length=20, choices=LOCATION_TYPE_CHOICES, default='home')
     description = models.TextField(blank=True, null=True, help_text="House name, building, street, or flat number")
     landmark = models.CharField(max_length=150, blank=True, null=True, help_text="Nearby shop, temple, church, hospital, or bus stop")
+    district = models.ForeignKey('delivery.District', on_delete=models.SET_NULL, null=True, blank=True, related_name='saved_locations')
     latitude = models.FloatField(default=9.462534)
     longitude = models.FloatField(default=76.72185)
     is_default = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-is_default', '-created_at']
@@ -93,7 +95,6 @@ class DeliveryBoyProfile(models.Model):
     STATUS_CHOICES = (
         ('available', 'Available'),
         ('on_delivery', 'On Delivery'),
-        ('busy', 'On Delivery'),
         ('offline', 'Offline'),
     )
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='delivery_boy_profile')

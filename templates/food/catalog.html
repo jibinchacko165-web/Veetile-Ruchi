@@ -75,6 +75,8 @@
     </div>
 </section>
 
+
+
 <!-- =========================================================================
      2. AI HEALTH PROFILE & PERSONALIZED RECOMMENDATIONS (FOR LOGGED-IN USERS)
      ========================================================================= -->
@@ -146,10 +148,7 @@
             </div>
         {% endif %}
 
-        <!-- Safe Medical Disclaimer Footer -->
-        <p style="font-size: 0.78rem; color: var(--text-muted); margin: 1rem 0 0 0; font-style: italic; border-top: 1px dashed var(--border-warm); padding-top: 0.6rem;">
-            ⚠️ <strong>Medical Disclaimer:</strong> These recommendations provide general dietary guidance based on nutritional parameters and food preparation methods, and are not a substitute for professional advice from your doctor or registered dietitian.
-        </p>
+
     </div>
 {% endif %}
 
@@ -239,8 +238,12 @@
                         <h3 class="food-card-title">{{ food.name }}</h3>
                         
                         <!-- Wishlist Toggle Button -->
-                        {% if user.is_authenticated and user.role == 'customer' %}
-                            <a href="{% url 'wishlist_toggle' food.id %}" style="text-decoration: none; font-size: 1.25rem; color: {% if food.id in wish_ids %}#EF4444{% else %}#CBD5E1{% endif %}; transition: var(--transition);" title="Save to Wishlist">
+                        {% if not user.is_authenticated %}
+                            <a href="{% url 'login' %}?next={% url 'food_catalog' %}" style="text-decoration: none; font-size: 1.25rem; color: #CBD5E1; transition: var(--transition);" title="Sign in to save to Wishlist">
+                                <i class="fa-solid fa-heart"></i>
+                            </a>
+                        {% elif user.role == 'customer' %}
+                            <a href="{% url 'wishlist_toggle' food.id %}" class="wishlist-toggle-btn" data-food-id="{{ food.id }}" style="text-decoration: none; font-size: 1.25rem; color: {% if food.id in wish_ids %}#EF4444{% else %}#CBD5E1{% endif %}; transition: var(--transition); cursor: pointer;" title="{% if food.id in wish_ids %}Remove from Wishlist{% else %}Save to Wishlist{% endif %}">
                                 <i class="fa-solid fa-heart"></i>
                             </a>
                         {% endif %}

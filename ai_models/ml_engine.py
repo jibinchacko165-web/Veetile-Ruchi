@@ -149,7 +149,7 @@ def predict_health_suitability(sugar, cholesterol, sodium):
         'bp': is_bp
     }
 
-def classify_health_profile_risk(has_diabetes, has_cholesterol, has_bp):
+def classify_health_profile_risk(diabetes_conscious, cholesterol_conscious, calorie_awareness):
     """
     Decision tree to classify general user health risk: High, Medium, Low
     """
@@ -168,7 +168,7 @@ def classify_health_profile_risk(has_diabetes, has_cholesterol, has_bp):
     clf = DecisionTreeClassifier()
     clf.fit(X, y)
     
-    pred = clf.predict([[int(has_diabetes), int(has_cholesterol), int(has_bp)]])[0]
+    pred = clf.predict([[int(diabetes_conscious), int(cholesterol_conscious), int(calorie_awareness)]])[0]
     return pred
 
 
@@ -187,15 +187,15 @@ def recommend_health_and_time_aware_foods(all_foods, health_profile, active_sess
     if not all_foods or not health_profile:
         return [], "No health profile configured."
 
-    has_diabetes = getattr(health_profile, 'has_diabetes', False)
-    has_cholesterol = getattr(health_profile, 'has_cholesterol', False)
-    has_bp = getattr(health_profile, 'has_bp', False)
+    diabetes_conscious = getattr(health_profile, 'diabetes_conscious', False)
+    cholesterol_conscious = getattr(health_profile, 'cholesterol_conscious', False)
+    calorie_awareness = getattr(health_profile, 'calorie_awareness', False)
 
     # Selected condition labels
     selected_conditions = []
-    if has_diabetes: selected_conditions.append("Diabetes")
-    if has_cholesterol: selected_conditions.append("High Cholesterol")
-    if has_bp: selected_conditions.append("High Blood Pressure")
+    if diabetes_conscious: selected_conditions.append("Diabetes")
+    if cholesterol_conscious: selected_conditions.append("High Cholesterol")
+    if calorie_awareness: selected_conditions.append("High Blood Pressure")
 
     if not selected_conditions:
         return [], "No medical conditions selected. Select Diabetes, High Cholesterol, or High BP to see AI recommended foods."
@@ -249,37 +249,37 @@ def recommend_health_and_time_aware_foods(all_foods, health_profile, active_sess
         
         # Nutrition metrics
         has_nutr = hasattr(food, 'nutrition') and food.nutrition is not None
-        sugar = food.nutrition.sugar if has_nutr else 2.0
+        total_sugars = food.nutrition.total_sugars if has_nutr else 2.0
         cholesterol = food.nutrition.cholesterol if has_nutr else 10.0
         sodium = food.nutrition.sodium if has_nutr else 100.0
         calories = food.nutrition.calories if has_nutr else 300.0
         fiber = food.nutrition.fiber if has_nutr else 3.0
-        fat = food.nutrition.fat if has_nutr else 6.0
+        total_fat = food.nutrition.total_fat if has_nutr else 6.0
 
         # Keywords inspection
         fried_keywords = ['deep-fried', 'deep fried', 'fried', 'fritter', 'fritters', 'vada', 'bajji', 'chips', 'pori']
         is_fried = any(k in desc for k in fried_keywords)
 
-        sweet_keywords = ['jaggery', 'sweet', 'sugar', 'halwa', 'payasam', 'cake', 'pudding']
+        sweet_keywords = ['jaggery', 'sweet', 'total_sugars', 'halwa', 'payasam', 'cake', 'pudding']
         is_sweet = any(k in desc for k in sweet_keywords)
 
         is_diab_ok = True
         is_chol_ok = True
         is_bp_ok = True
 
-        if has_diabetes:
-            if sugar > 4.5 or is_sweet or (calories > 550 and sugar > 3.0):
+        if diabetes_conscious:
+            if total_sugars > 4.5 or is_sweet or (calories > 550 and total_sugars > 3.0):
                 is_diab_ok = False
 
-        if has_cholesterol:
-            if cholesterol > 25.0 or is_fried or fat > 18.0:
+        if cholesterol_conscious:
+            if cholesterol > 25.0 or is_fried or total_fat > 18.0:
                 is_chol_ok = False
 
-        if has_bp:
+        if calorie_awareness:
             if sodium > 280.0:
                 is_bp_ok = False
 
-        if (has_diabetes and not is_diab_ok) or (has_cholesterol and not is_chol_ok) or (has_bp and not is_bp_ok):
+        if (diabetes_conscious and not is_diab_ok) or (cholesterol_conscious and not is_chol_ok) or (calorie_awareness and not is_bp_ok):
             continue
 
         # Score calculation for ranking
@@ -287,7 +287,7 @@ def recommend_health_and_time_aware_foods(all_foods, health_profile, active_sess
         if is_fried: score -= 35.0
         if is_sweet: score -= 35.0
         score += fiber * 3.0
-        score -= sugar * 4.0
+        score -= total_sugars * 4.0
         score -= cholesterol * 0.4
         score -= sodium * 0.05
 
@@ -301,11 +301,11 @@ def recommend_health_and_time_aware_foods(all_foods, health_profile, active_sess
 
     if recommended_foods:
         reasons_list = []
-        if has_diabetes:
-            reasons_list.append("limits added sugar & high glycemic impact")
-        if has_cholesterol:
+        if diabetes_conscious:
+            reasons_list.append("limits added total_sugars & high glycemic impact")
+        if cholesterol_conscious:
             reasons_list.append("avoids deep-fried preparations & saturated fats")
-        if has_bp:
+        if calorie_awareness:
             reasons_list.append("maintains controlled sodium metrics")
 
         reason_clause = ", ".join(reasons_list)
@@ -370,15 +370,15 @@ def plan_meals(food_items, health_profile):
                     has_nutr = hasattr(food, 'nutrition')
                     if has_nutr:
                         suitability = predict_health_suitability(
-                            food.nutrition.sugar, 
+                            food.nutrition.total_sugars, 
                             food.nutrition.cholesterol, 
                             food.nutrition.sodium
                         )
-                        if health_profile.has_diabetes and not suitability['diabetes']:
+                        if health_profile.diabetes_conscious and not suitability['diabetes']:
                             continue
-                        if health_profile.has_cholesterol and not suitability['cholesterol']:
+                        if health_profile.cholesterol_conscious and not suitability['cholesterol']:
                             continue
-                        if health_profile.has_bp and not suitability['bp']:
+                        if health_profile.calorie_awareness and not suitability['bp']:
                             continue
                             
                 candidates.append(food)
@@ -587,13 +587,15 @@ def train_delivery_time_rf_model(historical_assignments=None):
     rf_model.fit(X, y)
     return rf_model
 
-def predict_delivery_time_rf(courier_lat, courier_lon, cust_lat, cust_lon, items_count=1, hour_of_day=None, day_of_week=None, historical_assignments=None):
+def predict_delivery_time_rf(courier_lat, courier_lon, cust_lat, cust_lon, items_count=1, hour_of_day=None, day_of_week=None, historical_assignments=None, road_distance_km=None):
     """
     AI Delivery Time Prediction & AI ETA using Random Forest Regression.
     Returns: (predicted_delivery_minutes, eta_minutes, distance_km)
     """
     import datetime
-    dist_km = calculate_distance(courier_lat, courier_lon, cust_lat, cust_lon)
+    
+    straight_line_dist = calculate_distance(courier_lat, courier_lon, cust_lat, cust_lon)
+    dist_km = road_distance_km if road_distance_km is not None else straight_line_dist
     
     if hour_of_day is None:
         hour_of_day = datetime.datetime.now().hour
@@ -617,27 +619,80 @@ def predict_delivery_time(lat1, lon1, lat2, lon2, status='assigned'):
     pred_min, eta, dist = predict_delivery_time_rf(lat1, lon1, lat2, lon2)
     return pred_min
 
+class RouteResult(tuple):
+    """
+    Subclass of tuple returning (route, distance_km) for 100% backward compatibility
+    while also exposing .is_road and .route attributes.
+    """
+    def __new__(cls, route, distance, is_road=True):
+        return super().__new__(cls, (route, distance))
+
+    def __init__(self, route, distance, is_road=True):
+        self.route = route
+        self.distance = distance
+        self.is_road = is_road
+
 def optimize_delivery_route(chef_lat, chef_lon, cust_lat, cust_lon):
     """
-    Simulates intermediate delivery route nodes between Chef (restaurant) and Customer.
-    Calculates the shortest optimal route using distance calculations and outputs coordinate steps.
+    Calls the Google Maps Directions API or OSRM to get actual road distance and route.
+    Falls back to straight-line Haversine estimate if APIs fail or keys are missing.
+    Returns RouteResult(route, distance_km, is_road).
     """
-    distance = calculate_distance(chef_lat, chef_lon, cust_lat, cust_lon)
-    steps_count = max(3, int(distance * 2)) # 2 points per km
-    steps_count = min(10, steps_count)
+    import requests
+    from django.conf import settings
     
-    route = []
-    # Linear interpolation with slight random offset to simulate actual roads
-    for i in range(steps_count + 1):
-        t = i / steps_count
-        lat = chef_lat + (cust_lat - chef_lat) * t
-        lon = chef_lon + (cust_lon - chef_lon) * t
-        
-        if i > 0 and i < steps_count:
-            # add small random deviation for realism (representing streets)
-            lat += (np.random.rand() - 0.5) * 0.001
-            lon += (np.random.rand() - 0.5) * 0.001
+    try:
+        c_chef_lat = float(chef_lat)
+        c_chef_lon = float(chef_lon)
+        c_cust_lat = float(cust_lat)
+        c_cust_lon = float(cust_lon)
+    except (ValueError, TypeError):
+        return RouteResult([], 0.0, False)
+
+    if math.isnan(c_chef_lat) or math.isnan(c_chef_lon) or math.isnan(c_cust_lat) or math.isnan(c_cust_lon):
+        return RouteResult([], 0.0, False)
+
+    straight_line_dist = calculate_distance(c_chef_lat, c_chef_lon, c_cust_lat, c_cust_lon)
+    api_key = getattr(settings, 'GOOGLE_MAPS_API_KEY', None)
+    
+    if api_key:
+        try:
+            url = f"https://maps.googleapis.com/maps/api/directions/json?origin={c_chef_lat},{c_chef_lon}&destination={c_cust_lat},{c_cust_lon}&key={api_key}"
+            resp = requests.get(url, timeout=4)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get('status') == 'OK':
+                    route = []
+                    legs = data['routes'][0]['legs']
+                    distance_meters = legs[0]['distance']['value']
+                    road_distance_km = distance_meters / 1000.0
+                    
+                    for step in legs[0]['steps']:
+                        route.append({
+                            'lat': round(step['end_location']['lat'], 6),
+                            'lng': round(step['end_location']['lng'], 6)
+                        })
+                    return RouteResult(route, round(road_distance_km, 2), True)
+        except Exception:
+            pass
             
-        route.append({'lat': round(lat, 6), 'lng': round(lon, 6)})
-        
-    return route, round(distance, 2)
+    # Try OpenStreetMap / OSRM public road routing engine
+    try:
+        osrm_url = f"https://router.project-osrm.org/route/v1/driving/{c_chef_lon},{c_chef_lat};{c_cust_lon},{c_cust_lat}?overview=simplified&geometries=geojson"
+        resp = requests.get(osrm_url, timeout=3, headers={'User-Agent': 'VeetileRuchiDelivery/1.0'})
+        if resp.status_code == 200:
+            osrm_data = resp.json()
+            if osrm_data.get('code') == 'Ok' and osrm_data.get('routes'):
+                primary_route = osrm_data['routes'][0]
+                road_dist_km = primary_route['distance'] / 1000.0
+                coords = primary_route['geometry']['coordinates']  # [lon, lat] pairs
+                route = [{'lat': round(c[1], 6), 'lng': round(c[0], 6)} for c in coords]
+                return RouteResult(route, round(road_dist_km, 2), True)
+    except Exception:
+        pass
+
+    # No routing service available or network unreachable:
+    # Do NOT fabricate fake roads. Return empty route with Haversine distance flagged as estimate.
+    return RouteResult([], round(straight_line_dist, 2), False)
+
+

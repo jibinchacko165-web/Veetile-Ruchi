@@ -17,7 +17,7 @@ class FoodItemAdmin(admin.ModelAdmin):
 
 @admin.register(NutritionInfo)
 class NutritionInfoAdmin(admin.ModelAdmin):
-    list_display = ('food_item', 'calories', 'protein', 'fat', 'carbohydrates', 'sugar', 'sodium')
+    list_display = ('food_item', 'calories', 'protein', 'total_fat', 'carbohydrates', 'total_sugars', 'sodium')
 
 @admin.register(ReviewSentiment)
 class ReviewSentimentAdmin(admin.ModelAdmin):

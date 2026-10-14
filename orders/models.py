@@ -51,6 +51,7 @@ class Order(models.Model):
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     coupon = models.ForeignKey(Coupon, on_delete=models.SET_NULL, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    branch = models.ForeignKey('delivery.HotelBranch', on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     
     # GPS Location Capture at time of order
     latitude = models.FloatField(default=9.5564)

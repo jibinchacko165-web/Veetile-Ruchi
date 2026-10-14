@@ -194,26 +194,67 @@ def delivery_boy_track(request, assignment_id):
     order = assignment.order
     profile = assignment.delivery_boy
         
-    from orders.utils import get_active_delivery_setting
+
+    from orders.utils import get_active_delivery_setting, validate_coordinates
     delivery_setting = get_active_delivery_setting()
-    chef_lat, chef_lon = delivery_setting.latitude, delivery_setting.longitude
-    cust_lat = order.latitude
-    cust_lon = order.longitude
+    branch = getattr(order, 'branch', None)
+    chef_lat = branch.latitude if branch else delivery_setting.latitude
+    chef_lon = branch.longitude if branch else delivery_setting.longitude
     
-    route_steps, distance_km = optimize_delivery_route(chef_lat, chef_lon, cust_lat, cust_lon)
+    cust_lat, cust_lon = validate_coordinates(order.latitude, order.longitude)
+    if cust_lat is None:
+        cust_lat, cust_lon = chef_lat, chef_lon
     
-    # Get latest courier GPS location if available
+    # Genuine courier GPS retrieval with freshness validation (max 5 mins = 300s)
     latest_gps = GPSLocationTracking.objects.filter(delivery_assignment=assignment).order_by('-timestamp').first()
-    courier_lat = latest_gps.latitude if latest_gps else profile.current_latitude
-    courier_lon = latest_gps.longitude if latest_gps else profile.current_longitude
+    has_courier_gps = False
+    is_gps_stale = False
+    courier_lat = None
+    courier_lon = None
+    last_gps_timestamp = None
+
+    if latest_gps and -90.0 <= latest_gps.latitude <= 90.0 and -180.0 <= latest_gps.longitude <= 180.0:
+        age_seconds = (timezone.now() - latest_gps.timestamp).total_seconds()
+        courier_lat = latest_gps.latitude
+        courier_lon = latest_gps.longitude
+        if age_seconds <= 300:
+            has_courier_gps = True
+            is_gps_stale = False
+            last_gps_timestamp = latest_gps.timestamp.strftime("%I:%M:%S %p")
+        else:
+            has_courier_gps = False
+            is_gps_stale = True
+            last_gps_timestamp = latest_gps.timestamp.strftime("%I:%M:%S %p") + " (Stale)"
+    elif profile and profile.current_latitude and profile.current_longitude:
+        if -90.0 <= profile.current_latitude <= 90.0 and -180.0 <= profile.current_longitude <= 180.0 and not (profile.current_latitude == 10.0 and profile.current_longitude == 76.0):
+            courier_lat = profile.current_latitude
+            courier_lon = profile.current_longitude
+            # Only consider profile GPS live if courier is on active delivery task
+            if assignment.status in ['in_transit', 'picked_up']:
+                has_courier_gps = True
+                last_gps_timestamp = timezone.localtime().strftime("%I:%M:%S %p")
+
+    # Critical Business Rule: Calculate route and distance from courier GPS when in transit
+    if (assignment.status in ['in_transit', 'picked_up']) and courier_lat and courier_lon:
+        calc_origin_lat = courier_lat
+        calc_origin_lon = courier_lon
+    else:
+        calc_origin_lat = chef_lat
+        calc_origin_lon = chef_lon
+
+    route_res = optimize_delivery_route(calc_origin_lat, calc_origin_lon, cust_lat, cust_lon)
+    route_steps = route_res.route
+    distance_km = route_res.distance
+    is_road_distance = getattr(route_res, 'is_road', True)
 
     # Calculate Random Forest Regressor AI Delivery Time & ETA Predictions
     items_cnt = order.items.count() if hasattr(order, 'items') else 1
     completed_hist = DeliveryAssignment.objects.filter(status='delivered', actual_delivery_time__isnull=False)
     from ai_models.ml_engine import predict_delivery_time_rf
     pred_delivery_min, ai_eta_min, dist_km = predict_delivery_time_rf(
-        courier_lat, courier_lon, cust_lat, cust_lon,
-        items_count=items_cnt, historical_assignments=completed_hist
+        calc_origin_lat, calc_origin_lon, cust_lat, cust_lon,
+        items_count=items_cnt, historical_assignments=completed_hist,
+        road_distance_km=distance_km
     )
 
     # Calculate AI Delivery Status Condition Prediction
@@ -234,6 +275,10 @@ def delivery_boy_track(request, assignment_id):
         'cust_lon': cust_lon,
         'courier_lat': courier_lat,
         'courier_lon': courier_lon,
+        'has_courier_gps': has_courier_gps,
+        'is_gps_stale': is_gps_stale,
+        'is_road_distance': is_road_distance,
+        'last_gps_timestamp': last_gps_timestamp,
         'route_steps': route_steps,
         'distance_km': dist_km,
         'pred_delivery_min': pred_delivery_min,
@@ -241,6 +286,7 @@ def delivery_boy_track(request, assignment_id):
         'ai_status_pred': ai_status_pred,
     }
     return render(request, 'delivery/track.html', context)
+
 
 
 @login_required
@@ -435,24 +481,31 @@ def update_profile_gps(request):
         return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
         
     try:
+        import json
         data = json.loads(request.body.decode('utf-8'))
-        lat = float(data.get('latitude'))
-        lon = float(data.get('longitude'))
+        lat = data.get('latitude')
+        lon = data.get('longitude')
     except (ValueError, TypeError, json.JSONDecodeError):
-        return JsonResponse({'status': 'error', 'message': 'Invalid coordinates'}, status=400)
+        lat = request.POST.get('latitude')
+        lon = request.POST.get('longitude')
+
+    from orders.utils import validate_coordinates
+    c_lat, c_lon = validate_coordinates(lat, lon)
+    if c_lat is None or c_lon is None:
+        return JsonResponse({'status': 'error', 'message': 'Invalid GPS coordinates provided'}, status=400)
         
     profile = getattr(request.user, 'delivery_boy_profile', None)
     if not profile:
         return JsonResponse({'status': 'error', 'message': 'Profile not found'}, status=404)
         
-    profile.current_latitude = lat
-    profile.current_longitude = lon
-    profile.save()
+    profile.current_latitude = c_lat
+    profile.current_longitude = c_lon
+    profile.save(update_fields=['current_latitude', 'current_longitude'])
     
     return JsonResponse({
         'status': 'success',
-        'latitude': lat,
-        'longitude': lon,
+        'latitude': c_lat,
+        'longitude': c_lon,
         'timestamp': timezone.now().strftime("%H:%M:%S")
     })
 
@@ -464,49 +517,68 @@ def update_courier_gps(request, assignment_id):
         return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
     if request.user.role != 'delivery_boy':
-        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized: Only delivery couriers can transmit GPS'}, status=403)
 
     assignment = get_assignment_by_id_or_order_id(assignment_id)
     if not assignment:
         return JsonResponse({'status': 'error', 'message': 'Assignment not found'}, status=404)
 
-    # Security Rule: Verify assigned courier vehicle
-    if request.user.role not in ['delivery_boy', 'staff', 'admin']:
-        return JsonResponse({'status': 'error', 'message': 'Access denied to this assignment'}, status=403)
+    # Security Rule: Verify assigned courier vehicle/user
+    if assignment.delivery_boy.user != request.user:
+        return JsonResponse({'status': 'error', 'message': 'Access denied: You are not assigned to this order'}, status=403)
 
-    profile = assignment.delivery_boy
+    # Stop tracking if order is already completed or cancelled
+    if assignment.status in ['delivered', 'cancelled'] or assignment.order.status in ['delivered', 'cancelled']:
+        return JsonResponse({
+            'status': 'stopped',
+            'message': 'Tracking is concluded because this order is delivered or cancelled.'
+        }, status=200)
 
     try:
+        import json
         data = json.loads(request.body.decode('utf-8'))
-        lat = float(data.get('latitude'))
-        lon = float(data.get('longitude'))
+        lat = data.get('latitude')
+        lon = data.get('longitude')
+        accuracy = data.get('accuracy')
+        if accuracy is not None:
+            accuracy = float(accuracy)
     except (ValueError, TypeError, json.JSONDecodeError):
         lat = request.POST.get('latitude')
         lon = request.POST.get('longitude')
-        try:
-            lat = float(lat)
-            lon = float(lon)
-        except (ValueError, TypeError):
-            return JsonResponse({'status': 'error', 'message': 'Invalid GPS coordinates'}, status=400)
+        accuracy = request.POST.get('accuracy')
+        if accuracy is not None:
+            try:
+                accuracy = float(accuracy)
+            except (ValueError, TypeError):
+                accuracy = None
+
+    from orders.utils import validate_coordinates
+    c_lat, c_lon = validate_coordinates(lat, lon)
+    if c_lat is None or c_lon is None:
+        return JsonResponse({'status': 'error', 'message': 'Coordinates out of valid geographical bounds'}, status=400)
 
     # Save GPS Breadcrumb
     GPSLocationTracking.objects.create(
         delivery_assignment=assignment,
-        latitude=lat,
-        longitude=lon
+        latitude=c_lat,
+        longitude=c_lon
     )
 
     # Update Courier Profile Current Coordinates in DB
-    profile = request.user.delivery_boy_profile
-    profile.current_latitude = lat
-    profile.current_longitude = lon
-    profile.save()
+    profile = assignment.delivery_boy
+    profile.current_latitude = c_lat
+    profile.current_longitude = c_lon
+    if assignment.status == 'in_transit':
+        profile.status = 'on_delivery'
+    profile.save(update_fields=['current_latitude', 'current_longitude', 'status'])
 
+    now_str = timezone.localtime().strftime("%I:%M:%S %p")
     return JsonResponse({
         'status': 'success',
-        'latitude': lat,
-        'longitude': lon,
-        'timestamp': timezone.now().strftime("%H:%M:%S")
+        'latitude': c_lat,
+        'longitude': c_lon,
+        'accuracy': accuracy,
+        'timestamp': now_str
     })
 
 @login_required
@@ -517,7 +589,7 @@ def get_live_gps_location(request, order_id):
     # Security Rule: Only authorized users (customer owner, staff/admin, assigned courier) can access order location data
     is_owner = (request.user == order.user)
     is_staff = (request.user.role in ['staff', 'admin'])
-    is_assigned_courier = (request.user.role == 'delivery_boy')
+    is_assigned_courier = (hasattr(order, 'delivery_assignment') and order.delivery_assignment.delivery_boy.user == request.user)
     
     if not (is_owner or is_staff or is_assigned_courier):
         return JsonResponse({'status': 'error', 'message': 'Access denied'}, status=403)
@@ -528,32 +600,85 @@ def get_live_gps_location(request, order_id):
         return JsonResponse({
             'status': order.status,
             'gps_active': False,
+            'has_courier_gps': False,
             'message': 'No delivery assignment associated with this order'
         })
 
-    # Active GPS tracking allowed ONLY while in_transit
-    gps_active = (order.status == 'in_transit')
+    # Active GPS tracking allowed ONLY while assigned / in_transit / picked_up
+    gps_active = (order.status in ['assigned', 'picked_up', 'in_transit'])
 
     latest_crumb = GPSLocationTracking.objects.filter(delivery_assignment=assignment).order_by('-timestamp').first()
-    courier_lat = latest_crumb.latitude if latest_crumb else assignment.delivery_boy.current_latitude
-    courier_lon = latest_crumb.longitude if latest_crumb else assignment.delivery_boy.current_longitude
+    courier_lat = None
+    courier_lon = None
+    has_courier_gps = False
+    is_stale = False
+    last_update_str = None
 
-    # Calculate live Random Forest AI ETA & predicted duration
+    if latest_crumb:
+        from orders.utils import validate_coordinates
+        c_lat, c_lon = validate_coordinates(latest_crumb.latitude, latest_crumb.longitude)
+        if c_lat is not None and c_lon is not None:
+            courier_lat = c_lat
+            courier_lon = c_lon
+            age_sec = (timezone.now() - latest_crumb.timestamp).total_seconds()
+            if age_sec <= 300: # 5 minutes threshold for live freshness
+                has_courier_gps = True
+                is_stale = False
+                last_update_str = latest_crumb.timestamp.strftime("%I:%M:%S %p")
+            else:
+                has_courier_gps = False
+                is_stale = True
+                last_update_str = latest_crumb.timestamp.strftime("%I:%M:%S %p") + " (Signal Stale)"
+    elif assignment.delivery_boy.current_latitude and assignment.delivery_boy.current_longitude:
+        from orders.utils import validate_coordinates
+        c_lat, c_lon = validate_coordinates(assignment.delivery_boy.current_latitude, assignment.delivery_boy.current_longitude)
+        if c_lat is not None and c_lon is not None and not (c_lat == 10.0 and c_lon == 76.0):
+            courier_lat = c_lat
+            courier_lon = c_lon
+            if assignment.status in ['in_transit', 'picked_up']:
+                has_courier_gps = True
+                is_stale = False
+                last_update_str = timezone.localtime().strftime("%I:%M:%S %p")
+
+    # Hotel Base vs Courier GPS separation (Critical Business Rule)
+    from orders.utils import get_active_delivery_setting
+    delivery_setting = get_active_delivery_setting()
+    branch = getattr(order, 'branch', None)
+    chef_lat = branch.latitude if branch else delivery_setting.latitude
+    chef_lon = branch.longitude if branch else delivery_setting.longitude
+
+    if (order.status in ['in_transit', 'picked_up']) and courier_lat and courier_lon:
+        calc_origin_lat = courier_lat
+        calc_origin_lon = courier_lon
+    else:
+        calc_origin_lat = chef_lat
+        calc_origin_lon = chef_lon
+
+    from ai_models.ml_engine import predict_delivery_time_rf, optimize_delivery_route
+    route_res = optimize_delivery_route(calc_origin_lat, calc_origin_lon, order.latitude, order.longitude)
+    route_steps = route_res.route
+    dist_km = route_res.distance
+    is_road_dist = getattr(route_res, 'is_road', True)
+
     items_cnt = order.items.count() if hasattr(order, 'items') else 1
     completed_hist = DeliveryAssignment.objects.filter(status='delivered', actual_delivery_time__isnull=False)
-    from ai_models.ml_engine import predict_delivery_time_rf
     pred_delivery_min, ai_eta_min, dist_km = predict_delivery_time_rf(
-        courier_lat, courier_lon, order.latitude, order.longitude,
-        items_count=items_cnt, historical_assignments=completed_hist
+        calc_origin_lat, calc_origin_lon, order.latitude, order.longitude,
+        items_count=items_cnt, historical_assignments=completed_hist,
+        road_distance_km=dist_km
     )
 
     return JsonResponse({
         'order_id': order.order_id,
         'status': order.status,
-        'gps_active': gps_active,
+        'gps_active': gps_active and has_courier_gps,
+        'has_courier_gps': has_courier_gps,
+        'is_stale': is_stale,
         'latitude': courier_lat,
         'longitude': courier_lon,
         'distance_km': dist_km,
+        'is_road_distance': is_road_dist,
+        'route_steps': route_steps,
         'pred_delivery_min': pred_delivery_min,
         'ai_eta_min': ai_eta_min,
         'delivery_boy': {
@@ -564,8 +689,9 @@ def get_live_gps_location(request, order_id):
         'vehicle_number': assignment.delivery_boy.vehicle_number,
         'driver_name': assignment.delivery_boy.user.username.title(),
         'driver_phone': assignment.delivery_boy.user.phone or '',
-        'updated_at': timezone.now().strftime("%H:%M:%S")
+        'updated_at': last_update_str or timezone.localtime().strftime("%I:%M:%S %p")
     })
+
 
 @login_required
 def submit_delivery_feedback(request, order_id):

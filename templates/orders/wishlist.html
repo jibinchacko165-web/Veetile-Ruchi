@@ -18,15 +18,15 @@
         </a>
     </div>
 
-    <div class="grid-3">
+    <div class="grid-3" id="wishlist-grid">
         {% for wish in wishes %}
-            <div class="food-card">
+            <div class="food-card" id="wishlist-card-{{ wish.food_item.id }}">
                 <div class="food-card-media">
                     <img src="{{ wish.food_item.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ wish.food_item.name }}">
                     <span class="badge badge-green" style="position: absolute; top: 12px; left: 12px;">
                         {{ wish.food_item.category.name }}
                     </span>
-                    <a href="{% url 'wishlist_toggle' wish.food_item.id %}" style="position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.95); padding: 0.35rem 0.75rem; border-radius: 50px; text-decoration: none; font-size: 0.8rem; font-weight: 500; color: #ef4444; box-shadow: var(--shadow-sm);" title="Remove from favorites">
+                    <a href="{% url 'wishlist_toggle' wish.food_item.id %}?action=remove" class="wishlist-remove-btn" data-food-id="{{ wish.food_item.id }}" data-action="remove" style="position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,0.95); padding: 0.35rem 0.75rem; border-radius: 50px; text-decoration: none; font-size: 0.8rem; font-weight: 500; color: #ef4444; box-shadow: var(--shadow-sm); cursor: pointer;" title="Remove from favorites">
                         ❌ Remove
                     </a>
                 </div>
@@ -68,18 +68,19 @@
                     </div>
                 </div>
             </div>
-        {% empty %}
-            <div style="grid-column: 1 / -1; padding: 4.5rem 2rem; text-align: center; background: #FFFFFF; border-radius: var(--radius-lg); border: 1.5px solid var(--border-warm); box-shadow: var(--shadow-sm);">
-                <span style="font-size: 3.5rem; display: block; margin-bottom: 0.75rem;">❤️</span>
-                <h3 style="color: var(--primary-brown); font-weight: 600; margin-bottom: 0.5rem;">Your Wishlist is Empty</h3>
-                <p style="font-size: 1rem; color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 400;">
-                    Browse our kitchen menu and tap the ❤️ icon on any dish to save it here for quick ordering!
-                </p>
-                <a href="{% url 'food_catalog' %}" class="btn" style="padding: 0.75rem 1.8rem;">
-                    Explore Today's Menu
-                </a>
-            </div>
         {% endfor %}
+
+        <!-- Empty Wishlist State -->
+        <div id="wishlist-empty-state" style="{% if wishes %}display: none; {% endif %}grid-column: 1 / -1; padding: 4.5rem 2rem; text-align: center; background: #FFFFFF; border-radius: var(--radius-lg); border: 1.5px solid var(--border-warm); box-shadow: var(--shadow-sm);">
+            <span style="font-size: 3.5rem; display: block; margin-bottom: 0.75rem;">❤️</span>
+            <h3 style="color: var(--primary-brown); font-weight: 600; margin-bottom: 0.5rem;">Your Wishlist is Empty</h3>
+            <p style="font-size: 1rem; color: var(--text-muted); margin-bottom: 1.5rem; font-weight: 400;">
+                Browse our kitchen menu and tap the ❤️ icon on any dish to save it here for quick ordering!
+            </p>
+            <a href="{% url 'food_catalog' %}" class="btn" style="padding: 0.75rem 1.8rem;">
+                Explore Today's Menu
+            </a>
+        </div>
     </div>
 </div>
 {% endblock %}

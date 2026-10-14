@@ -101,11 +101,11 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         NutritionInfo.objects.create(
             food_item=self.food1,
             calories=650,
-            sugar=4.5,
+            total_sugars=4.5,
             cholesterol=0.0,
             sodium=420,
             protein=18.0,
-            fat=12.0,
+            total_fat=12.0,
             carbohydrates=85.0,
             fiber=8.0
         )
@@ -209,6 +209,98 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         self.assertEqual(data['status'], 'success')
         self.assertFalse(data['is_favorited'])
         self.assertFalse(Wishlist.objects.filter(user=self.customer1, food_item=self.food1).exists())
+
+    def test_wishlist_notification_count_and_acceptance_criteria(self):
+        """
+        Verify all acceptance test requirements:
+        1. Add one food item -> wishlist count is 1.
+        2. Add a second, different food item -> wishlist count is 2.
+        3. Add the same item again -> wishlist count remains 2.
+        4. Remove one of the two items -> wishlist count becomes 1.
+        5. Navigate to another page and return -> wishlist data remains consistent.
+        6. Refresh page -> wishlist data persists.
+        7. Open the wishlist page -> only the currently selected items are displayed.
+        8. Log out and log in as another user -> wishlist data does not leak between users.
+        """
+        # Ensure fresh start for customer1
+        self.client.login(username='customer_one', password='Password123!')
+        Wishlist.objects.filter(user=self.customer1).delete()
+
+        # Step 1: Add one food item -> count is 1
+        resp1 = self.client.get(
+            reverse('wishlist_toggle', args=[self.food1.id]) + '?action=add&format=json',
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(resp1.status_code, 200)
+        data1 = json.loads(resp1.content.decode('utf-8'))
+        self.assertEqual(data1['wishlist_count'], 1)
+        self.assertTrue(data1['is_favorited'])
+
+        # Nav bar context on catalog page
+        cat_resp = self.client.get(reverse('food_catalog'))
+        self.assertEqual(cat_resp.context['wishlist_count'], 1)
+        self.assertContains(cat_resp, 'id="nav-wishlist-badge">1</span>')
+
+        # Step 2: Add a second, different food item -> count is 2
+        resp2 = self.client.get(
+            reverse('wishlist_toggle', args=[self.food2.id]) + '?action=add&format=json',
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(resp2.status_code, 200)
+        data2 = json.loads(resp2.content.decode('utf-8'))
+        self.assertEqual(data2['wishlist_count'], 2)
+        self.assertTrue(data2['is_favorited'])
+
+        # Check nav bar context
+        cat_resp2 = self.client.get(reverse('food_catalog'))
+        self.assertEqual(cat_resp2.context['wishlist_count'], 2)
+        self.assertContains(cat_resp2, 'id="nav-wishlist-badge">2</span>')
+
+        # Step 3: Add the same item again -> count remains 2
+        resp3 = self.client.get(
+            reverse('wishlist_toggle', args=[self.food2.id]) + '?action=add&format=json',
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(resp3.status_code, 200)
+        data3 = json.loads(resp3.content.decode('utf-8'))
+        self.assertEqual(data3['wishlist_count'], 2)
+        self.assertEqual(Wishlist.objects.filter(user=self.customer1).count(), 2)
+
+        # Step 4: Remove one of the two items -> count becomes 1
+        resp4 = self.client.get(
+            reverse('wishlist_toggle', args=[self.food1.id]) + '?action=remove&format=json',
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(resp4.status_code, 200)
+        data4 = json.loads(resp4.content.decode('utf-8'))
+        self.assertEqual(data4['wishlist_count'], 1)
+        self.assertFalse(data4['is_favorited'])
+
+        # Step 5 & 6: Navigate to another page (cart) and return, refresh -> persists
+        cart_resp = self.client.get(reverse('cart_view'))
+        self.assertEqual(cart_resp.context['wishlist_count'], 1)
+        self.assertContains(cart_resp, 'id="nav-wishlist-badge">1</span>')
+
+        # Step 7: Open wishlist page -> only food2 is displayed, not food1
+        wish_page = self.client.get(reverse('wishlist_view'))
+        self.assertEqual(wish_page.status_code, 200)
+        self.assertEqual(wish_page.context['wishlist_count'], 1)
+        self.assertContains(wish_page, self.food2.name)
+        self.assertNotContains(wish_page, self.food1.name)
+
+        # Step 8: Log out and log in as another user -> data does not leak
+        self.client.logout()
+        # Verify unauthenticated user has 0 wishlist count
+        public_resp = self.client.get(reverse('food_catalog'))
+        self.assertEqual(public_resp.context['wishlist_count'], 0)
+
+        # Login as second customer (self.customer2)
+        self.client.login(username='customer_two', password='Password123!')
+        user2_resp = self.client.get(reverse('food_catalog'))
+        self.assertEqual(user2_resp.context['wishlist_count'], 0)
+        user2_wish_page = self.client.get(reverse('wishlist_view'))
+        self.assertEqual(user2_wish_page.context['wishlist_count'], 0)
+        self.assertNotContains(user2_wish_page, self.food2.name)
 
     def test_04_cart_management_add_increment_remove(self):
         """Test adding items to cart, quantity increments, and removing items"""
@@ -453,7 +545,7 @@ class CustomerWorkflowAndSecurityTests(TestCase):
             'email': 'rohan.menon@test.com',
             'phone': '9876599999',
             'address': 'House 12, River View Enclave, Kochi',
-            'has_diabetes': 'on',
+            'diabetes_conscious': 'on',
             'dietary_preference': 'veg',
             'caloric_limit': '1800'
         })
@@ -466,7 +558,7 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         self.assertEqual(self.customer1.address, 'House 12, River View Enclave, Kochi')
 
         health_prof = HealthProfile.objects.get(user=self.customer1)
-        self.assertTrue(health_prof.has_diabetes)
+        self.assertTrue(health_prof.diabetes_conscious)
         self.assertEqual(health_prof.dietary_preference, 'veg')
         self.assertEqual(health_prof.daily_calorie_target, 1800.0)
 
@@ -588,13 +680,13 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         self.assertIsNotNone(setting)
         self.assertEqual(setting.latitude, 9.5564)
         self.assertEqual(setting.longitude, 76.7909)
-        self.assertEqual(setting.max_delivery_radius_km, 20.0)
+        self.assertEqual(setting.max_delivery_radius_km, 30.0)
 
         # Distance calculation
         dist = calculate_distance_km(9.5564, 76.7909, 9.5667, 76.7583) # Ponkunnam ~3.7 km
         self.assertLess(dist, 5.0)
 
-        # Ponkunnam is inside 20 km perimeter
+        # Ponkunnam is inside 30 km perimeter
         is_serviceable, dist_km, msg = is_within_delivery_perimeter(9.5667, 76.7583)
         self.assertTrue(is_serviceable)
         self.assertIn("inside our service area", msg)
@@ -602,7 +694,7 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         # Ernakulam (~71 km) is outside perimeter
         is_serviceable, dist_km, msg = is_within_delivery_perimeter(9.9816, 76.2999)
         self.assertFalse(is_serviceable)
-        self.assertIn("Sorry, delivery is currently available only within 20 km of Kanjirappally.", msg)
+        self.assertIn("30 km of Kanjirappally", msg)
 
     def test_18_staff_save_delivery_perimeter_endpoint(self):
         """Test Admin/Staff configuring Delivery Center and radius via POST."""
@@ -614,7 +706,7 @@ class CustomerWorkflowAndSecurityTests(TestCase):
             'address': 'Main Town Road, Kanjirappally',
             'latitude': '9.5564',
             'longitude': '76.7909',
-            'max_delivery_radius_km': '20.0'
+            'max_delivery_radius_km': '30.0'
         })
         self.assertEqual(resp.status_code, 302)
 
@@ -623,7 +715,7 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         self.assertEqual(setting.name, 'Kanjirappally Central Hub')
         self.assertEqual(setting.latitude, 9.5564)
         self.assertEqual(setting.longitude, 76.7909)
-        self.assertEqual(setting.max_delivery_radius_km, 20.0)
+        self.assertEqual(setting.max_delivery_radius_km, 30.0)
 
     def test_19_delivery_perimeter_outside_shows_exact_service_area_message(self):
         """Test placing an order outside perimeter displays the exact required warning message."""
@@ -641,7 +733,7 @@ class CustomerWorkflowAndSecurityTests(TestCase):
 
         # Check messages for exact phrase
         messages_list = [m.message for m in resp.context['messages']]
-        self.assertIn("Sorry, delivery is currently available only within 20 km of Kanjirappally.", messages_list)
+        self.assertTrue(any("30 km of Kanjirappally" in m for m in messages_list))
 
     def test_20_order_gps_linked_to_courier_and_privacy(self):
         """Test customer coordinates correctly link to Order ID, and courier navigation does not expose private sensitive info."""

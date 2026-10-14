@@ -175,3 +175,186 @@ class CourierWorkflowTests(TestCase):
 
         completed_view = self.client.get(reverse('delivery_boy_dashboard') + '?tab=completed')
         self.assertContains(completed_view, f'data-order-id="{order.order_id}"')
+
+
+class KeralaDistrictsAndBranchesTests(TestCase):
+    """
+    Validates complete Kerala 14-district setup:
+    - All 14 districts registered and deduplicated
+    - Central kitchen hub preserved
+    - Multi-branch support across districts with verified coordinates
+    - Strict 25 km delivery limit enforcement
+    - Server-side rejection with exact prompt message
+    - Staff dashboard hotel branch management
+    """
+    def setUp(self):
+        from delivery.models import District, HotelBranch
+        from django.core.management import call_command
+        call_command('seed_kerala_districts')
+
+        self.user = User.objects.create_user(
+            username='kerala_customer',
+            email='kerala_cust@test.com',
+            password='password123',
+            role='customer'
+        )
+        self.staff_user = User.objects.create_user(
+            username='kerala_staff',
+            email='kerala_staff@test.com',
+            password='password123',
+            role='staff'
+        )
+        self.category = Category.objects.create(name='Traditional Kerala')
+        self.session = MealSession.objects.create(
+            name='Lunch Feast',
+            start_time='11:30:00',
+            end_time='15:30:00'
+        )
+        self.food = FoodItem.objects.create(
+            name='Kerala Sadya Feast',
+            price=180.0,
+            stock_quantity=20,
+            category=self.category,
+            meal_session=self.session,
+            is_available=True
+        )
+
+    def test_01_all_14_kerala_districts_registered(self):
+        from delivery.models import District
+        expected_districts = [
+            'Thiruvananthapuram',
+            'Kollam',
+            'Pathanamthitta',
+            'Alappuzha',
+            'Kottayam',
+            'Idukki',
+            'Ernakulam',
+            'Thrissur',
+            'Palakkad',
+            'Malappuram',
+            'Kozhikode',
+            'Wayanad',
+            'Kannur',
+            'Kasaragod',
+        ]
+        self.assertEqual(District.objects.count(), 14)
+        for name in expected_districts:
+            d = District.objects.filter(name=name).first()
+            self.assertIsNotNone(d, f"Missing district {name}")
+            self.assertEqual(d.name, name)
+            self.assertTrue(d.is_active)
+            self.assertTrue(8.0 <= d.latitude <= 13.0, f"Latitude {d.latitude} out of Kerala bounds")
+            self.assertTrue(74.0 <= d.longitude <= 78.0, f"Longitude {d.longitude} out of Kerala bounds")
+
+    def test_02_central_hub_preserved_in_kottayam(self):
+        from delivery.models import HotelBranch
+        hub = HotelBranch.objects.filter(is_central_hub=True).first()
+        self.assertIsNotNone(hub)
+        self.assertEqual(hub.district.name, 'Kottayam')
+        self.assertEqual(hub.latitude, 9.5564)
+        self.assertEqual(hub.longitude, 76.7909)
+        self.assertTrue(hub.is_active)
+        self.assertLessEqual(hub.effective_radius_km, 25.0)
+
+    def test_03_strict_25km_radius_enforcement(self):
+        from delivery.models import District, HotelBranch
+        from orders.utils import is_within_delivery_perimeter
+
+        ekm_district = District.objects.get(name='Ernakulam')
+        # Ernakulam branch at MG Road Kochi (9.9816, 76.2999)
+        ekm_branch, _ = HotelBranch.objects.get_or_create(
+            name='Veetile Ruchi - Ernakulam Hub',
+            district=ekm_district,
+            defaults={
+                'address': 'MG Road, Kochi, Ernakulam, Kerala',
+                'latitude': 9.9816,
+                'longitude': 76.2999,
+                'max_delivery_radius_km': 25.0,
+                'is_active': True
+            }
+        )
+        # Test location inside 25 km (Kakkanad ~10 km away)
+        is_serv, dist, msg = is_within_delivery_perimeter(10.0159, 76.3419, branch_id=ekm_branch.id)
+        self.assertTrue(is_serv)
+        self.assertLess(dist, 25.0)
+
+        # Test location outside 25 km (Cherthala ~33 km away)
+        is_serv, dist, msg = is_within_delivery_perimeter(9.6844, 76.3325, branch_id=ekm_branch.id)
+        self.assertFalse(is_serv)
+        self.assertGreater(dist, 25.0)
+        self.assertIn("Sorry, this hotel cannot deliver to your selected location. Please choose a nearer address or another available hotel.", msg)
+
+    def test_04_checkout_order_rejection_outside_25km(self):
+        from orders.models import CartItem, Order
+        from delivery.models import HotelBranch
+        self.client.login(username='kerala_customer', password='password123')
+        CartItem.objects.create(user=self.user, food_item=self.food, quantity=2)
+
+        # Kottayam hub branch
+        hub = HotelBranch.objects.filter(is_central_hub=True).first()
+
+        # Destination in Kozhikode (~220 km away from Kottayam)
+        resp = self.client.post(reverse('place_order'), {
+            'branch_id': hub.id,
+            'latitude': 11.2588,
+            'longitude': 75.7804,
+            'delivery_address': 'Beach Road, Kozhikode',
+            'payment_method': 'cod'
+        }, follow=True)
+
+        self.assertEqual(resp.status_code, 200)
+        messages_text = [m.message for m in resp.context['messages']]
+        self.assertTrue(any("Sorry, this hotel cannot deliver to your selected location. Please choose a nearer address or another available hotel." in m for m in messages_text))
+
+        # Order must NOT be created
+        self.assertEqual(Order.objects.filter(user=self.user).count(), 0)
+        # Cart must remain INTACT
+        self.assertEqual(CartItem.objects.filter(user=self.user).count(), 1)
+
+    def test_05_checkout_order_accepted_within_radius(self):
+        from orders.models import CartItem, Order
+        from delivery.models import HotelBranch
+        self.client.login(username='kerala_customer', password='password123')
+        CartItem.objects.create(user=self.user, food_item=self.food, quantity=1)
+
+        hub = HotelBranch.objects.filter(is_central_hub=True).first()
+
+        # Destination in Ponkunnam (~3.7 km from Kanjirappally)
+        resp = self.client.post(reverse('place_order'), {
+            'branch_id': hub.id,
+            'latitude': 9.5667,
+            'longitude': 76.7583,
+            'delivery_address': 'Ponkunnam Town, Kottayam',
+            'payment_method': 'cod'
+        })
+        self.assertEqual(resp.status_code, 302)
+        order = Order.objects.filter(user=self.user).first()
+        self.assertIsNotNone(order)
+        self.assertEqual(order.branch, hub)
+        self.assertEqual(order.status, 'pending')
+
+    def test_06_staff_branch_creation_and_coordinate_validation(self):
+        from delivery.models import District, HotelBranch
+        self.client.login(username='kerala_staff', password='password123')
+        tcr_district = District.objects.get(name='Thrissur')
+
+        # Create Thrissur branch with verified coordinates
+        resp = self.client.post(reverse('staff_save_hotel_branch'), {
+            'name': 'Veetile Ruchi - Thrissur Round Hub',
+            'district_id': tcr_district.id,
+            'address': 'Swaraj Round, Thrissur, Kerala',
+            'phone': '+91 94470 55555',
+            'latitude': 10.5276,
+            'longitude': 76.2144,
+            'max_delivery_radius_km': 25.0,
+            'operating_status': 'open',
+            'opening_time': '07:00',
+            'closing_time': '22:00',
+            'is_active': 'on'
+        })
+        self.assertEqual(resp.status_code, 302)
+        tcr_branch = HotelBranch.objects.filter(district=tcr_district, name='Veetile Ruchi - Thrissur Round Hub').first()
+        self.assertIsNotNone(tcr_branch)
+        self.assertEqual(tcr_branch.latitude, 10.5276)
+        self.assertEqual(tcr_branch.effective_radius_km, 25.0)
+

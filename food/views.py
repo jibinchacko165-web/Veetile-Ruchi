@@ -10,7 +10,7 @@ from .models import FoodItem, Category, MealSession, NutritionInfo, ReviewSentim
 from accounts.models import User, ChefProfile, DeliveryBoyProfile
 from accounts.decorators import role_required
 from orders.models import Wishlist, Order, OrderItem, Coupon, Payment
-from delivery.models import DeliveryAssignment, GPSLocationTracking
+from delivery.models import DeliveryAssignment, GPSLocationTracking, District, HotelBranch
 from health.models import HealthProfile, HealthRecommendation
 from ai_models.models import FoodDemandForecast, FoodWastePrediction, StockPrediction, CustomerBehavior
 from ai_models.ml_engine import (
@@ -23,7 +23,7 @@ from ai_models.ml_engine import (
 )
 
 def food_catalog(request):
-    """Customer dashboard and central food browsing portal with automatic time-based session filtering."""
+    """Customer dashboard and central food browsing portal with automatic time-based session and district filtering."""
     if request.user.is_authenticated and request.user.role == 'delivery_boy':
         messages.info(request, "Redirected to your Delivery Portal.")
         return redirect('delivery_boy_dashboard')
@@ -31,6 +31,8 @@ def food_catalog(request):
     query = request.GET.get('q', '')
     cat_filter = request.GET.get('category', '')
     raw_session = request.GET.get('session', None)
+    district_code = request.GET.get('district', '').strip()
+    branch_id = request.GET.get('branch_id', '').strip()
     
     current_time = timezone.localtime().time()
     sessions = list(MealSession.objects.all().order_by('start_time'))
@@ -50,7 +52,36 @@ def food_catalog(request):
     else:
         session_filter = raw_session
 
-    foods = FoodItem.objects.filter(is_available=True)
+    districts = District.objects.filter(is_active=True).order_by('name')
+    selected_district = None
+    selected_branch = None
+    no_branch_message = None
+
+    if district_code and district_code != 'All':
+        selected_district = districts.filter(Q(code=district_code) | Q(name__iexact=district_code)).first()
+        if selected_district:
+            district_branches = HotelBranch.objects.filter(district=selected_district, is_active=True)
+            if district_branches.exists():
+                if branch_id:
+                    selected_branch = district_branches.filter(id=branch_id).first()
+                if not selected_branch:
+                    selected_branch = district_branches.first()
+                foods = selected_branch.get_menu_items().filter(is_available=True)
+            else:
+                foods = FoodItem.objects.none()
+                no_branch_message = f"No serving hotel/kitchen is currently operating in {selected_district.name}. Delivery is available within 25 km of our active branches."
+        else:
+            foods = FoodItem.objects.filter(is_available=True)
+    elif branch_id:
+        selected_branch = HotelBranch.objects.filter(id=branch_id, is_active=True).first()
+        if selected_branch:
+            selected_district = selected_branch.district
+            foods = selected_branch.get_menu_items().filter(is_available=True)
+        else:
+            foods = FoodItem.objects.filter(is_available=True)
+    else:
+        foods = FoodItem.objects.filter(is_available=True)
+
     if query:
         foods = foods.filter(Q(name__icontains=query) | Q(description__icontains=query))
     if cat_filter:
@@ -113,9 +144,9 @@ def food_catalog(request):
 
         # Allow inline health filter toggling from catalog POST
         if request.method == 'POST' and 'update_health_filters' in request.POST:
-            profile.has_diabetes = (request.POST.get('has_diabetes') == 'on')
-            profile.has_cholesterol = (request.POST.get('has_cholesterol') == 'on')
-            profile.has_bp = (request.POST.get('has_bp') == 'on')
+            profile.diabetes_conscious = (request.POST.get('diabetes_conscious') == 'on')
+            profile.cholesterol_conscious = (request.POST.get('cholesterol_conscious') == 'on')
+            profile.calorie_awareness = (request.POST.get('calorie_awareness') == 'on')
             profile.save()
             messages.success(request, "AI Health Condition filters updated!")
             return redirect('food_catalog')
@@ -128,7 +159,7 @@ def food_catalog(request):
         ai_recs = recommend_foods_content_based(all_avail, user_wishes, limit=4)
         
         # 2. AI Health Profile & Meal-Time Aware Recommendations
-        health_risk = classify_health_profile_risk(profile.has_diabetes, profile.has_cholesterol, profile.has_bp)
+        health_risk = classify_health_profile_risk(profile.diabetes_conscious, profile.cholesterol_conscious, profile.calorie_awareness)
         
         # Target active meal session name (Prioritizes session filter or current active application time)
         if session_filter and session_filter != 'All':
@@ -158,6 +189,12 @@ def food_catalog(request):
                 'reason': health_combined_reason
             })
         
+    branches = HotelBranch.objects.filter(is_active=True).select_related('district')
+    if selected_district:
+        district_branches = branches.filter(district=selected_district)
+    else:
+        district_branches = branches
+
     context = {
         'foods': foods,
         'categories': categories,
@@ -176,6 +213,13 @@ def food_catalog(request):
         'health_combined_reason': health_combined_reason,
         'target_rec_session': target_rec_session,
         'rec_food_ids': rec_food_ids,
+        'districts': districts,
+        'selected_district': selected_district,
+        'selected_branch': selected_branch,
+        'branches': branches,
+        'district_branches': district_branches,
+        'no_branch_message': no_branch_message,
+        'district_code': district_code,
     }
     return render(request, 'food/catalog.html', context)
 
@@ -196,7 +240,7 @@ def food_detail(request, pk):
     suitability = {}
     if hasattr(food, 'nutrition'):
         suitability = predict_health_suitability(
-            food.nutrition.sugar, 
+            food.nutrition.total_sugars, 
             food.nutrition.cholesterol, 
             food.nutrition.sodium
         )
@@ -224,30 +268,47 @@ def food_detail(request, pk):
         messages.success(request, f"Review submitted. AI classified sentiment: {sentiment.upper()} (Confidence: {int(conf*100)}%)")
         return redirect('food_detail', pk=pk)
         
+    is_in_wishlist = False
+    if request.user.is_authenticated:
+        is_in_wishlist = Wishlist.objects.filter(user=request.user, food_item=food).exists()
+
     context = {
         'food': food,
         'reviews': reviews,
         'avg_rating': avg_rating,
         'suitability': suitability,
+        'is_in_wishlist': is_in_wishlist,
     }
     return render(request, 'food/detail.html', context)
 
 @login_required
 def wishlist_toggle(request, pk):
     food = get_object_or_404(FoodItem, pk=pk)
-    wish, created = Wishlist.objects.get_or_create(user=request.user, food_item=food)
-    if not created:
-        wish.delete()
-        is_favorited = False
-        msg = f"Removed '{food.name}' from your wishlist."
-        messages.info(request, msg)
-    else:
+    action = request.GET.get('action') or request.POST.get('action')
+
+    if action == 'add':
+        wish, created = Wishlist.objects.get_or_create(user=request.user, food_item=food)
         is_favorited = True
         msg = f"Added '{food.name}' to your wishlist."
-        messages.success(request, msg)
+    elif action == 'remove':
+        Wishlist.objects.filter(user=request.user, food_item=food).delete()
+        is_favorited = False
+        msg = f"Removed '{food.name}' from your wishlist."
+    else:
+        wish, created = Wishlist.objects.get_or_create(user=request.user, food_item=food)
+        if not created:
+            wish.delete()
+            is_favorited = False
+            msg = f"Removed '{food.name}' from your wishlist."
+            messages.info(request, msg)
+        else:
+            is_favorited = True
+            msg = f"Added '{food.name}' to your wishlist."
+            messages.success(request, msg)
 
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
-        wishlist_count = Wishlist.objects.filter(user=request.user).count()
+    wishlist_count = Wishlist.objects.filter(user=request.user).values('food_item_id').distinct().count()
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json' or request.POST.get('format') == 'json' or 'application/json' in request.headers.get('accept', ''):
         return JsonResponse({
             'status': 'success',
             'is_favorited': is_favorited,
@@ -456,9 +517,9 @@ def chef_food_manage(request, pk=None):
         except (ValueError, TypeError):
             nutrition.calories = 0.0
         try:
-            nutrition.sugar = float(request.POST.get('sugar', '') or 0.0)
+            nutrition.total_sugars = float(request.POST.get('total_sugars', '') or 0.0)
         except (ValueError, TypeError):
-            nutrition.sugar = 0.0
+            nutrition.total_sugars = 0.0
         try:
             nutrition.cholesterol = float(request.POST.get('cholesterol', '') or 0.0)
         except (ValueError, TypeError):
@@ -472,9 +533,9 @@ def chef_food_manage(request, pk=None):
         except (ValueError, TypeError):
             nutrition.protein = 0.0
         try:
-            nutrition.fat = float(request.POST.get('fat', '') or 0.0)
+            nutrition.total_fat = float(request.POST.get('total_fat', '') or 0.0)
         except (ValueError, TypeError):
-            nutrition.fat = 0.0
+            nutrition.total_fat = 0.0
         try:
             nutrition.carbohydrates = float(request.POST.get('carbohydrates', '') or 0.0)
         except (ValueError, TypeError):
@@ -531,7 +592,7 @@ def admin_dashboard(request, section='overview'):
     total_staff = User.objects.filter(role='staff').count()
     total_delivery_boys = User.objects.filter(role='delivery_boy').count()
     active_delivery_boys = DeliveryBoyProfile.objects.filter(status='available').count()
-    busy_delivery_boys = DeliveryBoyProfile.objects.filter(status__in=['on_delivery', 'busy']).count()
+    busy_delivery_boys = DeliveryBoyProfile.objects.filter(status='on_delivery').count()
     inactive_delivery_boys = DeliveryBoyProfile.objects.filter(status='offline').count()
     
     # 3. Food & Categories stats
@@ -699,9 +760,9 @@ def admin_dashboard(request, section='overview'):
     for s in sentiments:
         sentiment_data[s['sentiment']] = s['count']
         
-    diab_count = HealthProfile.objects.filter(has_diabetes=True).count()
-    chol_count = HealthProfile.objects.filter(has_cholesterol=True).count()
-    bp_count = HealthProfile.objects.filter(has_bp=True).count()
+    diab_count = HealthProfile.objects.filter(diabetes_conscious=True).count()
+    chol_count = HealthProfile.objects.filter(cholesterol_conscious=True).count()
+    bp_count = HealthProfile.objects.filter(calorie_awareness=True).count()
     
     recent_orders = Order.objects.all().order_by('-created_at')[:10]
     

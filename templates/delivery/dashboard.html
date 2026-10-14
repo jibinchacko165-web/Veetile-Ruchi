@@ -490,15 +490,40 @@
 <script>
 let courierLiveLat = null;
 let courierLiveLon = null;
+let dashboardGpsWatchId = null;
+let lastDashboardGpsSentTime = 0;
+let lastDashboardGpsSentLat = null;
+let lastDashboardGpsSentLon = null;
+
+function calculateDashboardDistanceMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
 
 // Automatically detect Courier device GPS coordinates on login/portal load
 function autoSyncCourierGpsLocation() {
     if (!navigator.geolocation) return;
+    if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') return;
 
-    navigator.geolocation.watchPosition(
+    if (dashboardGpsWatchId !== null) {
+        navigator.geolocation.clearWatch(dashboardGpsWatchId);
+    }
+
+    dashboardGpsWatchId = navigator.geolocation.watchPosition(
         function(position) {
-            courierLiveLat = position.coords.latitude;
-            courierLiveLon = position.coords.longitude;
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            if (!isFinite(lat) || !isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                return;
+            }
+
+            courierLiveLat = lat;
+            courierLiveLon = lon;
 
             // 1. Update all Google Maps navigation buttons starting point (Your location -> Destination)
             document.querySelectorAll('.google-maps-nav-btn').forEach(btn => {
@@ -509,7 +534,20 @@ function autoSyncCourierGpsLocation() {
                 }
             });
 
-            // 2. Transmit live coordinates to backend database
+            // 2. Transmit live coordinates to backend with throttling (min 5s or > 10m movement)
+            const now = Date.now();
+            if (lastDashboardGpsSentLat !== null && lastDashboardGpsSentLon !== null) {
+                const elapsed = now - lastDashboardGpsSentTime;
+                const distMoved = calculateDashboardDistanceMeters(lastDashboardGpsSentLat, lastDashboardGpsSentLon, lat, lon);
+                if (elapsed < 5000 && distMoved < 10) {
+                    return; // Throttle redundant writes
+                }
+            }
+
+            lastDashboardGpsSentTime = now;
+            lastDashboardGpsSentLat = lat;
+            lastDashboardGpsSentLon = lon;
+
             fetch("{% url 'update_profile_gps' %}", {
                 method: "POST",
                 headers: {
@@ -522,9 +560,16 @@ function autoSyncCourierGpsLocation() {
         function(error) {
             console.warn("Courier GPS auto-detect warning:", error.message);
         },
-        { enableHighAccuracy: false, timeout: 4000, maximumAge: 10000 }
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 4000 }
     );
 }
+
+window.addEventListener('beforeunload', function() {
+    if (dashboardGpsWatchId !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(dashboardGpsWatchId);
+        dashboardGpsWatchId = null;
+    }
+});
 
 document.addEventListener('DOMContentLoaded', function() {
     autoSyncCourierGpsLocation();

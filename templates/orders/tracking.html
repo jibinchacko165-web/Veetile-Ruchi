@@ -5,96 +5,370 @@
 {% block extra_head %}
 <style>
     /* Professional map cleanup: remove watermarks and overlays */
-    .dismissButton, .gm-style-cc, .gmnoprint, .gm-err-container, .gm-err-content, .gm-err-title, .gm-err-message { 
+    .dismissButton, .gm-style-cc, .gmnoprint { 
         display: none !important; 
         pointer-events: none !important; 
     }
+    @keyframes pulse {
+        0% { transform: scale(0.95); opacity: 0.8; }
+        50% { transform: scale(1.3); opacity: 0.2; }
+        100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .gps-spinner {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border: 2px solid rgba(0,0,0,0.2);
+        border-top-color: currentColor;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        vertical-align: middle;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    .gps-alert-box.loading { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+    .gps-alert-box.success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+    .gps-alert-box.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .gps-alert-box.warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
 </style>
 
 <script>
-    let map, courierMarker, customerMarker, kitchenMarker;
+    let leafletMap, leafletCourierMarker, leafletCustomerMarker, leafletCustomerDeviceMarker, leafletKitchenMarker, kitchenCircle, routePolyline;
     let orderStatus = "{{ order.status }}";
     const orderId = "{{ order.order_id }}";
+    let pollInterval = null;
+    let isUserDraggingMap = false;
+    let userInteractedTimeout = null;
 
-    document.addEventListener("DOMContentLoaded", function() {
-        const custLat = parseFloat("{{ order.latitude|default:9.5564 }}");
-        const custLng = parseFloat("{{ order.longitude|default:76.7909 }}");
-        const kitchenLat = 9.5564; // Kanjirappally Central Kitchen Hub
-        const kitchenLng = 76.7909;
+    const KITCHEN_HUB_LAT = parseFloat("{{ chef_lat|default:'9.5564' }}") || 9.5564;
+    const KITCHEN_HUB_LON = parseFloat("{{ chef_lon|default:'76.7909' }}") || 76.7909;
+    const MAX_SERVICE_RADIUS_METERS = 30000;
 
-        map = L.map('live-delivery-map').setView([custLat, custLng], 13);
-        L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+    const custLat = parseFloat("{{ cust_lat|default:'9.5564' }}") || 9.5564;
+    const custLng = parseFloat("{{ cust_lon|default:'76.7909' }}") || 76.7909;
+
+    const initialRouteSteps = [
+        {% for step in route_steps %}
+            [{{ step.lat }}, {{ step.lng }}]{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    function initLeafletMap() {
+        const mapContainer = document.getElementById('live-delivery-map');
+        if (!mapContainer || typeof L === 'undefined') return;
+        if (leafletMap) {
+            leafletMap.invalidateSize();
+            return;
+        }
+
+        const centerLat = (custLat + KITCHEN_HUB_LAT) / 2;
+        const centerLng = (custLng + KITCHEN_HUB_LON) / 2;
+
+        leafletMap = L.map(mapContainer, {
+            center: [centerLat, centerLng],
+            zoom: 12,
+            zoomControl: true,
+            scrollWheelZoom: true,
+            dragging: true,
+            tap: false,
+            touchZoom: true,
+            bounceAtZoomLimits: false
+        });
+
+        // User map drag tracking: prevent automatic viewport jumping while user is interacting
+        leafletMap.on('dragstart movestart', function() {
+            isUserDraggingMap = true;
+            if (userInteractedTimeout) clearTimeout(userInteractedTimeout);
+        });
+
+        leafletMap.on('dragend moveend', function() {
+            if (userInteractedTimeout) clearTimeout(userInteractedTimeout);
+            userInteractedTimeout = setTimeout(() => {
+                isUserDraggingMap = false;
+            }, 8000);
+        });
+
+        window.recenterDeliveryMap = function() {
+            if (!leafletMap) return;
+            const points = [
+                [KITCHEN_HUB_LAT, KITCHEN_HUB_LON],
+                [custLat, custLng]
+            ];
+            if (leafletCourierMarker) {
+                const cPos = leafletCourierMarker.getLatLng();
+                points.push([cPos.lat, cPos.lng]);
+            }
+            if (leafletCustomerDeviceMarker) {
+                const dPos = leafletCustomerDeviceMarker.getLatLng();
+                points.push([dPos.lat, dPos.lng]);
+            }
+            leafletMap.fitBounds(L.latLngBounds(points), { padding: [50, 50], maxZoom: 15 });
+        };
+
+        const primaryTileUrl = "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+        const primaryTileAttr = '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom"|safe }}';
+        const primaryTileSubdomains = "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
+        const fallbackTileUrl = "{{ MAP_TILE_FALLBACK_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+
+        const tileLayer = L.tileLayer(primaryTileUrl, {
+            subdomains: primaryTileSubdomains,
             maxZoom: 19,
-            attribution: '&copy; Google Maps'
-        }).addTo(map);
+            attribution: primaryTileAttr
+        });
+        tileLayer.addTo(leafletMap);
 
-        // Custom Icons
-        const kitchenIcon = L.divIcon({
-            html: '<div style="background-color: #1B4D3E; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">🏠</div>',
-            className: 'custom-map-icon',
-            iconSize: [34, 34],
-            iconAnchor: [17, 17]
+        let tileErrCount = 0;
+        tileLayer.on('tileerror', function() {
+            tileErrCount++;
+            if (tileErrCount > 4 && !tileLayer._fallbackApplied) {
+                tileLayer._fallbackApplied = true;
+                tileLayer.setUrl(fallbackTileUrl);
+            }
         });
 
+        // 1. Kitchen Hub Marker (🏠)
+        const hubIcon = L.divIcon({
+            className: 'custom-hub-icon',
+            html: `<div style="background:#1B4D3E; width:32px; height:32px; border-radius:50%; border:2.5px solid white; box-shadow:0 2px 6px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; font-size:15px; cursor:pointer;">🏠</div>`,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16]
+        });
+        leafletKitchenMarker = L.marker([KITCHEN_HUB_LAT, KITCHEN_HUB_LON], { 
+            icon: hubIcon,
+            draggable: false,
+            autoPan: false,
+            title: "{{ order.branch.name|default:'Central Kitchen Hub (Kanjirappally)'|escapejs }}" 
+        }).addTo(leafletMap).bindPopup("<strong>🏨 {{ order.branch.name|default:'Central Kitchen Hub'|escapejs }}</strong><br>Fresh authentic meals dispatched here.", { autoPan: false });
+
+        // Delivery Perimeter Circle (30 km) - Non-interactive so map dragging is completely unobstructed
+        kitchenCircle = L.circle([KITCHEN_HUB_LAT, KITCHEN_HUB_LON], {
+            radius: MAX_SERVICE_RADIUS_METERS,
+            color: '#10B981',
+            fillColor: '#10B981',
+            fillOpacity: 0.08,
+            weight: 2,
+            dashArray: '5, 8',
+            interactive: false
+        }).addTo(leafletMap);
+
+        // 2. Customer Destination Marker (📍)
         const custIcon = L.divIcon({
-            html: '<div style="background-color: #D97736; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">📍</div>',
-            className: 'custom-map-icon',
-            iconSize: [34, 34],
-            iconAnchor: [17, 17]
+            className: 'custom-dest-icon',
+            html: `
+                <div style="position: relative; width: 34px; height: 46px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                    <svg width="34" height="46" viewBox="0 0 34 46" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.4));">
+                        <path d="M17 0C7.61 0 0 7.61 0 17C0 28.5 14.5 44.5 16.1 46.2C16.6 46.7 17.4 46.7 17.9 46.2C19.5 44.5 34 28.5 34 17C34 7.61 26.39 0 17 0Z" fill="#1E40AF"/>
+                        <path d="M17 1.8C25.39 1.8 32.2 8.61 32.2 17C32.2 26.8 19.4 41.2 17 43.8C14.6 41.2 1.8 26.8 1.8 17C1.8 8.61 8.61 1.8 17 1.8Z" fill="#2563EB"/>
+                        <circle cx="17" cy="17" r="6" fill="#FFFFFF"/>
+                        <circle cx="17" cy="17" r="3.2" fill="#1D4ED8"/>
+                    </svg>
+                </div>
+            `,
+            iconSize: [34, 46],
+            iconAnchor: [17, 46],
+            popupAnchor: [0, -46]
         });
+        leafletCustomerMarker = L.marker([custLat, custLng], { 
+            icon: custIcon,
+            draggable: false,
+            autoPan: false,
+            title: "Your Delivery Destination"
+        }).addTo(leafletMap).bindPopup("<b>📍 Delivery Destination Address</b><br>{{ order.formatted_delivery_address|escapejs }}", { autoPan: false });
+
+        // 3. Initial Road Route Polyline if road steps available
+        if (initialRouteSteps.length > 1) {
+            routePolyline = L.polyline(initialRouteSteps, {
+                color: '#2563EB',
+                weight: 4.5,
+                opacity: 0.85
+            }).addTo(leafletMap);
+        } else if (orderStatus === 'in_transit' || orderStatus === 'picked_up') {
+            routePolyline = L.polyline([[KITCHEN_HUB_LAT, KITCHEN_HUB_LON], [custLat, custLng]], {
+                color: '#D97736',
+                weight: 4,
+                opacity: 0.8,
+                dashArray: '6, 8'
+            }).addTo(leafletMap);
+        }
+
+        // Fit map bounds to encompass kitchen and customer initially
+        const bounds = L.latLngBounds([
+            [KITCHEN_HUB_LAT, KITCHEN_HUB_LON],
+            [custLat, custLng]
+        ]);
+        leafletMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+
+        setTimeout(() => {
+            leafletMap.invalidateSize();
+        }, 250);
+    }
+
+    // Customer Device GPS Location Detection (Separate from Destination)
+    function locateCustomerDevice() {
+        const statusElem = document.getElementById('customer-gps-status');
+        const retryBtn = document.getElementById('customer-gps-retry-btn');
+        if (retryBtn) retryBtn.style.display = 'none';
+
+        if (!navigator.geolocation) {
+            if (statusElem) {
+                statusElem.style.display = 'inline-flex';
+                statusElem.className = 'gps-alert-box error';
+                statusElem.innerHTML = '❌ Browser Geolocation is not supported by your browser.';
+            }
+            return;
+        }
+
+        const isSecure = window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (!isSecure) {
+            if (statusElem) {
+                statusElem.style.display = 'inline-flex';
+                statusElem.className = 'gps-alert-box warning';
+                statusElem.innerHTML = '⚠️ Browser Geolocation requires a secure HTTPS connection or localhost.';
+            }
+            return;
+        }
+
+        if (statusElem) {
+            statusElem.style.display = 'inline-flex';
+            statusElem.className = 'gps-alert-box loading';
+            statusElem.innerHTML = '<span class="gps-spinner"></span> Acquiring high-accuracy device GPS coordinates...';
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            function(pos) {
+                const devLat = pos.coords.latitude;
+                const devLon = pos.coords.longitude;
+                const acc = pos.coords.accuracy;
+
+                if (typeof devLat !== 'number' || typeof devLon !== 'number' || isNaN(devLat) || isNaN(devLon) || devLat < -90 || devLat > 90 || devLon < -180 || devLon > 180) {
+                    if (statusElem) {
+                        statusElem.className = 'gps-alert-box error';
+                        statusElem.innerHTML = '⚠️ Invalid GPS coordinates received from device.';
+                    }
+                    if (retryBtn) retryBtn.style.display = 'inline-flex';
+                    return;
+                }
+
+                // Distinct Customer Device Marker: Blue pulsating halo
+                const deviceIcon = L.divIcon({
+                    className: 'custom-customer-device-icon',
+                    html: `
+                        <div style="position:relative; width:36px; height:36px; display:flex; align-items:center; justify-content:center;">
+                            <div style="position:absolute; width:100%; height:100%; border-radius:50%; background:rgba(37,99,235,0.3); animation:pulse 2s infinite;"></div>
+                            <div style="background:#2563EB; width:28px; height:28px; border-radius:50%; border:3px solid white; box-shadow:0 2px 8px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; color:white; font-size:13px; font-weight:bold; cursor:pointer;">👤</div>
+                        </div>
+                    `,
+                    iconSize: [36, 36],
+                    iconAnchor: [18, 18]
+                });
+
+                if (!leafletCustomerDeviceMarker && leafletMap) {
+                    leafletCustomerDeviceMarker = L.marker([devLat, devLon], {
+                        icon: deviceIcon,
+                        zIndexOffset: 900,
+                        title: "Your Current Physical Location"
+                    }).addTo(leafletMap);
+                } else if (leafletCustomerDeviceMarker) {
+                    leafletCustomerDeviceMarker.setLatLng([devLat, devLon]);
+                }
+
+                const popupContent = `<strong>👤 Your Current Device Location</strong><br>Lat: ${devLat.toFixed(5)}, Lon: ${devLon.toFixed(5)} (&plusmn;${Math.round(acc)}m)<br><em style="color:#64748b; font-size:0.8rem;">Delivery address remains: {{ order.formatted_delivery_address|escapejs }}</em>`;
+                if (leafletCustomerDeviceMarker) {
+                    leafletCustomerDeviceMarker.bindPopup(popupContent).openPopup();
+                }
+
+                if (statusElem) {
+                    statusElem.className = 'gps-alert-box success';
+                    statusElem.innerHTML = `🟢 Device GPS Located: Lat ${devLat.toFixed(4)}, Lon ${devLon.toFixed(4)} (&plusmn;${Math.round(acc)}m)`;
+                }
+
+                if (typeof window.recenterDeliveryMap === 'function') {
+                    window.recenterDeliveryMap();
+                }
+            },
+            function(err) {
+                let msg = "Failed to detect device location.";
+                switch (err.code) {
+                    case err.PERMISSION_DENIED:
+                        msg = "Location permission denied. Please allow location access in your browser settings.";
+                        break;
+                    case err.POSITION_UNAVAILABLE:
+                        msg = "Device GPS position unavailable. Please ensure location/GPS is enabled.";
+                        break;
+                    case err.TIMEOUT:
+                        msg = "GPS request timed out. Please retry.";
+                        break;
+                    default:
+                        msg = err.message || "GPS error occurred.";
+                }
+                if (statusElem) {
+                    statusElem.className = 'gps-alert-box error';
+                    statusElem.innerHTML = `⚠️ ${msg}`;
+                }
+                if (retryBtn) retryBtn.style.display = 'inline-flex';
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    }
+
+    function updateCourierLocationOnMap(lat, lon, courierName, lastUpdate) {
+        if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) return;
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return;
 
         const courierIcon = L.divIcon({
-            html: '<div style="background-color: #F59E0B; color: #2D1E18; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 2px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.35);">🛵</div>',
-            className: 'custom-map-icon',
-            iconSize: [36, 36],
-            iconAnchor: [18, 18]
+            className: 'custom-courier-icon',
+            html: `<div style="background:#F59E0B; width:34px; height:34px; border-radius:50%; border:3px solid white; box-shadow:0 3px 8px rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; font-size:16px; cursor: pointer;">🛵</div>`,
+            iconSize: [34, 34],
+            iconAnchor: [17, 17]
         });
 
-        kitchenMarker = L.marker([kitchenLat, kitchenLng], {icon: kitchenIcon}).addTo(map)
-            .bindPopup('<strong>Kanjirappally Kitchen Hub</strong><br>Fresh food prepared & dispatched here.');
+        if (!leafletCourierMarker && leafletMap) {
+            leafletCourierMarker = L.marker([lat, lon], {
+                icon: courierIcon,
+                zIndexOffset: 1000,
+                autoPan: false,
+                draggable: false,
+                title: "Delivery Partner"
+            }).addTo(leafletMap);
+        } else if (leafletCourierMarker) {
+            leafletCourierMarker.setLatLng([lat, lon]);
+        }
 
-        customerMarker = L.marker([custLat, custLng], {icon: custIcon}).addTo(map)
-            .bindPopup('<strong>Your Delivery Location</strong>');
+        const popupText = `<strong>🛵 Delivery Partner: ${courierName || 'Assigned Courier'}</strong><br>Last GPS update: ${lastUpdate || 'Live'}`;
+        if (leafletCourierMarker) {
+            leafletCourierMarker.bindPopup(popupText, { autoPan: false });
+        }
 
-        const initCourierLat = parseFloat("{{ assignment.delivery_boy.current_latitude|default:9.5564 }}");
-        const initCourierLng = parseFloat("{{ assignment.delivery_boy.current_longitude|default:76.7909 }}");
+        // If this is first live courier coordinate fix and user isn't dragging, fit bounds once
+        if (!window._courierInitialFitDone && !isUserDraggingMap && typeof window.recenterDeliveryMap === 'function') {
+            window._courierInitialFitDone = true;
+            window.recenterDeliveryMap();
+        }
 
-        courierMarker = L.marker([initCourierLat, initCourierLng], {icon: courierIcon}).addTo(map)
-            .bindPopup('<strong>Delivery Courier Partner</strong><br>Speeding with your hot meals!');
+        // Update external Google Maps navigation link
+        const navBtn = document.getElementById('external-nav-link');
+        if (navBtn) {
+            navBtn.href = `https://www.google.com/maps/dir/?api=1&origin=${lat.toFixed(6)},${lon.toFixed(6)}&destination=${custLat.toFixed(6)},${custLng.toFixed(6)}`;
+        }
 
-        const routeLine = L.polyline([
-            [kitchenLat, kitchenLng],
-            [custLat, custLng]
-        ], {color: '#1B4D3E', weight: 4, opacity: 0.6, dashArray: '5, 10'}).addTo(map);
-
-        const group = new L.featureGroup([kitchenMarker, customerMarker, courierMarker, routeLine]);
-        map.fitBounds(group.getBounds().pad(0.2));
-
-        // Start 3-Second Real-Time Status & Live GPS Polling
-        setInterval(pollLiveOrderStatus, 3000);
-    });
+        const indicator = document.getElementById('map-gps-live-indicator');
+        if (indicator) {
+            indicator.style.background = "#d1fae5";
+            indicator.style.color = "#065f46";
+            indicator.innerHTML = `🟢 Live Courier GPS Active &bull; Last update: ${lastUpdate || 'Just now'}`;
+        }
+    }
 
     function updateTimelineUI(status) {
         orderStatus = status;
-        const stages = ['pending', 'confirmed', 'preparing', 'ready_pickup', 'picked_up', 'in_transit', 'delivered'];
-        const stageIndexMap = {
-            'pending': 0,
-            'confirmed': 1,
-            'preparing': 2,
-            'ready_pickup': 3,
-            'assigned': 3,
-            'picked_up': 4,
-            'in_transit': 5,
-            'delivered': 6
-        };
-
+        const stageIndexMap = { 'pending': 0, 'confirmed': 1, 'preparing': 2, 'ready_pickup': 3, 'assigned': 3, 'picked_up': 4, 'in_transit': 5, 'delivered': 6 };
         const activeIndex = stageIndexMap[status] !== undefined ? stageIndexMap[status] : 0;
         const percent = Math.min(100, Math.round((activeIndex / 6) * 100));
 
         const progressLine = document.getElementById('timeline-progress-line');
-        if (progressLine) {
-            progressLine.style.width = `${percent}%`;
-        }
+        if (progressLine) progressLine.style.width = `${percent}%`;
 
         for (let i = 0; i <= 6; i++) {
             const stepCircle = document.getElementById(`timeline-circle-${i}`);
@@ -116,25 +390,20 @@
     }
 
     function pollLiveOrderStatus() {
+        if (orderStatus === 'delivered' || orderStatus === 'cancelled') {
+            if (pollInterval) clearInterval(pollInterval);
+            return;
+        }
+
         fetch(`/orders/live-status/${orderId}/`)
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {
-                    // 1. Update Timeline & Status Badge
                     updateTimelineUI(data.order_status);
 
                     const badgeElem = document.getElementById('live-order-status-badge');
-                    if (badgeElem) {
-                        badgeElem.innerHTML = data.status_display;
-                    }
+                    if (badgeElem) badgeElem.innerHTML = data.status_display;
 
-                    // 2. Update AI Predicted Time
-                    const etaElem = document.getElementById('ai-predicted-eta');
-                    if (etaElem && data.ai_eta_min) {
-                        etaElem.innerHTML = `🤖 <strong>AI Predicted Delivery:</strong> Approximately ${data.ai_eta_min} minutes`;
-                    }
-
-                    // 3. Update Courier Info Card
                     if (data.has_courier && data.courier_name) {
                         const courierCard = document.getElementById('assigned-courier-card');
                         if (courierCard) {
@@ -144,24 +413,71 @@
                             if (data.courier_phone) {
                                 document.getElementById('courier-phone-link').href = `tel:${data.courier_phone}`;
                             }
-                            document.getElementById('courier-vehicle-display').innerText = data.vehicle_number || 'N/A';
+                            const vElem = document.getElementById('courier-vehicle-display');
+                            if (vElem) vElem.innerText = data.vehicle_number || 'N/A';
                         }
                     }
 
-                    // 4. Update Map Marker Location
-                    if (data.courier_lat && data.courier_lon) {
-                        const lat = parseFloat(data.courier_lat);
-                        const lng = parseFloat(data.courier_lon);
-                        if (courierMarker) {
-                            courierMarker.setLatLng([lat, lng]);
+                    // Update Road Route Polyline dynamically if route steps available
+                    if (data.route_steps && data.route_steps.length > 1 && leafletMap) {
+                        const rPoints = data.route_steps.map(s => [s.lat, s.lng]);
+                        if (!routePolyline) {
+                            routePolyline = L.polyline(rPoints, {
+                                color: '#2563EB',
+                                weight: 4.5,
+                                opacity: 0.85
+                            }).addTo(leafletMap);
+                        } else {
+                            routePolyline.setLatLngs(rPoints);
                         }
+                    }
+
+                    // Genuine GPS coordinate evaluation & staleness detection
+                    const indicator = document.getElementById('map-gps-live-indicator');
+                    if (data.has_courier_gps && typeof data.courier_lat === 'number' && typeof data.courier_lon === 'number') {
+                        updateCourierLocationOnMap(data.courier_lat, data.courier_lon, data.courier_name, data.last_gps_update);
+                    } else if (data.is_gps_stale) {
+                        if (indicator && orderStatus !== 'delivered') {
+                            indicator.style.background = "#fffbeb";
+                            indicator.style.color = "#b45309";
+                            indicator.innerHTML = `🟡 Courier GPS Signal Inactive &bull; Last seen: ${data.last_gps_update || 'Stale'}`;
+                        }
+                    } else {
+                        if (indicator && orderStatus !== 'delivered') {
+                            indicator.style.background = "#fffbeb";
+                            indicator.style.color = "#b45309";
+                            indicator.innerHTML = "⌛ Courier assigned &bull; Waiting for live device GPS broadcast";
+                        }
+                    }
+
+                    const distElem = document.getElementById('ui-road-distance');
+                    if (distElem && data.distance_km) {
+                        const distType = data.is_road_distance ? '(Road)' : '(Estimate)';
+                        distElem.innerText = `${data.distance_km} km ${distType}`;
+                    }
+                    const timeElem = document.getElementById('ui-delivery-time');
+                    if (timeElem && data.ai_eta_min) {
+                        timeElem.innerText = `${data.ai_eta_min} mins`;
+                    }
+                    const lastUpdateElem = document.getElementById('ui-last-updated');
+                    if (lastUpdateElem) {
+                        lastUpdateElem.innerText = `Updated: ${new Date().toLocaleTimeString()}`;
                     }
                 }
             })
-            .catch(err => console.log('Live status poll fallback:', err));
+            .catch(err => console.warn('Live status polling fallback:', err));
     }
 
+    document.addEventListener("DOMContentLoaded", function() {
+        initLeafletMap();
+        pollInterval = setInterval(pollLiveOrderStatus, 5000);
+    });
+
+    window.addEventListener("beforeunload", function() {
+        if (pollInterval) clearInterval(pollInterval);
+    });
 </script>
+
 {% endblock %}
 
 {% block content %}
@@ -170,10 +486,35 @@
         &larr; Back to Order History
     </a>
 
-    <!-- AI Predicted Delivery Time Banner -->
-    <div id="ai-predicted-eta" style="background: linear-gradient(135deg, #1B4D3E 0%, #2D6A4F 100%); color: white; padding: 1rem 1.5rem; border-radius: 12px; font-size: 1.1rem; font-weight: 500; margin-bottom: 1.5rem; box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
-        <span>🤖 <strong>AI Predicted Delivery:</strong> Approximately {{ ai_eta_min|default:"35" }} minutes</span>
-        <span style="font-size: 0.85rem; opacity: 0.9; font-weight: 400;">(Estimated based on preparation, distance & courier availability)</span>
+    <!-- Professional AI Route & Delivery Predictions Card -->
+    <div style="background: #ffffff; padding: 1.5rem; border-radius: 14px; border: 1px solid var(--border-light); box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 1.5rem;">
+        <h4 style="color: var(--primary-brown); font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+            <span>🤖 AI Delivery Predictions</span>
+            <span id="ui-last-updated" style="font-size: 0.85rem; font-weight: 500; color: var(--text-muted);">Updated: Just now</span>
+        </h4>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
+            <!-- Road Distance -->
+            <div style="background: var(--bg-cream); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">Distance</span>
+                <strong id="ui-road-distance" style="font-size: 1.25rem; color: var(--primary-brown);">{{ distance_km }} km {% if is_road_distance %}(Road){% else %}(Estimate){% endif %}</strong>
+            </div>
+            <!-- Travel ETA -->
+            <div style="background: var(--bg-cream); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">Live Travel ETA</span>
+                <strong id="ui-travel-time" style="font-size: 1.25rem; color: var(--primary-orange);">Calculating...</strong>
+            </div>
+            <!-- Delivery ETA -->
+            <div style="background: var(--bg-cream); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">AI Arrival ETA</span>
+                <strong id="ui-delivery-time" style="font-size: 1.25rem; color: var(--primary-green);">{{ ai_eta_min|default:"35" }} mins</strong>
+            </div>
+            <!-- Delivery Status -->
+            <div style="background: var(--bg-cream); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">Status</span>
+                <strong id="ui-delivery-status" style="font-size: 1.1rem; color: var(--primary-brown);">{{ ai_status_pred|default:"Processing" }}</strong>
+            </div>
+        </div>
     </div>
 
     <!-- Order Header Summary -->
@@ -254,24 +595,67 @@
             </div>
         </div>
 
-        <!-- Live GPS Delivery Map -->
-        <div style="margin-bottom: 1.5rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
-                <h3 style="color: var(--primary-brown); font-weight: 600; font-size: 1.2rem; margin: 0;">
-                    🗺️ Live GPS Location & Delivery Route Maps
-                </h3>
-                <span id="gps-live-badge" style="font-size: 0.85rem; font-weight: 500; color: var(--primary-green);">
-                    🟢 Real-time Synchronized Data
-                </span>
-            </div>
-            
-            <div style="width: 100%;">
-                <!-- Leaflet Map Container -->
+        <!-- LIVE INTERACTIVE LEAFLET TRACKING MAP CARD -->
+        <div class="card mb-4" style="background: #FFFFFF; border: 1.5px solid var(--border-warm); border-radius: 14px; padding: 1.5rem; box-shadow: var(--shadow-sm);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.75rem;">
                 <div>
-                    <div id="live-delivery-map" style="height: 400px; width: 100%; border-radius: var(--radius-md); border: 2px solid var(--border-warm); z-index: 1;"></div>
+                    <h3 style="color: var(--primary-green); font-size: 1.25rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                        <span>🗺️</span> Live Order Delivery Map & GPS Tracking
+                    </h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0.2rem 0 0 0;">
+                        Real-time location of Central Kitchen Hub, courier transit, and delivery destination.
+                    </p>
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                    <span id="map-gps-live-indicator" style="font-size: 0.82rem; font-weight: 600; padding: 0.35rem 0.85rem; border-radius: 50px; background: #fffbeb; color: #b45309; border: 1px solid rgba(0,0,0,0.06);">
+                        {% if assignment and assignment.status == 'in_transit' %}
+                            {% if is_gps_stale %}
+                                🟡 Courier GPS Inactive &bull; Last seen: {{ last_gps_update|default:'Stale' }}
+                            {% else %}
+                                🟢 Live Courier GPS Active
+                            {% endif %}
+                        {% else %}
+                            ⌛ Waiting for Live Courier GPS Broadcast
+                        {% endif %}
+                    </span>
+                    <button type="button" id="btn-customer-gps" onclick="locateCustomerDevice()" class="btn btn-primary btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; cursor: pointer; background: #2563EB; color: white;">
+                        <span>📍</span> Locate Me
+                    </button>
+                    <button type="button" id="customer-gps-retry-btn" onclick="locateCustomerDevice()" class="btn btn-outline btn-sm" style="display: none; align-items: center; gap: 0.35rem; font-size: 0.82rem; cursor: pointer; color: #DC2626; border-color: #DC2626;">
+                        <span>🔄</span> Retry GPS
+                    </button>
+                    <button type="button" onclick="recenterDeliveryMap()" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; cursor: pointer;">
+                        <span>🎯</span> Re-center Map
+                    </button>
+                    <a id="external-nav-link" href="https://www.google.com/maps/dir/?api=1&origin={{ chef_lat|default:9.5564 }},{{ chef_lon|default:76.7909 }}&destination={{ cust_lat }},{{ cust_lon }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem;">
+                        <span>🧭</span> Google Maps Navigation &rarr;
+                    </a>
+                </div>
+            </div>
+
+            <!-- Customer Device GPS Status Banner -->
+            <div id="customer-gps-status-container" style="margin-bottom: 0.65rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                <span id="customer-gps-status" style="display: none; padding: 0.35rem 0.85rem; border-radius: 6px; font-size: 0.82rem; font-weight: 500;"></span>
+            </div>
+
+            <!-- Leaflet Interactive Map Container -->
+            <div id="live-delivery-map" style="height: 380px; width: 100%; border-radius: 12px; border: 1.5px solid var(--border-warm); background: #FAFDF9; z-index: 1;"></div>
+
+            <!-- Map Marker Legend -->
+            <div style="margin-top: 0.85rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; font-size: 0.82rem; color: var(--text-muted); background: var(--bg-cream); padding: 0.6rem 1rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                <div style="display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;">
+                    <span>🏠 <strong>Hotel Hub:</strong> {{ order.branch.name|default:"Central Kitchen Hub (Kanjirappally)" }}</span>
+                    <span>📍 <strong>Destination:</strong> Delivery Address</span>
+                    <span>🛵 <strong>Courier:</strong> Live GPS Partner</span>
+                    <span>👤 <strong>Your Device:</strong> Current Location</span>
+                </div>
+                <div>
+                    <span style="color: var(--primary-green); font-weight: 600;">✓ Verified Service Area Perimeter</span>
                 </div>
             </div>
         </div>
+
 
         <div class="grid-2" style="gap: 1.5rem;">
             <!-- Left: Customer Delivery Details & Items -->

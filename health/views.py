@@ -13,15 +13,22 @@ def health_profile_view(request):
     profile, created = HealthProfile.objects.get_or_create(user=request.user)
     
     if request.method == 'POST':
-        profile.has_diabetes = request.POST.get('has_diabetes') == 'on'
-        profile.has_cholesterol = request.POST.get('has_cholesterol') == 'on'
-        profile.has_bp = request.POST.get('has_bp') == 'on'
+        profile.diabetes_conscious = request.POST.get('diabetes_conscious') == 'on'
+        profile.cholesterol_conscious = request.POST.get('cholesterol_conscious') == 'on'
+        profile.sugar_conscious = request.POST.get('sugar_conscious') == 'on'
+        profile.lower_saturated_fat = request.POST.get('lower_saturated_fat') == 'on'
+        profile.calorie_awareness = request.POST.get('calorie_awareness') == 'on'
+        profile.enable_recommendations = request.POST.get('enable_recommendations') == 'on'
+        
         profile.allergies = request.POST.get('allergies', '')
+        profile.dislikes = request.POST.get('dislikes', '')
         profile.dietary_preference = request.POST.get('dietary_preference', 'any')
+        
         try:
             profile.daily_calorie_target = float(request.POST.get('daily_calorie_target', '') or 2000.0)
         except (ValueError, TypeError):
             profile.daily_calorie_target = 2000.0
+            
         profile.save()
         
         # Clear old recommendations to trigger regeneration

@@ -16,7 +16,7 @@
                     <strong>Diabetes (High Blood Sugar)</strong>
                     <span style="display: block; font-size: 0.75rem; color: var(--text-muted);">Avoid foods high in processed sugars.</span>
                 </div>
-                <input type="checkbox" name="has_diabetes" {% if profile.has_diabetes %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--primary);">
+                <input type="checkbox" name="diabetes_conscious" {% if profile.diabetes_conscious %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--primary);">
             </label>
             
             <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
@@ -24,7 +24,7 @@
                     <strong>High Cholesterol</strong>
                     <span style="display: block; font-size: 0.75rem; color: var(--text-muted);">Avoid foods rich in saturated trans-fats.</span>
                 </div>
-                <input type="checkbox" name="has_cholesterol" {% if profile.has_cholesterol %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--primary);">
+                <input type="checkbox" name="cholesterol_conscious" {% if profile.cholesterol_conscious %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--primary);">
             </label>
 
             <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
@@ -32,7 +32,7 @@
                     <strong>High Blood Pressure (BP)</strong>
                     <span style="display: block; font-size: 0.75rem; color: var(--text-muted);">Avoid foods with elevated sodium metrics.</span>
                 </div>
-                <input type="checkbox" name="has_bp" {% if profile.has_bp %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--primary);">
+                <input type="checkbox" name="calorie_awareness" {% if profile.calorie_awareness %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--primary);">
             </label>
         </div>
 

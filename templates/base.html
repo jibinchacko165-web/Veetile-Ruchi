@@ -20,6 +20,11 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+    <!-- Google Maps API -->
+    {% if GOOGLE_MAPS_API_KEY %}
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ GOOGLE_MAPS_API_KEY }}&libraries=places,geometry" async defer></script>
+    {% endif %}
+
     <!-- Master Kerala Design System -->
     <link rel="stylesheet" href="/static/css/style.css">
 
@@ -356,9 +361,9 @@
 
                         <!-- 5. Wishlist -->
                         <li>
-                            <a href="{% url 'wishlist_view' %}" class="nav-item-link {% if '/wishlist/' in request.path %}active{% endif %}">
+                            <a href="{% url 'wishlist_view' %}" class="nav-item-link {% if '/wishlist/' in request.path %}active{% endif %}" id="nav-wishlist-link" data-count="{{ wishlist_count|default:0 }}">
                                 <i class="fa-solid fa-heart" style="color: #EF4444;"></i>
-                                <span>Wishlist</span>
+                                <span id="nav-wishlist-label">Wishlist{% if wishlist_count and wishlist_count > 0 %} <span class="nav-badge" id="nav-wishlist-badge">{{ wishlist_count }}</span>{% else %}<span class="nav-badge" id="nav-wishlist-badge" style="display: none;">0</span>{% endif %}</span>
                             </a>
                         </li>
 
@@ -430,7 +435,7 @@
                 {% if user.role == 'customer' %}
                     <li><a href="{% url 'cart_view' %}"><span>🧺 Cart</span> <span class="badge badge-green">{{ cart_count|default:0 }} items</span></a></li>
                     <li><a href="{% url 'order_history' %}"><span>📦 Orders</span> <i class="fa-solid fa-chevron-right"></i></a></li>
-                    <li><a href="{% url 'wishlist_view' %}"><span>❤️ Wishlist</span> <i class="fa-solid fa-chevron-right"></i></a></li>
+                    <li><a href="{% url 'wishlist_view' %}" id="mobile-nav-wishlist-link" data-count="{{ wishlist_count|default:0 }}"><span id="mobile-nav-wishlist-label">❤️ Wishlist{% if wishlist_count and wishlist_count > 0 %} <span class="badge badge-green" id="mobile-nav-wishlist-badge" style="margin-left: 0.35rem;">{{ wishlist_count }}</span>{% else %}<span class="badge badge-green" id="mobile-nav-wishlist-badge" style="display: none; margin-left: 0.35rem;">0</span>{% endif %}</span> <i class="fa-solid fa-chevron-right"></i></a></li>
                 {% endif %}
                 <li><a href="{% url 'profile' %}"><span>👤 Profile</span> <i class="fa-solid fa-chevron-right"></i></a></li>
                 <li><a href="{% url 'logout' %}" style="color: var(--danger);"><span>🚪 Sign Out</span> <i class="fa-solid fa-arrow-right-from-bracket"></i></a></li>
@@ -490,6 +495,135 @@
             var isBackForward = (perfEntries && perfEntries.length > 0 && perfEntries[0].type === 'back_forward') || (performance.navigation && performance.navigation.type === 2);
             if (event.persisted || isBackForward) {
                 window.location.reload();
+            }
+        });
+
+        // Real-time Wishlist synchronization
+        function updateWishlistNotificationCount(count) {
+            const numCount = parseInt(count, 10) || 0;
+
+            const desktopLink = document.getElementById('nav-wishlist-link');
+            const desktopBadge = document.getElementById('nav-wishlist-badge');
+            if (desktopLink) desktopLink.setAttribute('data-count', numCount);
+            if (desktopBadge) {
+                desktopBadge.textContent = numCount;
+                desktopBadge.style.display = numCount > 0 ? 'inline-block' : 'none';
+            }
+
+            const mobileLink = document.getElementById('mobile-nav-wishlist-link');
+            const mobileBadge = document.getElementById('mobile-nav-wishlist-badge');
+            if (mobileLink) mobileLink.setAttribute('data-count', numCount);
+            if (mobileBadge) {
+                mobileBadge.textContent = numCount;
+                mobileBadge.style.display = numCount > 0 ? 'inline-block' : 'none';
+            }
+        }
+
+        async function handleWishlistToggle(btn, e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            const foodId = btn.getAttribute('data-food-id');
+            if (!foodId) return;
+
+            const action = btn.getAttribute('data-action') || (btn.classList.contains('wishlist-remove-btn') ? 'remove' : null);
+            const allMatching = document.querySelectorAll(`[data-food-id="${foodId}"]`);
+            allMatching.forEach(b => { b.style.pointerEvents = 'none'; });
+
+            let url = `/food/${foodId}/wishlist/?format=json`;
+            if (action) {
+                url += `&action=${encodeURIComponent(action)}`;
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.redirected || response.status === 401 || response.status === 403) {
+                    window.location.href = response.url || '/accounts/login/';
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    // 1. Update notification count badge immediately
+                    updateWishlistNotificationCount(data.wishlist_count);
+
+                    // 2. Update matching heart icons immediately
+                    document.querySelectorAll(`.wishlist-toggle-btn[data-food-id="${foodId}"]`).forEach(b => {
+                        const icon = b.querySelector('i');
+                        if (data.is_favorited) {
+                            b.style.color = '#EF4444';
+                            b.setAttribute('title', 'Remove from Wishlist');
+                            if (b.classList.contains('btn-outline')) {
+                                b.style.borderColor = '#EF4444';
+                                b.style.color = '#EF4444';
+                            }
+                            if (icon) {
+                                icon.style.color = '#EF4444';
+                                icon.className = 'fa-solid fa-heart';
+                            }
+                            b.classList.add('active');
+                        } else {
+                            b.style.color = '#CBD5E1';
+                            b.setAttribute('title', 'Save to Wishlist');
+                            if (b.classList.contains('btn-outline')) {
+                                b.style.borderColor = 'var(--border-warm)';
+                                b.style.color = '#64748B';
+                            }
+                            if (icon) {
+                                icon.style.color = '#CBD5E1';
+                            }
+                            b.classList.remove('active');
+                        }
+                        b.style.transform = 'scale(1.2)';
+                        setTimeout(() => { b.style.transform = 'scale(1)'; }, 180);
+                    });
+
+                    // 3. Remove item immediately on wishlist page
+                    if (!data.is_favorited) {
+                        const card = document.getElementById(`wishlist-card-${foodId}`);
+                        if (card) {
+                            card.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+                            card.style.opacity = '0';
+                            card.style.transform = 'scale(0.9)';
+                            setTimeout(() => {
+                                card.remove();
+                                const grid = document.getElementById('wishlist-grid');
+                                const remainingCards = grid ? grid.querySelectorAll('.food-card') : [];
+                                const emptyState = document.getElementById('wishlist-empty-state');
+                                if (emptyState && remainingCards.length === 0) {
+                                    emptyState.style.display = 'block';
+                                }
+                            }, 250);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Wishlist toggle error:', err);
+                if (btn.tagName === 'A' && btn.href) {
+                    window.location.href = btn.href;
+                }
+            } finally {
+                allMatching.forEach(b => { b.style.pointerEvents = ''; });
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.wishlist-toggle-btn, .wishlist-remove-btn');
+            if (btn) {
+                handleWishlistToggle(btn, e);
             }
         });
     </script>

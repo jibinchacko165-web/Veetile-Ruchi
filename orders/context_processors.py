@@ -5,7 +5,7 @@ def nav_counts(request):
     """Provides real-time cart item count, wishlist count, and notifications for top navigation bar."""
     if hasattr(request, 'user') and request.user.is_authenticated:
         cart_count = CartItem.objects.filter(user=request.user).aggregate(Sum('quantity'))['quantity__sum'] or 0
-        wishlist_count = Wishlist.objects.filter(user=request.user).count()
+        wishlist_count = Wishlist.objects.filter(user=request.user).values('food_item_id').distinct().count()
         unread_notifications = Notification.objects.filter(user=request.user, is_read=False).order_by('-created_at')[:5]
         unread_notif_count = Notification.objects.filter(user=request.user, is_read=False).count()
         

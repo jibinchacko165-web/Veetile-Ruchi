@@ -10,6 +10,8 @@ from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 from django.contrib.auth import get_user_model
 
+import unittest
+
 User = get_user_model()
 
 class BaseSeleniumTest(StaticLiveServerTestCase):
@@ -23,14 +25,26 @@ class BaseSeleniumTest(StaticLiveServerTestCase):
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
         
-        # Initialize Chrome driver
-        cls.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+        cls.driver = None
+        # Initialize Chrome driver with fallback to Selenium Manager
+        try:
+            cls.driver = webdriver.Chrome(options=chrome_options)
+        except Exception:
+            try:
+                cls.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+            except Exception as e:
+                raise unittest.SkipTest(f"Chrome WebDriver is unavailable: {e}")
+
         cls.driver.implicitly_wait(10)
         cls.wait = WebDriverWait(cls.driver, 10)
 
     @classmethod
     def tearDownClass(cls):
-        cls.driver.quit()
+        if getattr(cls, 'driver', None) is not None:
+            try:
+                cls.driver.quit()
+            except Exception:
+                pass
         super().tearDownClass()
 
     def setUp(self):

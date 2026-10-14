@@ -8,15 +8,23 @@ class HealthProfile(models.Model):
         ('veg', 'Vegetarian'),
         ('non_veg', 'Non-Vegetarian'),
         ('vegan', 'Vegan'),
-        ('keto', 'Keto-Friendly'),
     )
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='health_profile')
-    has_diabetes = models.BooleanField(default=False)
-    has_cholesterol = models.BooleanField(default=False)
-    has_bp = models.BooleanField(default=False) # High blood pressure
-    allergies = models.TextField(blank=True, null=True, help_text="Comma-separated values, e.g. peanuts, dairy")
+    
+    # Advanced Dietary Preferences
     dietary_preference = models.CharField(max_length=20, choices=DIET_PREF_CHOICES, default='any')
+    cholesterol_conscious = models.BooleanField(default=False)
+    sugar_conscious = models.BooleanField(default=False)
+    diabetes_conscious = models.BooleanField(default=False)
+    lower_saturated_fat = models.BooleanField(default=False)
+    calorie_awareness = models.BooleanField(default=False)
+    
+    # Specific Health Markers
+    allergies = models.TextField(blank=True, null=True, help_text="Comma-separated values, e.g. peanuts, dairy")
+    dislikes = models.TextField(blank=True, null=True, help_text="Comma-separated values")
     daily_calorie_target = models.FloatField(default=2000.0)
+    
+    enable_recommendations = models.BooleanField(default=True)
 
     def __str__(self):
         return f"Health Profile: {self.user.username}"

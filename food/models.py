@@ -4,13 +4,13 @@ from django.conf import settings
 class Category(models.Model):
     name = models.CharField(max_length=50, unique=True)
     description = models.TextField(blank=True, null=True)
-    image = models.CharField(max_length=255, blank=True, null=True)  # URL or static path
+    image = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
         return self.name
 
 class MealSession(models.Model):
-    name = models.CharField(max_length=50, unique=True) # e.g. Breakfast, Lunch, Evening Snack, Dinner
+    name = models.CharField(max_length=50, unique=True)
     start_time = models.TimeField()
     end_time = models.TimeField()
 
@@ -25,12 +25,10 @@ class MealSession(models.Model):
         if self.start_time <= self.end_time:
             return self.start_time <= current_time <= self.end_time
         else:
-            # Handles time window crossing midnight e.g. 18:30 to 00:00 or overnight
             return current_time >= self.start_time or current_time <= self.end_time
 
-
 class FoodItem(models.Model):
-    chef = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='foods')
+    chef = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='foods', null=True, blank=True)
     name = models.CharField(max_length=100)
     malayalam_name = models.CharField(max_length=150, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
@@ -40,7 +38,12 @@ class FoodItem(models.Model):
     meal_session = models.ForeignKey(MealSession, on_delete=models.SET_NULL, null=True, related_name='foods')
     stock_quantity = models.IntegerField(default=10)
     is_available = models.BooleanField(default=True)
-    image = models.CharField(max_length=255, blank=True, null=True) # URL or path
+    image = models.CharField(max_length=255, blank=True, null=True)
+    
+    # Dietary Classifications
+    is_vegetarian = models.BooleanField(default=False)
+    is_vegan = models.BooleanField(default=False)
+    contains_egg = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
@@ -53,13 +56,20 @@ class FoodItem(models.Model):
 class NutritionInfo(models.Model):
     food_item = models.OneToOneField(FoodItem, on_delete=models.CASCADE, related_name='nutrition')
     calories = models.FloatField(default=0.0)      # kcal
-    sugar = models.FloatField(default=0.0)         # grams
+    protein = models.FloatField(default=0.0)       # grams
+    carbohydrates = models.FloatField(default=0.0) # grams
+    total_sugars = models.FloatField(default=0.0)  # grams
+    added_sugars = models.FloatField(default=0.0)  # grams
+    total_fat = models.FloatField(default=0.0)     # grams
+    saturated_fat = models.FloatField(default=0.0) # grams
+    trans_fat = models.FloatField(default=0.0)     # grams
+    fiber = models.FloatField(default=0.0)         # grams
     cholesterol = models.FloatField(default=0.0)   # mg
     sodium = models.FloatField(default=0.0)        # mg
-    protein = models.FloatField(default=0.0)       # grams
-    fat = models.FloatField(default=0.0)           # grams
-    carbohydrates = models.FloatField(default=0.0) # grams
-    fiber = models.FloatField(default=0.0)         # grams
+    ingredients = models.TextField(blank=True, null=True)
+    allergens = models.CharField(max_length=255, blank=True, null=True)
+    serving_size = models.CharField(max_length=100, blank=True, null=True)
+    cooking_method = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return f"Nutrition for {self.food_item.name}"

@@ -15,7 +15,7 @@
         <!-- Navigation Tab Switcher -->
         <div class="scrollable-pill-bar" style="background: var(--accent-warm, #FAF7F0); padding: 5px; border-radius: 50px; border: 1.5px solid var(--border-light);">
             <a href="{% url 'staff_dashboard' %}?tab=orders" 
-               style="padding: 0.55rem 1.2rem; border-radius: 50px; font-weight: 600; font-size: 0.9rem; text-decoration: none; transition: var(--transition); {% if active_tab != 'tracking' and active_tab != 'chefs' %} background: var(--primary-orange); color: white; box-shadow: 0 4px 12px rgba(210,105,30,0.3); {% else %} color: var(--text-muted); {% endif %}">
+               style="padding: 0.55rem 1.2rem; border-radius: 50px; font-weight: 600; font-size: 0.9rem; text-decoration: none; transition: var(--transition); {% if active_tab != 'tracking' and active_tab != 'chefs' and active_tab != 'perimeter' and active_tab != 'branches' %} background: var(--primary-orange); color: white; box-shadow: 0 4px 12px rgba(210,105,30,0.3); {% else %} color: var(--text-muted); {% endif %}">
                 📋 Customer Orders
             </a>
             <a href="{% url 'staff_dashboard' %}?tab=tracking" 
@@ -29,6 +29,10 @@
             <a href="{% url 'staff_dashboard' %}?tab=perimeter" 
                style="padding: 0.55rem 1.2rem; border-radius: 50px; font-weight: 600; font-size: 0.9rem; text-decoration: none; transition: var(--transition); {% if active_tab == 'perimeter' %} background: var(--primary-orange); color: white; box-shadow: 0 4px 12px rgba(210,105,30,0.3); {% else %} color: var(--text-muted); {% endif %}">
                 📍 Service Area & Perimeter
+            </a>
+            <a href="{% url 'staff_dashboard' %}?tab=branches" 
+               style="padding: 0.55rem 1.2rem; border-radius: 50px; font-weight: 600; font-size: 0.9rem; text-decoration: none; transition: var(--transition); {% if active_tab == 'branches' %} background: var(--primary-orange); color: white; box-shadow: 0 4px 12px rgba(210,105,30,0.3); {% else %} color: var(--text-muted); {% endif %}">
+                🏛️ Kerala Districts & Branches
             </a>
         </div>
     </div>
@@ -171,7 +175,7 @@
     </div>
 </div>
 
-{% else %}
+{% elif active_tab != 'chefs' and active_tab != 'perimeter' %}
 <!-- =========================================================
      TAB 1: CUSTOMER FOOD ORDERS MANAGEMENT
      ========================================================= -->
@@ -334,22 +338,47 @@
                                     </span>
                                 </div>
 
-                                <form method="POST" action="{% url 'staff_assign_delivery' order.order_id %}" style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; flex: 1; max-width: 520px;">
-                                    {% csrf_token %}
-                                    <select name="delivery_boy_id" class="form-control" style="padding: 0.55rem 0.85rem; font-size: 0.88rem; flex: 1; min-width: 220px; font-weight: 600;" required>
-                                        <option value="" disabled selected>-- Select Courier ({{ delivery_boys|length }} Available) --</option>
-                                        {% for db in delivery_boys %}
-                                            <option value="{{ db.id }}">
-                                                {{ db.courier_name }} — {{ db.courier_username }} — {{ db.user.phone|default:"No Phone" }} ({% if db.status == 'available' %}🟢 Available{% else %}🟡 {{ db.get_status_display }}{% endif %}){% if db.vehicle_number %} [Vehicle #{{ db.vehicle_number }}]{% endif %}
-                                            </option>
-                                        {% empty %}
-                                            <option value="" disabled>No Registered Delivery Boys</option>
-                                        {% endfor %}
-                                    </select>
-                                    <button type="submit" class="btn" style="padding: 0.55rem 1.4rem; font-size: 0.9rem; font-weight: 700; background: #D97736; color: #ffffff; box-shadow: 0 4px 12px rgba(217, 119, 54, 0.35);">
-                                        Assign Delivery Boy
-                                    </button>
-                                </form>
+                                {% if available_couriers_count == 0 %}
+        <div style="background-color: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 0.75rem; border-radius: 6px; font-size: 0.9rem; font-weight: 600;">
+            ⚠️ No couriers are currently available. Please wait for a courier to complete an active delivery or become available.
+        </div>
+    {% endif %}
+
+    <form method="POST" action="{% url 'staff_assign_delivery' order.order_id %}" style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; flex: 1; max-width: 520px;">
+        {% csrf_token %}
+        <select name="delivery_boy_id" class="form-control" style="padding: 0.55rem 0.85rem; font-size: 0.88rem; flex: 1; min-width: 220px; font-weight: 600;" required {% if available_couriers_count == 0 %}disabled{% endif %}>
+            <option value="" disabled selected>-- Select Courier --</option>
+            <optgroup label="🟢 Available Couriers (At Hotel)">
+            {% for db in delivery_boys %}
+                {% if db.status == 'available' %}
+                    <option value="{{ db.id }}">
+                        {{ db.courier_name }} — {{ db.courier_username }} — {{ db.user.phone|default:"No Phone" }} [Vehicle #{{ db.vehicle_number }}]
+                    </option>
+                {% endif %}
+            {% endfor %}
+            </optgroup>
+            
+            <optgroup label="🟡 Busy / Offline Couriers">
+            {% for db in delivery_boys %}
+                {% if db.status != 'available' %}
+                    <option value="{{ db.id }}" disabled>
+                        {{ db.courier_name }} — {{ db.get_status_display }}
+                        {% if db.status == 'on_delivery' %}
+                            {% for assignment in db.assignments.all %}
+                                {% if assignment.is_active %}
+                                    (Order #{{ assignment.order.order_id }})
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    </option>
+                {% endif %}
+            {% endfor %}
+            </optgroup>
+        </select>
+        <button type="submit" class="btn" style="padding: 0.55rem 1.4rem; font-size: 0.9rem; font-weight: 700; background: #D97736; color: #ffffff; box-shadow: 0 4px 12px rgba(217, 119, 54, 0.35);" {% if available_couriers_count == 0 %}disabled{% endif %}>
+            Assign Courier
+        </button>
+    </form>
                             </div>
                         </div>
                     {% else %}
@@ -528,7 +557,7 @@
                         Latitude
                     </label>
                     <input type="number" step="0.000001" id="hub_lat" name="latitude" class="form-control" 
-                           value="{{ delivery_setting.latitude }}" required onchange="syncPerimeterMapFromInputs()"
+                           value="{{ delivery_setting.latitude }}" required onchange="syncPerimeterMapFromInputs()" oninput="syncPerimeterMapFromInputs()"
                            style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.65rem 0.9rem; font-family: monospace;">
                 </div>
                 <div class="form-group">
@@ -536,7 +565,7 @@
                         Longitude
                     </label>
                     <input type="number" step="0.000001" id="hub_lon" name="longitude" class="form-control" 
-                           value="{{ delivery_setting.longitude }}" required onchange="syncPerimeterMapFromInputs()"
+                           value="{{ delivery_setting.longitude }}" required onchange="syncPerimeterMapFromInputs()" oninput="syncPerimeterMapFromInputs()"
                            style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.65rem 0.9rem; font-family: monospace;">
                 </div>
             </div>
@@ -591,66 +620,123 @@
 
     <!-- Right Column: Interactive Perimeter Map -->
     <div class="card" style="display: flex; flex-direction: column;">
-        <h3 style="color: var(--primary-brown); font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
-            <span>🗺️ Live Service Area Perimeter Map</span>
-            <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 400;">Drag pin or click map to move Hub</span>
+        <h3 style="color: var(--primary-brown); font-weight: 700; margin-bottom: 0.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+            <span>🗺️ Service Area & Delivery Map</span>
+            <span style="font-size: 0.82rem; color: #2563EB; font-weight: 500; background: #EFF6FF; padding: 0.25rem 0.6rem; border-radius: 4px; border: 1px solid #BFDBFE;">Drag blue pin or click map to set location.</span>
         </h3>
-        <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 1rem;">
-            The circular perimeter displays the exact service boundary. Orders outside this circle will be restricted.
-        </p>
+        <div style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 0.75rem; display: flex; gap: 1.5rem; flex-wrap: wrap;">
+            <span><strong>Kitchen Hub:</strong> {{ delivery_setting.name|default:"Central Kitchen Hub (Kanjirappally)" }}</span>
+            <span><strong>Delivery radius:</strong> <span id="map-radius-header-text">{{ delivery_setting.max_delivery_radius_km|default:"30.0" }}</span> km</span>
+        </div>
 
-        <!-- Leaflet Map Container -->
-        <div id="admin-perimeter-map" style="height: 480px; width: 100%; border-radius: 12px; border: 2px solid var(--border-light); z-index: 1;"></div>
+        <!-- Leaflet Map Container with Error Banner -->
+        <div style="position: relative; width: 100%;">
+            <div id="admin-perimeter-map" style="position: relative; height: 480px; min-height: 480px; width: 100%; border-radius: 12px; border: 2px solid var(--border-light); z-index: 1; overflow: hidden; background: #f3f4f6;"></div>
+            <div id="map-tile-error-banner" style="display: none; position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(254, 242, 242, 0.95); border: 1px solid #F87171; color: #991B1B; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.82rem; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); align-items: center; gap: 0.75rem;">
+                <span>⚠️ Map tiles are temporarily slow or offline. Pin selection and radius remain fully interactive.</span>
+                <button type="button" onclick="retryTileLoading()" style="background: #DC2626; color: white; border: none; padding: 0.2rem 0.6rem; border-radius: 4px; cursor: pointer; font-size: 0.75rem; font-weight: 600;">Retry</button>
+            </div>
+        </div>
 
         <div style="margin-top: 1rem; padding: 0.75rem 1rem; background: #ffffff; border-radius: 8px; border: 1px solid var(--border-light); font-size: 0.82rem; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-            <span>Delivery Center Coordinates: <strong id="map-coord-display" style="font-family: monospace; color: var(--primary-orange);">{{ delivery_setting.latitude }}, {{ delivery_setting.longitude }}</strong></span>
-            <span>Radius: <strong id="map-radius-text" style="color: var(--primary-brown);">{{ delivery_setting.max_delivery_radius_km }} km</strong></span>
+            <span>Delivery Center Coordinates: <strong id="map-coord-display" style="font-family: monospace; color: var(--primary-orange);">{{ delivery_setting.latitude|default:"9.5564" }}, {{ delivery_setting.longitude|default:"76.7909" }}</strong></span>
+            <span>Radius: <strong id="map-radius-text" style="color: var(--primary-brown);">{{ delivery_setting.max_delivery_radius_km|default:"30.0" }} km</strong></span>
         </div>
     </div>
 </div>
 
+<style>
+    /* Ensure clean rendering of Leaflet blue pin without default div-icon borders */
+    .custom-blue-pin-icon {
+        background: transparent !important;
+        border: none !important;
+    }
+</style>
+
 <script>
     let adminMap, hubMarker, perimeterCircle;
+    let leafletMap, leafletHubMarker, leafletCircle;
+    
+    const hasApiKey = "{{ GOOGLE_MAPS_API_KEY|default:'' }}" !== "";
 
     function calcApproxArea(rKm) {
         return (Math.PI * rKm * rKm).toFixed(1);
     }
 
     function updateRadiusStats(rKm) {
-        const radiusNum = parseFloat(rKm);
-        document.getElementById('badge-radius-display').innerText = radiusNum;
-        document.getElementById('stat-radius-display').innerText = radiusNum + ' km';
-        document.getElementById('stat-area-display').innerText = '~' + calcApproxArea(radiusNum) + ' km²';
-        document.getElementById('map-radius-text').innerText = radiusNum + ' km';
+        const radiusNum = parseFloat(rKm) || 20.0;
+        const badgeElem = document.getElementById('badge-radius-display');
+        const statRadiusElem = document.getElementById('stat-radius-display');
+        const statAreaElem = document.getElementById('stat-area-display');
+        const mapRadiusElem = document.getElementById('map-radius-text');
+
+        if (badgeElem) badgeElem.innerText = radiusNum;
+        if (statRadiusElem) statRadiusElem.innerText = radiusNum + ' km';
+        if (statAreaElem) statAreaElem.innerText = '~' + calcApproxArea(radiusNum) + ' km²';
+        if (mapRadiusElem) mapRadiusElem.innerText = radiusNum + ' km';
+        const headerRadiusElem = document.getElementById('map-radius-header-text');
+        if (headerRadiusElem) headerRadiusElem.innerText = radiusNum;
     }
 
-    function setRadius(r) {
-        document.getElementById('radius_slider').value = r;
-        document.getElementById('max_radius_input').value = r;
-        updateRadiusStats(r);
-        if (perimeterCircle) {
-            perimeterCircle.setRadius(r * 1000);
-            if (adminMap && hubMarker) {
-                adminMap.fitBounds(perimeterCircle.getBounds(), { padding: [30, 30] });
+    function syncPerimeterMapFromInputs() {
+        const latInput = document.getElementById('hub_lat');
+        const lonInput = document.getElementById('hub_lon');
+        const radiusInput = document.getElementById('max_radius_input');
+        if (!latInput || !lonInput) return;
+
+        const lat = parseFloat(latInput.value);
+        const lon = parseFloat(lonInput.value);
+        const rKm = parseFloat(radiusInput ? radiusInput.value : 20.0) || 20.0;
+
+        if (isNaN(lat) || isNaN(lon)) return;
+        const coordDisplay = document.getElementById('map-coord-display');
+        if (coordDisplay) coordDisplay.innerText = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+
+        if (hasApiKey && typeof google !== 'undefined' && google.maps && adminMap) {
+            const pos = new google.maps.LatLng(lat, lon);
+            if (hubMarker) hubMarker.setPosition(pos);
+            if (perimeterCircle) {
+                perimeterCircle.setCenter(pos);
+                perimeterCircle.setRadius(rKm * 1000);
+            }
+            adminMap.panTo(pos);
+            if (perimeterCircle) adminMap.fitBounds(perimeterCircle.getBounds(), 30);
+        } else if (leafletMap) {
+            if (leafletHubMarker) leafletHubMarker.setLatLng([lat, lon]);
+            if (leafletCircle) {
+                leafletCircle.setLatLng([lat, lon]);
+                leafletCircle.setRadius(rKm * 1000);
+            }
+            leafletMap.panTo([lat, lon]);
+            if (leafletCircle) {
+                leafletMap.fitBounds(leafletCircle.getBounds(), { padding: [30, 30], maxZoom: 13 });
             }
         }
     }
 
+    function setRadius(r) {
+        const rNum = parseFloat(r) || 20.0;
+        const slider = document.getElementById('radius_slider');
+        const numInput = document.getElementById('max_radius_input');
+        if (slider) slider.value = rNum;
+        if (numInput) numInput.value = rNum;
+        updateRadiusStats(rNum);
+        syncPerimeterMapFromInputs();
+    }
+
     function updateRadiusFromSlider(val) {
-        document.getElementById('max_radius_input').value = val;
+        const numInput = document.getElementById('max_radius_input');
+        if (numInput) numInput.value = val;
         updateRadiusStats(val);
-        if (perimeterCircle) {
-            perimeterCircle.setRadius(parseFloat(val) * 1000);
-        }
+        syncPerimeterMapFromInputs();
     }
 
     function updateRadiusFromInput(val) {
-        const num = parseFloat(val) || 15;
-        document.getElementById('radius_slider').value = num;
+        const num = parseFloat(val) || 20.0;
+        const slider = document.getElementById('radius_slider');
+        if (slider) slider.value = num;
         updateRadiusStats(num);
-        if (perimeterCircle) {
-            perimeterCircle.setRadius(num * 1000);
-        }
+        syncPerimeterMapFromInputs();
     }
 
     function applyStaffHubPreset() {
@@ -663,92 +749,769 @@
         const desc = opt.getAttribute('data-desc');
         const landmark = opt.getAttribute('data-landmark');
 
-        document.getElementById('hub_name').value = opt.value;
-        document.getElementById('hub_address').value = `${desc || opt.value} | Landmark: ${landmark || ''}`;
-        document.getElementById('hub_lat').value = lat.toFixed(6);
-        document.getElementById('hub_lon').value = lon.toFixed(6);
+        const nameInput = document.getElementById('hub_name');
+        const addrInput = document.getElementById('hub_address');
+        const latInput = document.getElementById('hub_lat');
+        const lonInput = document.getElementById('hub_lon');
+
+        if (nameInput) nameInput.value = opt.value;
+        if (addrInput) addrInput.value = `${desc || opt.value} | Landmark: ${landmark || ''}`;
+        if (latInput) latInput.value = lat.toFixed(6);
+        if (lonInput) lonInput.value = lon.toFixed(6);
 
         syncPerimeterMapFromInputs();
     }
 
-    function syncPerimeterMapFromInputs() {
-        const lat = parseFloat(document.getElementById('hub_lat').value);
-        const lon = parseFloat(document.getElementById('hub_lon').value);
-        const rKm = parseFloat(document.getElementById('max_radius_input').value) || 15;
+    function initGoogleMap() {
+        if (!hasApiKey) return;
+        const initLat = parseFloat("{{ delivery_setting.latitude|default:9.5564 }}");
+        const initLon = parseFloat("{{ delivery_setting.longitude|default:76.7909 }}");
+        const initRadiusKm = parseFloat("{{ delivery_setting.max_delivery_radius_km|default:30.0 }}");
 
-        if (isNaN(lat) || isNaN(lon)) return;
+        updateRadiusStats(initRadiusKm);
 
-        document.getElementById('map-coord-display').innerText = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+        const mapContainer = document.getElementById('admin-perimeter-map');
+        if (!mapContainer) return;
 
-        if (hubMarker) {
-            hubMarker.setLatLng([lat, lon]);
-        }
-        if (perimeterCircle) {
-            perimeterCircle.setLatLng([lat, lon]);
-            perimeterCircle.setRadius(rKm * 1000);
-        }
-        if (adminMap) {
-            adminMap.panTo([lat, lon]);
-            if (perimeterCircle) {
-                adminMap.fitBounds(perimeterCircle.getBounds(), { padding: [30, 30] });
+        adminMap = new google.maps.Map(mapContainer, {
+            center: { lat: initLat, lng: initLon },
+            zoom: 12,
+            mapTypeId: google.maps.MapTypeId.ROADMAP
+        });
+
+        hubMarker = new google.maps.Marker({
+            position: { lat: initLat, lng: initLon },
+            map: adminMap,
+            draggable: true,
+            title: "Central Kitchen Hub (Kanjirappally)",
+            icon: {
+                path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+                fillColor: "#2563EB",
+                fillOpacity: 1,
+                strokeWeight: 1.5,
+                strokeColor: "#1D4ED8",
+                scale: 1.8,
+                anchor: new google.maps.Point(12, 22)
             }
+        });
+
+        const infoWindow = new google.maps.InfoWindow({ content: "<b>Central Kitchen Hub</b><br>Drag pin or click map to reposition", disableAutoPan: true });
+        infoWindow.open(adminMap, hubMarker);
+        hubMarker.addListener('click', () => infoWindow.open(adminMap, hubMarker));
+
+        perimeterCircle = new google.maps.Circle({
+            strokeColor: '#2563EB',
+            strokeOpacity: 0.85,
+            strokeWeight: 2,
+            fillColor: '#3B82F6',
+            fillOpacity: 0.12,
+            clickable: false,
+            map: adminMap,
+            center: { lat: initLat, lng: initLon },
+            radius: initRadiusKm * 1000
+        });
+
+        adminMap.fitBounds(perimeterCircle.getBounds(), 30);
+
+        hubMarker.addListener('dragend', function() {
+            const pos = hubMarker.getPosition();
+            document.getElementById('hub_lat').value = pos.lat().toFixed(6);
+            document.getElementById('hub_lon').value = pos.lng().toFixed(6);
+            document.getElementById('map-coord-display').innerText = `${pos.lat().toFixed(6)}, ${pos.lng().toFixed(6)}`;
+            perimeterCircle.setCenter(pos);
+        });
+
+        adminMap.addListener('click', function(e) {
+            hubMarker.setPosition(e.latLng);
+            perimeterCircle.setCenter(e.latLng);
+            document.getElementById('hub_lat').value = e.latLng.lat().toFixed(6);
+            document.getElementById('hub_lon').value = e.latLng.lng().toFixed(6);
+            document.getElementById('map-coord-display').innerText = `${e.latLng.lat().toFixed(6)}, ${e.latLng.lng().toFixed(6)}`;
+        });
+    }
+
+    function initLeafletMap() {
+        const mapContainer = document.getElementById('admin-perimeter-map');
+        if (!mapContainer || typeof L === 'undefined') return;
+
+        // Clean up previous Leaflet instance if already initialized to prevent duplicates
+        if (leafletMap) {
+            try {
+                leafletMap.off();
+                leafletMap.remove();
+            } catch (err) {
+                console.warn('Map cleanup error:', err);
+            }
+            leafletMap = null;
+        }
+        if (mapContainer._leaflet_id) {
+            delete mapContainer._leaflet_id;
+        }
+        mapContainer.innerHTML = '';
+
+        const parsedLat = parseFloat("{{ delivery_setting.latitude|default:9.5564 }}");
+        const parsedLon = parseFloat("{{ delivery_setting.longitude|default:76.7909 }}");
+        const parsedRadiusKm = parseFloat("{{ delivery_setting.max_delivery_radius_km|default:30.0 }}");
+
+        const initLat = (!isNaN(parsedLat) && parsedLat !== 0) ? parsedLat : 9.5564;
+        const initLon = (!isNaN(parsedLon) && parsedLon !== 0) ? parsedLon : 76.7909;
+        const initRadiusKm = (!isNaN(parsedRadiusKm) && parsedRadiusKm > 0) ? parsedRadiusKm : 30.0;
+
+        updateRadiusStats(initRadiusKm);
+
+        // Initialize Leaflet Map centered on Kitchen Hub
+        leafletMap = L.map(mapContainer, {
+            center: [initLat, initLon],
+            zoom: 11,
+            zoomControl: true,
+            scrollWheelZoom: true,
+            dragging: true,
+            tap: false,
+            touchZoom: true,
+            bounceAtZoomLimits: false
+        });
+
+        // Add reliable Esri World Street Map TileLayer with fallback to Carto and error handling
+        const primaryTileUrl = "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+        const primaryTileAttr = '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom"|safe }}';
+        const primaryTileSubdomains = "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
+        const fallbackTileUrl = "{{ MAP_TILE_FALLBACK_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+
+        const tileLayer = L.tileLayer(primaryTileUrl, {
+            subdomains: primaryTileSubdomains,
+            maxZoom: 19,
+            attribution: primaryTileAttr
+        });
+        tileLayer.addTo(leafletMap);
+
+        let tileErrCount = 0;
+        tileLayer.on('tileerror', function() {
+            tileErrCount++;
+            if (tileErrCount > 4 && !tileLayer._fallbackApplied) {
+                tileLayer._fallbackApplied = true;
+                tileLayer.setUrl(fallbackTileUrl);
+            }
+            const errBanner = document.getElementById('map-tile-error-banner');
+            if (errBanner && tileErrCount > 8) {
+                errBanner.style.display = 'flex';
+            }
+        });
+
+        window.retryTileLoading = function() {
+            const errBanner = document.getElementById('map-tile-error-banner');
+            if (errBanner) errBanner.style.display = 'none';
+            tileErrCount = 0;
+            tileLayer._fallbackApplied = false;
+            tileLayer.setUrl(primaryTileUrl);
+            tileLayer.redraw();
+        };
+
+        // Custom Blue Draggable Pin Marker
+        const bluePinIcon = L.divIcon({
+            className: 'custom-blue-pin-icon',
+            html: `
+                <div style="position: relative; width: 34px; height: 46px; display: flex; align-items: center; justify-content: center; pointer-events: auto; cursor: grab;">
+                    <svg width="34" height="46" viewBox="0 0 34 46" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.4)); cursor: grab;">
+                        <path d="M17 0C7.61 0 0 7.61 0 17C0 28.5 14.5 44.5 16.1 46.2C16.6 46.7 17.4 46.7 17.9 46.2C19.5 44.5 34 28.5 34 17C34 7.61 26.39 0 17 0Z" fill="#1E40AF"/>
+                        <path d="M17 1.8C25.39 1.8 32.2 8.61 32.2 17C32.2 26.8 19.4 41.2 17 43.8C14.6 41.2 1.8 26.8 1.8 17C1.8 8.61 8.61 1.8 17 1.8Z" fill="#2563EB"/>
+                        <circle cx="17" cy="17" r="6" fill="#FFFFFF"/>
+                        <circle cx="17" cy="17" r="3.2" fill="#1D4ED8"/>
+                    </svg>
+                </div>
+            `,
+            iconSize: [34, 46],
+            iconAnchor: [17, 46],
+            popupAnchor: [0, -46]
+        });
+
+        // 20 km Delivery Radius Circle centered on Kitchen Hub (meters: km * 1000)
+        leafletCircle = L.circle([initLat, initLon], {
+            radius: initRadiusKm * 1000,
+            color: '#2563EB',
+            weight: 2,
+            opacity: 0.85,
+            fillColor: '#3B82F6',
+            fillOpacity: 0.12,
+            interactive: false
+        }).addTo(leafletMap);
+
+        // Geographically anchored Kitchen Hub Marker with separate drag support
+        leafletHubMarker = L.marker([initLat, initLon], { 
+            icon: bluePinIcon,
+            draggable: true,
+            autoPan: false,
+            title: "Central Kitchen Hub (Kanjirappally)"
+        }).addTo(leafletMap);
+
+        leafletHubMarker.bindPopup("<b>Central Kitchen Hub</b><br>Drag pin or click map to reposition center", { autoPan: false }).openPopup();
+
+        // Fit map bounds to show the entire delivery radius initially
+        leafletMap.fitBounds(leafletCircle.getBounds(), { padding: [30, 30], maxZoom: 13 });
+
+        // Update coordinates and inputs helper
+        function updateCoordinates(lat, lng) {
+            const latStr = Number(lat).toFixed(6);
+            const lonStr = Number(lng).toFixed(6);
+
+            const latInput = document.getElementById('hub_lat');
+            const lonInput = document.getElementById('hub_lon');
+            const coordDisplay = document.getElementById('map-coord-display');
+
+            if (latInput) latInput.value = latStr;
+            if (lonInput) lonInput.value = lonStr;
+            if (coordDisplay) coordDisplay.innerText = `${latStr}, ${lonStr}`;
+
+            if (leafletCircle) {
+                leafletCircle.setLatLng([lat, lng]);
+            }
+        }
+
+        // Marker drag: update coordinates ONLY on intentional dragend
+        leafletHubMarker.on('dragstart', function() {
+            leafletHubMarker.closePopup();
+        });
+
+        leafletHubMarker.on('dragend', function() {
+            const pos = leafletHubMarker.getLatLng();
+            updateCoordinates(pos.lat, pos.lng);
+        });
+
+        // Robust map dragging detection: strictly separate map panning from intentional marker positioning
+        let mapInteractionDownPos = null;
+        let mapDragOccurred = false;
+        let mapLastDragEndTime = 0;
+
+        mapContainer.addEventListener('mousedown', function(e) {
+            mapInteractionDownPos = { x: e.clientX, y: e.clientY };
+            mapDragOccurred = false;
+        }, { passive: true });
+
+        mapContainer.addEventListener('touchstart', function(e) {
+            if (e.touches && e.touches[0]) {
+                mapInteractionDownPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                mapDragOccurred = false;
+            }
+        }, { passive: true });
+
+        leafletMap.on('movestart dragstart', function() {
+            mapDragOccurred = true;
+        });
+
+        leafletMap.on('move drag', function() {
+            mapDragOccurred = true;
+        });
+
+        leafletMap.on('moveend dragend', function() {
+            mapLastDragEndTime = Date.now();
+            setTimeout(() => { mapDragOccurred = false; }, 400);
+        });
+
+        // Clicking the map moves the blue marker ONLY on static deliberate clicks
+        leafletMap.on('click', function(e) {
+            if (mapDragOccurred || (Date.now() - mapLastDragEndTime < 400)) {
+                return;
+            }
+            if (e.originalEvent) {
+                const orig = e.originalEvent;
+                const clientX = orig.clientX !== undefined ? orig.clientX : (orig.touches && orig.touches[0] ? orig.touches[0].clientX : null);
+                const clientY = orig.clientY !== undefined ? orig.clientY : (orig.touches && orig.touches[0] ? orig.touches[0].clientY : null);
+                if (mapInteractionDownPos && clientX !== null && clientY !== null) {
+                    const distMoved = Math.hypot(clientX - mapInteractionDownPos.x, clientY - mapInteractionDownPos.y);
+                    if (distMoved > 6) {
+                        return;
+                    }
+                }
+            }
+            leafletHubMarker.setLatLng(e.latlng);
+            updateCoordinates(e.latlng.lat, e.latlng.lng);
+            leafletHubMarker.openPopup();
+        });
+
+        // Handle container resizing and hidden tab invalidation
+        setTimeout(() => {
+            if (leafletMap) {
+                leafletMap.invalidateSize();
+            }
+        }, 200);
+
+        setTimeout(() => {
+            if (leafletMap) {
+                leafletMap.invalidateSize();
+            }
+        }, 600);
+
+        window.addEventListener('resize', () => {
+            if (leafletMap) {
+                leafletMap.invalidateSize();
+            }
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        if (!hasApiKey) {
+            initLeafletMap();
+            window.initGoogleMap = function() {};
+            return;
+        }
+
+        if (typeof google !== 'undefined' && google.maps) {
+            initGoogleMap();
+        } else {
+            let checkInterval = setInterval(() => {
+                if (typeof google !== 'undefined' && google.maps) {
+                    clearInterval(checkInterval);
+                    initGoogleMap();
+                }
+            }, 100);
+            setTimeout(() => { 
+                clearInterval(checkInterval); 
+                const mapContainer = document.getElementById('admin-perimeter-map');
+                if (mapContainer && typeof google === 'undefined') {
+                    // If Google Maps fails to load even though API key was configured, fallback cleanly to Leaflet
+                    console.warn("Google Maps failed to load. Initializing Leaflet OpenStreetMap fallback.");
+                    initLeafletMap();
+                }
+            }, 5000);
+        }
+    });
+</script>
+
+{% elif active_tab == 'branches' %}
+<!-- =========================================================
+     TAB 5: KERALA DISTRICTS & HOTEL BRANCHES MANAGEMENT
+     ========================================================= -->
+<div class="card mb-4" style="background: var(--accent-warm); border-left: 6px solid var(--primary-green);">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h2 style="color: var(--primary-brown); font-weight: 700; font-size: 1.5rem; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span>🏛️</span> Kerala Districts & Hotel Branch Management
+            </h2>
+            <p style="color: var(--text-muted); font-size: 0.92rem; margin: 0;">
+                Configure real branches across all 14 Kerala districts, assign menus, verify coordinates, and enforce strict 25 km delivery limits.
+            </p>
+        </div>
+        <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+            <a href="#add-branch-section" class="btn btn-sm" style="font-weight: 600;">
+                + Add Hotel Branch
+            </a>
+            <a href="/admin/delivery/hotelbranch/" target="_blank" class="btn btn-outline btn-sm">
+                ⚙️ Django Admin Branches
+            </a>
+            <a href="/admin/delivery/district/" target="_blank" class="btn btn-outline btn-sm">
+                📍 Django Admin Districts
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- 1. All 14 Kerala Districts Overview Grid -->
+<div class="card mb-4" style="padding: 1.25rem;">
+    <h3 style="color: var(--primary-brown); font-weight: 700; font-size: 1.15rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
+        <span>🗺️</span> All 14 Kerala Districts Coverage Status
+    </h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem;">
+        {% for d in districts %}
+            <a href="?tab=branches&district_filter={{ d.code }}" style="text-decoration: none; color: inherit;">
+                <div style="background: #ffffff; border: 1.5px solid {% if d.branches_count > 0 %}#86EFAC{% else %}var(--border-light){% endif %}; border-radius: 10px; padding: 0.75rem; transition: transform 0.15s ease; box-shadow: var(--shadow-sm); {% if district_filter == d.code %}border-color: var(--primary-orange); background: #FFFDF9;{% endif %}">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
+                        <strong style="color: var(--primary-brown); font-size: 0.92rem;">{{ d.name }}</strong>
+                        <span style="font-size: 0.72rem; font-family: monospace; background: var(--bg-cream); padding: 0.1rem 0.35rem; border-radius: 4px; font-weight: 700;">{{ d.code }}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem;">
+                        <span style="color: var(--text-muted);">Branches:</span>
+                        {% if d.branches_count > 0 %}
+                            <span class="badge badge-success" style="font-size: 0.72rem; padding: 0.15rem 0.5rem;">
+                                🟢 {{ d.branches_count }} Active
+                            </span>
+                        {% else %}
+                            <span class="badge" style="background: #F1F5F9; color: #64748B; font-size: 0.72rem; padding: 0.15rem 0.5rem;">
+                                ⚪ 0 Branches
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </a>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- 2. Configured Hotel Branches List -->
+<div class="card mb-4">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+        <div>
+            <h3 style="color: var(--primary-brown); font-weight: 700; font-size: 1.25rem; margin: 0; display: flex; align-items: center; gap: 0.4rem;">
+                <span>🏨</span> Registered Hotel Branches ({{ hotel_branches.count }})
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0.25rem 0 0 0;">
+                Showing serving kitchens with verified geographic coordinates and strict 25 km delivery limits.
+            </p>
+        </div>
+
+        <!-- Filter Form -->
+        <form method="GET" style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="hidden" name="tab" value="branches">
+            <label for="district_filter_select" style="font-size: 0.85rem; font-weight: 600; color: var(--text-heading);">Filter District:</label>
+            <select id="district_filter_select" name="district_filter" onchange="this.form.submit()" style="padding: 0.45rem 0.85rem; border-radius: 8px; border: 1.5px solid var(--border-light); font-size: 0.88rem; background: #ffffff;">
+                <option value="All">All Districts</option>
+                {% for d in districts %}
+                    <option value="{{ d.code }}" {% if district_filter == d.code %}selected{% endif %}>{{ d.name }}</option>
+                {% endfor %}
+            </select>
+            {% if district_filter and district_filter != 'All' %}
+                <a href="?tab=branches" class="btn btn-outline btn-sm" style="font-size: 0.82rem; padding: 0.4rem 0.75rem;">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.88rem;">
+            <thead>
+                <tr style="background: var(--bg-cream); border-bottom: 2px solid var(--border-light);">
+                    <th style="padding: 0.75rem 1rem;">Branch Name</th>
+                    <th style="padding: 0.75rem 1rem;">District</th>
+                    <th style="padding: 0.75rem 1rem;">Address & Phone</th>
+                    <th style="padding: 0.75rem 1rem;">Coordinates (Lat, Lon)</th>
+                    <th style="padding: 0.75rem 1rem;">Delivery Limit</th>
+                    <th style="padding: 0.75rem 1rem;">Hours & Status</th>
+                    <th style="padding: 0.75rem 1rem;">Menu Items</th>
+                    <th style="padding: 0.75rem 1rem; text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in hotel_branches %}
+                    <tr style="border-bottom: 1px solid var(--border-light); {% if not b.is_active %}opacity: 0.6; background: #F8FAFC;{% endif %}">
+                        <td style="padding: 0.85rem 1rem;">
+                            <strong>{{ b.name }}</strong>
+                            {% if b.is_central_hub %}
+                                <span class="badge badge-primary" style="font-size: 0.72rem; margin-left: 0.3rem;">Central Hub</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.85rem 1rem;">
+                            <span class="badge" style="background: #E0F2FE; color: #0369A1; font-weight: 600;">
+                                {{ b.district.name }}
+                            </span>
+                        </td>
+                        <td style="padding: 0.85rem 1rem; max-width: 200px;">
+                            <div style="line-height: 1.4;">
+                                {{ b.address }}<br>
+                                <span style="color: var(--text-muted); font-size: 0.8rem;">📞 {{ b.phone|default:"N/A" }}</span>
+                            </div>
+                        </td>
+                        <td style="padding: 0.85rem 1rem; font-family: monospace; font-size: 0.82rem;">
+                            {% if b.latitude and b.longitude %}
+                                <span style="color: #16A34A; font-weight: 600;">✓ {{ b.latitude|floatformat:4 }}, {{ b.longitude|floatformat:4 }}</span>
+                            {% else %}
+                                <span style="color: #DC2626; font-weight: 700;">⚠️ Coordinates Missing</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.85rem 1rem;">
+                            <span class="badge badge-success" style="font-weight: 700;">
+                                {{ b.effective_radius_km }} km (Max 25 km)
+                            </span>
+                        </td>
+                        <td style="padding: 0.85rem 1rem;">
+                            <div style="line-height: 1.4;">
+                                {{ b.opening_time|time:"g:i A" }} – {{ b.closing_time|time:"g:i A" }}<br>
+                                {% if b.is_open_now %}
+                                    <span style="color: #16A34A; font-weight: 700; font-size: 0.8rem;">🟢 Open</span>
+                                {% else %}
+                                    <span style="color: #DC2626; font-weight: 700; font-size: 0.8rem;">🔴 Closed</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td style="padding: 0.85rem 1rem;">
+                            {% if b.available_food_items.count > 0 %}
+                                <span style="color: var(--primary-green); font-weight: 600;">{{ b.available_food_items.count }} dishes</span>
+                            {% else %}
+                                <span style="color: var(--text-muted);">Full Master Menu</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding: 0.85rem 1rem; text-align: right;">
+                            <div style="display: inline-flex; gap: 0.4rem;">
+                                <a href="{% url 'staff_toggle_branch_status' b.id %}" class="btn btn-sm {% if b.is_active %}btn-outline{% else %}btn{% endif %}" style="font-size: 0.78rem; padding: 0.25rem 0.6rem;">
+                                    {% if b.is_active %}Deactivate{% else %}Activate{% endif %}
+                                </a>
+                                <a href="/admin/delivery/hotelbranch/{{ b.id }}/change/" target="_blank" class="btn btn-outline btn-sm" style="font-size: 0.78rem; padding: 0.25rem 0.5rem;" title="Edit in Admin">
+                                    ✏️
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="8" style="padding: 2.5rem; text-align: center; color: var(--text-muted);">
+                            No hotel branches configured matching this filter. Use the form below to register branches.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 3. Add / Edit Hotel Branch Form with Interactive Map -->
+<div id="add-branch-section" class="card" style="padding: 1.5rem;">
+    <h3 style="color: var(--primary-brown); font-weight: 700; font-size: 1.3rem; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem;">
+        <span>🏨</span> Add / Update Hotel Branch
+    </h3>
+    <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 1.5rem;">
+        Add a genuine hotel branch with real verified coordinates. Radius is strictly limited to 25 km max.
+    </p>
+
+    <form method="POST" action="{% url 'staff_save_hotel_branch' %}">
+        {% csrf_token %}
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-bottom: 1.25rem;">
+            <div class="form-group">
+                <label for="branch_name" style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                    Branch Name:
+                </label>
+                <input type="text" id="branch_name" name="name" class="form-control" placeholder="e.g. Veetile Ruchi - Ernakulam Hub" required style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.65rem 0.9rem;">
+            </div>
+
+            <div class="form-group">
+                <label for="branch_district" style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                    Assigned Kerala District (14 Districts):
+                </label>
+                <select id="branch_district" name="district_id" class="form-control" required onchange="onStaffBranchDistrictChange(this)" style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.65rem 0.9rem; background: #ffffff;">
+                    <option value="">-- Select One of 14 Districts --</option>
+                    {% for d in districts %}
+                        <option value="{{ d.id }}" data-lat="{{ d.latitude }}" data-lon="{{ d.longitude }}">
+                            {{ d.name }} ({{ d.code }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="branch_address" style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                    Physical Address:
+                </label>
+                <input type="text" id="branch_address" name="address" class="form-control" placeholder="e.g. MG Road, Near Metro Station, Ernakulam" required style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.65rem 0.9rem;">
+            </div>
+
+            <div class="form-group">
+                <label for="branch_phone" style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                    Contact Phone:
+                </label>
+                <input type="text" id="branch_phone" name="phone" class="form-control" placeholder="+91 94470 12345" style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.65rem 0.9rem;">
+            </div>
+
+            <div class="form-group">
+                <label for="branch_radius" style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                    Max Delivery Radius (KM &mdash; Strict Max: 25 km):
+                </label>
+                <input type="number" id="branch_radius" name="max_delivery_radius_km" class="form-control" min="1.0" max="25.0" step="0.5" value="25.0" required style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.65rem 0.9rem;">
+            </div>
+
+            <div class="form-group">
+                <label for="branch_status" style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                    Operating Status:
+                </label>
+                <select id="branch_status" name="operating_status" class="form-control" style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.65rem 0.9rem; background: #ffffff;">
+                    <option value="open">Open (Accepting Orders)</option>
+                    <option value="closed">Closed (Off Hours)</option>
+                    <option value="paused">Temporarily Paused (High Demand)</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+            <div class="form-group">
+                <label for="branch_open_time" style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                    Opening Time:
+                </label>
+                <input type="time" id="branch_open_time" name="opening_time" class="form-control" value="07:00" style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.6rem 0.85rem;">
+            </div>
+            <div class="form-group">
+                <label for="branch_close_time" style="font-weight: 600; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                    Closing Time:
+                </label>
+                <input type="time" id="branch_close_time" name="closing_time" class="form-control" value="22:00" style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.6rem 0.85rem;">
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 2rem; margin-bottom: 1.25rem; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; cursor: pointer;">
+                <input type="checkbox" name="is_active" checked style="width: 18px; height: 18px;">
+                <span>Active Branch (Visible to Customers)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; cursor: pointer;">
+                <input type="checkbox" name="is_central_hub" style="width: 18px; height: 18px;">
+                <span>Central Kitchen Hub</span>
+            </label>
+        </div>
+
+        <!-- Coordinates & Interactive Map Picker -->
+        <div style="margin-bottom: 1.5rem;">
+            <label style="font-weight: 700; color: var(--primary-brown); margin-bottom: 0.5rem; display: block;">
+                📍 Set Verified Branch Geographic Coordinates:
+            </label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 0.75rem;">
+                <div>
+                    <label for="branch_lat" style="font-size: 0.82rem; color: var(--text-muted);">Latitude (Kerala: 8.0 to 13.0):</label>
+                    <input type="number" step="any" id="branch_lat" name="latitude" class="form-control" value="9.5564" required style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.65rem 0.9rem;">
+                </div>
+                <div>
+                    <label for="branch_lon" style="font-size: 0.82rem; color: var(--text-muted);">Longitude (Kerala: 74.0 to 78.0):</label>
+                    <input type="number" step="any" id="branch_lon" name="longitude" class="form-control" value="76.7909" required style="border-radius: 8px; border: 1.5px solid var(--border-light); padding: 0.65rem 0.9rem;">
+                </div>
+            </div>
+
+            <!-- Interactive Leaflet Map -->
+            <div id="branch-picker-map" style="height: 320px; width: 100%; border-radius: 10px; border: 1.5px solid var(--border-light); background: #f1f5f9;"></div>
+            <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.4rem;">
+                💡 Drag the marker or click anywhere on the map to set verified coordinates. The circle visualizes the 25 km service coverage.
+            </p>
+        </div>
+
+        <!-- Menu items assignment -->
+        <div style="margin-bottom: 1.5rem;">
+            <label style="font-weight: 700; color: var(--primary-brown); margin-bottom: 0.35rem; display: block;">
+                🍛 Available Food Menu Items for this Branch:
+            </label>
+            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                Select dishes available at this branch. Leave all unchecked to serve the complete master Kerala food catalog.
+            </p>
+            <div style="max-height: 180px; overflow-y: auto; background: #FAF7F0; border: 1.5px solid var(--border-light); border-radius: 8px; padding: 0.75rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.4rem;">
+                {% for food in all_food_items %}
+                    <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; cursor: pointer;">
+                        <input type="checkbox" name="food_items" value="{{ food.id }}">
+                        <span>{{ food.name }} (₹{{ food.price }})</span>
+                    </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-lg" style="font-weight: 600; padding: 0.85rem 2rem; border-radius: 8px;">
+            ✓ Save Hotel Branch
+        </button>
+    </form>
+</div>
+
+<script>
+    let branchMap, branchMarker, branchCircle;
+
+    function initBranchPickerMap() {
+        const container = document.getElementById('branch-picker-map');
+        if (!container || typeof L === 'undefined') return;
+
+        let bLat = parseFloat(document.getElementById('branch_lat').value) || 9.5564;
+        let bLon = parseFloat(document.getElementById('branch_lon').value) || 76.7909;
+        let bRad = parseFloat(document.getElementById('branch_radius').value) || 25.0;
+
+        branchMap = L.map(container, {
+            center: [bLat, bLon],
+            zoom: 11,
+            zoomControl: true,
+            scrollWheelZoom: true,
+            dragging: true,
+            tap: false,
+            touchZoom: true,
+            bounceAtZoomLimits: false
+        });
+
+        const tileUrl = "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+        const tileAttr = '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri"|safe }}';
+
+        L.tileLayer(tileUrl, { attribution: tileAttr, maxZoom: 19 }).addTo(branchMap);
+
+        branchCircle = L.circle([bLat, bLon], {
+            radius: Math.min(bRad, 25.0) * 1000,
+            color: '#16A34A',
+            weight: 2,
+            fillColor: '#86EFAC',
+            fillOpacity: 0.15,
+            interactive: false
+        }).addTo(branchMap);
+
+        const hubPin = L.divIcon({
+            className: 'custom-hub-pin-icon',
+            html: `<div style="width: 32px; height: 32px; background: #D97706; border-radius: 50%; border: 3px solid white; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.4);"><span style="font-size:16px;">🏨</span></div>`,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16]
+        });
+
+        branchMarker = L.marker([bLat, bLon], { icon: hubPin, draggable: true, autoPan: false }).addTo(branchMap);
+        branchMarker.bindPopup("<b>Hotel Branch Position</b><br>Drag to reposition", { autoPan: false }).openPopup();
+
+        function syncBranchCoords(lat, lon) {
+            document.getElementById('branch_lat').value = Number(lat).toFixed(6);
+            document.getElementById('branch_lon').value = Number(lon).toFixed(6);
+            branchCircle.setLatLng([lat, lon]);
+        }
+
+        branchMarker.on('dragstart', function() {
+            branchMarker.closePopup();
+        });
+
+        branchMarker.on('dragend', function(e) {
+            const p = branchMarker.getLatLng();
+            syncBranchCoords(p.lat, p.lng);
+        });
+
+        let branchInteractionDownPos = null;
+        let branchDragOccurred = false;
+        let branchLastDragEndTime = 0;
+
+        container.addEventListener('mousedown', function(e) {
+            branchInteractionDownPos = { x: e.clientX, y: e.clientY };
+            branchDragOccurred = false;
+        }, { passive: true });
+
+        container.addEventListener('touchstart', function(e) {
+            if (e.touches && e.touches[0]) {
+                branchInteractionDownPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                branchDragOccurred = false;
+            }
+        }, { passive: true });
+
+        branchMap.on('movestart dragstart', function() { branchDragOccurred = true; });
+        branchMap.on('move drag', function() { branchDragOccurred = true; });
+        branchMap.on('moveend dragend', function() { 
+            branchLastDragEndTime = Date.now();
+            setTimeout(() => { branchDragOccurred = false; }, 400); 
+        });
+
+        branchMap.on('click', function(e) {
+            if (branchDragOccurred || (Date.now() - branchLastDragEndTime < 400)) return;
+            if (e.originalEvent) {
+                const orig = e.originalEvent;
+                const clientX = orig.clientX !== undefined ? orig.clientX : (orig.touches && orig.touches[0] ? orig.touches[0].clientX : null);
+                const clientY = orig.clientY !== undefined ? orig.clientY : (orig.touches && orig.touches[0] ? orig.touches[0].clientY : null);
+                if (branchInteractionDownPos && clientX !== null && clientY !== null) {
+                    const distMoved = Math.hypot(clientX - branchInteractionDownPos.x, clientY - branchInteractionDownPos.y);
+                    if (distMoved > 6) return;
+                }
+            }
+            branchMarker.setLatLng(e.latlng);
+            syncBranchCoords(e.latlng.lat, e.latlng.lng);
+        });
+
+        document.getElementById('branch_radius').addEventListener('input', function() {
+            let val = Math.min(parseFloat(this.value) || 25.0, 25.0);
+            branchCircle.setRadius(val * 1000);
+        });
+
+        setTimeout(() => { branchMap.invalidateSize(); }, 300);
+    }
+
+    function onStaffBranchDistrictChange(sel) {
+        if (!sel || !sel.selectedIndex) return;
+        const opt = sel.options[sel.selectedIndex];
+        const lat = parseFloat(opt.getAttribute('data-lat'));
+        const lon = parseFloat(opt.getAttribute('data-lon'));
+        if (lat && lon && branchMap && branchMarker) {
+            branchMarker.setLatLng([lat, lon]);
+            branchCircle.setLatLng([lat, lon]);
+            branchMap.setView([lat, lon], 12);
+            document.getElementById('branch_lat').value = lat.toFixed(6);
+            document.getElementById('branch_lon').value = lon.toFixed(6);
         }
     }
 
     document.addEventListener("DOMContentLoaded", function() {
-        const initLat = parseFloat("{{ delivery_setting.latitude|default:9.9816 }}");
-        const initLon = parseFloat("{{ delivery_setting.longitude|default:76.2999 }}");
-        const initRadiusKm = parseFloat("{{ delivery_setting.max_delivery_radius_km|default:15.0 }}");
-
-        updateRadiusStats(initRadiusKm);
-
-        adminMap = L.map('admin-perimeter-map').setView([initLat, initLon], 12);
-
-        L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-            maxZoom: 19,
-            attribution: '&copy; Google Maps'
-        }).addTo(adminMap);
-
-        // Delivery Hub Marker (Custom Icon)
-        const hubIcon = L.divIcon({
-            html: '<div style="background-color: #D97736; color: white; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; font-size: 20px; border: 3px solid white; box-shadow: 0 4px 14px rgba(0,0,0,0.35);">🏠</div>',
-            className: 'custom-hub-icon',
-            iconSize: [40, 40],
-            iconAnchor: [20, 20]
-        });
-
-        hubMarker = L.marker([initLat, initLon], { icon: hubIcon, draggable: true }).addTo(adminMap);
-        hubMarker.bindPopup("<b>Delivery Center (Kitchen Hub)</b><br>Drag to reposition").openPopup();
-
-        // Perimeter Circle
-        perimeterCircle = L.circle([initLat, initLon], {
-            radius: initRadiusKm * 1000,
-            color: '#D97736',
-            fillColor: '#F59E0B',
-            fillOpacity: 0.18,
-            weight: 2,
-            dashArray: '6, 6'
-        }).addTo(adminMap);
-
-        adminMap.fitBounds(perimeterCircle.getBounds(), { padding: [30, 30] });
-
-        // Event: Marker Drag
-        hubMarker.on('dragend', function(e) {
-            const pos = hubMarker.getLatLng();
-            document.getElementById('hub_lat').value = pos.lat.toFixed(6);
-            document.getElementById('hub_lon').value = pos.lng.toFixed(6);
-            document.getElementById('map-coord-display').innerText = `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`;
-            perimeterCircle.setLatLng(pos);
-        });
-
-        // Event: Map Click
-        adminMap.on('click', function(e) {
-            hubMarker.setLatLng(e.latlng);
-            perimeterCircle.setLatLng(e.latlng);
-            document.getElementById('hub_lat').value = e.latlng.lat.toFixed(6);
-            document.getElementById('hub_lon').value = e.latlng.lng.toFixed(6);
-            document.getElementById('map-coord-display').innerText = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
-        });
+        initBranchPickerMap();
     });
 </script>
 {% endif %}

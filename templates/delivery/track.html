@@ -25,8 +25,8 @@
             </div>
             
             <div style="margin-top: 0.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
-                <a id="trackGpsNavBtn" href="https://www.google.com/maps/dir/?api=1&{% if courier_lat %}origin={{ courier_lat }},{{ courier_lon }}&{% endif %}destination={{ cust_lat }},{{ cust_lon }}" target="_blank" rel="noopener noreferrer" class="btn" style="padding: 0.45rem 1rem; font-size: 0.85rem; font-weight: 700; background: #2563eb; text-decoration: none;">
-                    📍 Open Google Maps Navigation (Your Location → Destination)
+                <a id="trackGpsNavBtn" href="https://www.google.com/maps/dir/?api=1&{% if has_courier_gps and courier_lat and courier_lon %}origin={{ courier_lat }},{{ courier_lon }}&{% endif %}destination={{ cust_lat }},{{ cust_lon }}" target="_blank" rel="noopener noreferrer" class="btn" style="padding: 0.45rem 1rem; font-size: 0.85rem; font-weight: 700; background: #2563eb; text-decoration: none; color: #ffffff;">
+                    📍 Open Google Maps Navigation (Your Location &rarr; Destination)
                 </a>
                 <span style="font-size: 0.85rem; color: var(--text-muted);">
                     Destination Coordinates: <strong style="font-family: monospace; color: var(--primary-orange);">Lat {{ cust_lat }}, Lon {{ cust_lon }}</strong>
@@ -98,9 +98,18 @@
             </button>
             
             <!-- GPS Status Banner -->
-            <div id="gpsStatusBanner" style="padding: 0.65rem 0.85rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; text-align: center; background: #d1f4e0; border: 1px solid var(--border-light); color: #065f46;">
-                🟢 GPS Active (Lat: {{ courier_lat|default:9.462534 }}, Lng: {{ courier_lon|default:76.72185 }})
+            <div id="gpsStatusBanner" style="padding: 0.65rem 0.85rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; text-align: center; {% if has_courier_gps and not is_gps_stale %}background: #d1f4e0; border: 1px solid #a7f3d0; color: #065f46;{% elif has_courier_gps and is_gps_stale %}background: #fffbeb; border: 1px solid #fef3c7; color: #b45309;{% else %}background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569;{% endif %}">
+                {% if has_courier_gps and not is_gps_stale %}
+                    🟢 Live GPS Active (Lat: {{ courier_lat|floatformat:4 }}, Lng: {{ courier_lon|floatformat:4 }}) &bull; Synced {{ last_gps_timestamp|default:"recently" }}
+                {% elif has_courier_gps and is_gps_stale %}
+                    🟡 Stale GPS Position (Lat: {{ courier_lat|floatformat:4 }}, Lng: {{ courier_lon|floatformat:4 }}) &bull; Last reported {{ last_gps_timestamp|default:"over 5 mins ago" }}
+                {% else %}
+                    ⚪ GPS Disconnected &bull; Click "Connect Device Live GPS" to broadcast your location
+                {% endif %}
             </div>
+            <p style="font-size: 0.76rem; color: var(--text-muted); margin-top: 0.5rem; margin-bottom: 0; line-height: 1.3;">
+                📱 <em>Keep this tab open while on delivery. Mobile browsers suspend continuous GPS tracking when minimized.</em>
+            </p>
         </div>
 
         <!-- Status Transition Action Form -->
@@ -189,32 +198,52 @@
         </div>
 
         <!-- AI Route & Delivery Time Predictions (Random Forest AI Model) -->
-        <div style="margin-top: 1.25rem; background: #ffffff; padding: 1.25rem; border-radius: 14px; border: 1px solid var(--border-light);">
-            <h4 style="color: var(--primary-brown); font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
+        <div style="margin-top: 1.25rem; background: #ffffff; padding: 1.25rem; border-radius: 14px; border: 1px solid var(--border-light); box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <h4 style="color: var(--primary-brown); font-size: 1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
                 🤖 AI Route & Delivery Predictions
             </h4>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0.75rem; text-align: center;">
-                <div style="background: var(--accent-warm); padding: 0.6rem; border-radius: 10px; border: 1px solid var(--border-light);">
-                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">Distance</span>
-                    <strong style="font-size: 1.05rem; color: var(--primary-brown);">{{ distance_km }} km</strong>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; text-align: left;">
+                <!-- Road Distance -->
+                <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">Road Distance</span>
+                    <strong id="ui-road-distance" style="font-size: 1.1rem; color: var(--primary-brown);">{{ distance_km }} km {% if is_road_distance %}(Road){% else %}(Estimate){% endif %}</strong>
                 </div>
-                <div style="background: var(--accent-warm); padding: 0.6rem; border-radius: 10px; border: 1px solid var(--border-light);">
-                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">AI Est. Time</span>
-                    <strong style="font-size: 1.05rem; color: var(--primary-orange);">{{ pred_delivery_min }} mins</strong>
+                <!-- Travel ETA -->
+                <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">Travel ETA</span>
+                    <strong id="ui-travel-time" style="font-size: 1.1rem; color: var(--primary-orange);">Calculating...</strong>
                 </div>
-                <div style="background: var(--accent-warm); padding: 0.6rem; border-radius: 10px; border: 1px solid var(--border-light);">
-                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">AI ETA</span>
-                    <strong style="font-size: 1.05rem; color: var(--success);">{{ ai_eta_min }} mins</strong>
+                <!-- Delivery ETA -->
+                <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">Delivery ETA</span>
+                    <strong id="ui-delivery-time" style="font-size: 1.1rem; color: var(--success);">{{ ai_eta_min }} mins</strong>
                 </div>
-                <div style="background: var(--accent-warm); padding: 0.6rem; border-radius: 10px; border: 1px solid var(--border-light);">
-                    <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block;">AI Condition</span>
-                    <strong style="font-size: 0.92rem; color: var(--primary-brown);">{{ ai_status_pred }}</strong>
+                <!-- Delivery Status -->
+                <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">Delivery Status</span>
+                    <strong id="ui-delivery-status" style="font-size: 1rem; color: var(--primary-brown);">{{ ai_status_pred }}</strong>
                 </div>
             </div>
-            <div style="margin-top: 0.85rem; font-size: 0.82rem; color: var(--text-muted); text-align: center;">
-                Destination GPS: <strong style="font-family: monospace; color: var(--primary-orange);">Lat {{ cust_lat }}, Lng {{ cust_lon }}</strong>
+            
+            <div style="background: var(--bg-surface); padding: 0.75rem; border-radius: 8px; font-size: 0.85rem; color: var(--text-main); margin-bottom: 1rem; border: 1px solid var(--border-light);">
+                <div style="margin-bottom: 0.4rem; display: flex; gap: 0.4rem;">
+                    <span style="font-size: 1rem;">📍</span>
+                    <div>
+                        <strong>Destination Address:</strong><br>
+                        {{ assignment.order.formatted_delivery_address }}<br>
+                        <span style="color: var(--text-muted); font-size: 0.75rem; font-family: monospace;">Lat: {{ cust_lat }}, Lng: {{ cust_lon }}</span>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.4rem; align-items: center; margin-top: 0.5rem; border-top: 1px dashed var(--border-warm); padding-top: 0.5rem;">
+                    <span style="font-size: 1rem;">⏱️</span>
+                    <div>
+                        <strong>Last Location Update:</strong> <span id="ui-last-updated" style="color: var(--primary-orange); font-weight: 600;">Just now</span>
+                    </div>
+                </div>
             </div>
-            <a href="https://www.google.com/maps/dir/?api=1&destination={{ cust_lat }},{{ cust_lon }}" target="_blank" class="btn" style="margin-top: 0.75rem; width: 100%; padding: 0.6rem; font-weight: 700; background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%); color: #ffffff; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none; box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);">
+            
+            <a id="btn-nav-directions" href="https://www.google.com/maps/dir/?api=1&destination={{ cust_lat }},{{ cust_lon }}" target="_blank" class="btn" style="width: 100%; padding: 0.75rem; font-weight: 700; background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%); color: #ffffff; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none; box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);">
                 🗺️ Open Google Maps Turn-by-Turn Directions &rarr;
             </a>
         </div>
@@ -222,181 +251,421 @@
 
     <!-- Right: GPS Route Maps -->
     <div class="card" style="display: flex; flex-direction: column;">
-        <h3 class="mb-2" style="color: var(--primary-brown); font-weight: 700; text-align: center;">
-            📍 Live GPS Route & Location Tracking Maps
-        </h3>
-        <p style="font-size: 0.8rem; color: var(--text-muted); text-align: center; margin-bottom: 1rem;">
-            Visualizing Chef Kitchen ({{ chef_lat }}, {{ chef_lon }}) &rarr; Live Courier GPS &rarr; Customer ({{ cust_lat }}, {{ cust_lon }})
-        </p>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
+            <h3 style="color: var(--primary-brown); font-weight: 700; margin: 0;">
+                📍 Live GPS Route & Location Tracking Maps
+            </h3>
+            <button type="button" class="btn btn-outline" onclick="if(window.recenterCourierMap) window.recenterCourierMap();" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 600;">
+                🎯 Recenter Map
+            </button>
+        </div>
 
         <!-- Leaflet Map Container -->
         <div id="delivery-nav-map" style="height: 480px; width: 100%; border-radius: 14px; border: 1.5px solid var(--dark-border); z-index: 1; margin-bottom: 1rem;"></div>
 
-        <div style="margin-top: 1rem; font-size: 0.82rem; text-align: center; color: var(--text-muted);">
-            Customer Coordinates: <strong style="font-family: monospace; color: var(--primary-orange);">Lat: {{ cust_lat }} | Lng: {{ cust_lon }}</strong>
+        <div style="margin-top: 0.5rem; font-size: 0.82rem; text-align: center; color: var(--text-muted); display: flex; justify-content: space-around; flex-wrap: wrap; gap: 0.5rem;">
+            <span>🏠 <strong>Hub Base:</strong> Lat {{ chef_lat|default:'9.5564' }}, Lon {{ chef_lon|default:'76.7909' }}</span>
+            <span>📍 <strong>Destination:</strong> Lat {{ cust_lat }}, Lon {{ cust_lon }}</span>
+            <span id="courier-coord-debug">🛵 <strong>Courier GPS:</strong> {% if has_courier_gps and courier_lat %}Lat {{ courier_lat|floatformat:4 }}, Lon {{ courier_lon|floatformat:4 }}{% else %}Not Connected{% endif %}</span>
         </div>
     </div>
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const chefLat = parseFloat("{{ chef_lat }}");
-        const chefLon = parseFloat("{{ chef_lon }}");
-        const custLat = parseFloat("{{ cust_lat }}");
-        const custLon = parseFloat("{{ cust_lon }}");
-        let courierLat = parseFloat("{{ courier_lat|default:chef_lat }}");
-        let courierLon = parseFloat("{{ courier_lon|default:chef_lon }}");
+    let leafletMap = null;
+    let kitchenMarker = null;
+    let customerMarker = null;
+    let courierMarker = null;
+    let routePolyline = null;
+    let perimeterCircle = null;
+    let watchId = null;
+    let isCourierDraggingMap = false;
+    let courierDragTimeout = null;
 
-        const isOrderDelivered = ("{{ assignment.status }}" === "delivered");
-        const isOrderInTransit = ("{{ assignment.status }}" === "in_transit");
+    const chefLat = parseFloat("{{ chef_lat|default:'9.5564' }}") || 9.5564;
+    const chefLon = parseFloat("{{ chef_lon|default:'76.7909' }}") || 76.7909;
+    const custLat = parseFloat("{{ cust_lat|default:'9.5564' }}") || 9.5564;
+    const custLon = parseFloat("{{ cust_lon|default:'76.7909' }}") || 76.7909;
+    
+    let courierLat = {% if has_courier_gps and courier_lat %}parseFloat("{{ courier_lat }}"){% else %}null{% endif %};
+    let courierLon = {% if has_courier_gps and courier_lon %}parseFloat("{{ courier_lon }}"){% else %}null{% endif %};
+    let hasCourierGps = {% if has_courier_gps %}true{% else %}false{% endif %};
+    const isOrderDelivered = ("{{ assignment.status }}" === "delivered");
+    const csrfToken = "{{ csrf_token }}";
 
-        // Parse Dijkstra route checkpoints
-        const routeSteps = [
-            {% for step in route_steps %}
-                [{{ step.lat }}, {{ step.lng }}]{% if not forloop.last %},{% endif %}
-            {% endfor %}
-        ];
-        if (routeSteps.length === 0) {
-            routeSteps.push([chefLat, chefLon], [custLat, custLon]);
+    const routeSteps = [
+        {% for step in route_steps %}
+            [{{ step.lat }}, {{ step.lng }}]{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    function createIcon(color, emoji) {
+        return L.divIcon({
+            className: 'custom-div-icon',
+            html: `<div style="background-color:${color}; width:30px; height:30px; border-radius:50%; border:2px solid white; box-shadow:0 2px 8px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; color:white; font-size:15px;">${emoji}</div>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+        });
+    }
+
+    function initLeafletMap() {
+        const container = document.getElementById('delivery-nav-map');
+        if (!container || typeof L === 'undefined') return;
+        if (leafletMap) {
+            leafletMap.invalidateSize();
+            return;
         }
 
-        // Initialize Map
-        const map = L.map('delivery-nav-map').setView([ (chefLat + custLat)/2, (chefLon + custLon)/2 ], 13);
+        const centerLat = isFinite(custLat) ? (chefLat + custLat) / 2 : chefLat;
+        const centerLon = isFinite(custLon) ? (chefLon + custLon) / 2 : chefLon;
 
-        L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        leafletMap = L.map('delivery-nav-map', {
+            center: [centerLat, centerLon],
+            zoom: 12,
+            zoomControl: true,
+            scrollWheelZoom: true,
+            dragging: true,
+            tap: false,
+            touchZoom: true,
+            bounceAtZoomLimits: false
+        });
+
+        // User map interaction guard: prevent live GPS updates from jumping the map while courier is dragging
+        leafletMap.on('dragstart movestart', function() {
+            isCourierDraggingMap = true;
+            if (courierDragTimeout) clearTimeout(courierDragTimeout);
+        });
+
+        leafletMap.on('dragend moveend', function() {
+            if (courierDragTimeout) clearTimeout(courierDragTimeout);
+            courierDragTimeout = setTimeout(() => {
+                isCourierDraggingMap = false;
+            }, 8000);
+        });
+
+        window.recenterCourierMap = function() {
+            if (!leafletMap) return;
+            const pts = [[chefLat, chefLon]];
+            if (isFinite(custLat) && isFinite(custLon)) pts.push([custLat, custLon]);
+            if (hasCourierGps && isFinite(courierLat) && isFinite(courierLon)) pts.push([courierLat, courierLon]);
+            leafletMap.fitBounds(L.latLngBounds(pts), { padding: [45, 45], maxZoom: 15 });
+        };
+
+        const primaryTileUrl = "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+        const primaryTileAttr = '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom"|safe }}';
+        const primaryTileSubdomains = "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
+        const fallbackTileUrl = "{{ MAP_TILE_FALLBACK_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+
+        const tileLayer = L.tileLayer(primaryTileUrl, {
+            subdomains: primaryTileSubdomains,
             maxZoom: 19,
-            attribution: '&copy; Google Maps'
-        }).addTo(map);
-
-        // Chef Kitchen Marker
-        const chefIcon = L.divIcon({
-            html: '<div style="background-color: #2a9d8f; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.4);">👨‍🍳</div>',
-            className: 'custom-icon',
-            iconSize: [32, 32],
-            iconAnchor: [16, 16]
+            attribution: primaryTileAttr
         });
-        L.marker([chefLat, chefLon], {icon: chefIcon}).addTo(map).bindPopup("<b>Chef Kitchen</b>");
+        tileLayer.addTo(leafletMap);
 
-        // Customer Home Marker
-        const custIcon = L.divIcon({
-            html: '<div style="background-color: #ff6b35; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.4);">🏠</div>',
-            className: 'custom-icon',
-            iconSize: [32, 32],
-            iconAnchor: [16, 16]
+        let tileErrCount = 0;
+        tileLayer.on('tileerror', function() {
+            tileErrCount++;
+            if (tileErrCount > 4 && !tileLayer._fallbackApplied) {
+                tileLayer._fallbackApplied = true;
+                tileLayer.setUrl(fallbackTileUrl);
+            }
         });
-        L.marker([custLat, custLon], {icon: custIcon}).addTo(map).bindPopup("<b>Customer Destination (GPS)</b>").openPopup();
 
-        // Route Polyline
-        const polyline = L.polyline(routeSteps, { color: '#2a9d8f', weight: 5, opacity: 0.8 }).addTo(map);
-        map.fitBounds(L.latLngBounds([chefLat, chefLon], [custLat, custLon]), { padding: [40, 40] });
+        // 1. Central Kitchen Hub Marker (Kanjirappally)
+        kitchenMarker = L.marker([chefLat, chefLon], {
+            icon: createIcon('#10B981', '🏠'),
+            draggable: false,
+            autoPan: false
+        }).addTo(leafletMap).bindPopup("<b>Central Kitchen Hub</b><br>Kanjirappally, Kerala", { autoPan: false });
 
-        // Courier Live GPS Marker
-        const courierIcon = L.divIcon({
-            html: '<div style="background-color: #d97736; color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 2px solid white; box-shadow: 0 0 14px rgba(217,119,54,0.8);">🛵</div>',
-            className: 'custom-icon',
-            iconSize: [34, 34],
-            iconAnchor: [17, 17]
-        });
-        const courierMarker = L.marker([courierLat, courierLon], {icon: courierIcon}).addTo(map).bindPopup("<b>Courier Live Location</b>");
+        // 2. Authoritative 30 km Delivery Perimeter Circle (30,000 metres) - non-interactive so dragging map is completely smooth
+        perimeterCircle = L.circle([chefLat, chefLon], {
+            radius: 30000,
+            color: '#10B981',
+            fillColor: '#10B981',
+            fillOpacity: 0.08,
+            weight: 2,
+            dashArray: '6, 6',
+            interactive: false
+        }).addTo(leafletMap);
 
-        // -------------------------------------------------------------
-        // Device Geolocation GPS Connection JavaScript Logic
-        // -------------------------------------------------------------
-        let watchId = null;
-        const connectGpsBtn = document.getElementById("connectGpsBtn");
-        const gpsStatusBanner = document.getElementById("gpsStatusBanner");
-        const csrfToken = "{{ csrf_token }}";
+        // 3. Customer Destination Marker
+        if (isFinite(custLat) && isFinite(custLon)) {
+            customerMarker = L.marker([custLat, custLon], {
+                icon: createIcon('#2563EB', '📍'),
+                draggable: false,
+                autoPan: false
+            }).addTo(leafletMap).bindPopup("<b>Customer Delivery Destination</b><br>Lat: " + custLat.toFixed(5) + ", Lng: " + custLon.toFixed(5), { autoPan: false });
+        }
 
-        function sendGpsCoordinate(lat, lon) {
-            fetch("{% url 'update_courier_gps' assignment.id %}", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRFToken": csrfToken
-                },
-                body: JSON.stringify({ latitude: lat, longitude: lon })
+        // 4. Courier Live Marker (only if genuine coordinates exist)
+        if (hasCourierGps && isFinite(courierLat) && isFinite(courierLon)) {
+            courierMarker = L.marker([courierLat, courierLon], {
+                icon: createIcon('#D97736', '🛵'),
+                draggable: false,
+                autoPan: false
+            }).addTo(leafletMap).bindPopup("<b>Your Current GPS Location</b>", { autoPan: false });
+        }
+
+        // 5. Road Route Polyline (if genuine road steps returned from routing engine)
+        if (routeSteps.length > 1) {
+            routePolyline = L.polyline(routeSteps, {
+                color: '#2563EB',
+                weight: 4,
+                opacity: 0.85
+            }).addTo(leafletMap);
+        }
+
+        // Fit map bounds around available points initially
+        window.recenterCourierMap();
+
+        setTimeout(() => {
+            if (leafletMap) leafletMap.invalidateSize();
+        }, 300);
+    }
+
+    // GPS Transmission with Throttling (min 4s elapsed or > 5m movement)
+    let lastSentTimestamp = 0;
+    let lastSentLat = null;
+    let lastSentLon = null;
+
+    function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
+        const R = 6371000;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function sendGpsCoordinate(lat, lon, accuracy) {
+        const now = Date.now();
+        if (lastSentLat !== null && lastSentLon !== null) {
+            const timeDiff = now - lastSentTimestamp;
+            const distDiff = calculateDistanceMeters(lastSentLat, lastSentLon, lat, lon);
+            if (timeDiff < 4000 && distDiff < 5) {
+                return; // Throttle redundant updates
+            }
+        }
+
+        lastSentTimestamp = now;
+        lastSentLat = lat;
+        lastSentLon = lon;
+
+        fetch("{% url 'update_courier_gps' assignment.id %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken
+            },
+            body: JSON.stringify({
+                latitude: lat,
+                longitude: lon,
+                accuracy: accuracy || null
             })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    gpsStatusBanner.style.background = "#d1f4e0";
-                    gpsStatusBanner.style.color = "#065f46";
-                    gpsStatusBanner.innerHTML = `🟢 Device GPS Connected & Transmitting (Lat: ${lat.toFixed(4)}, Lng: ${lon.toFixed(4)}) - ${data.timestamp}`;
+        })
+        .then(res => res.json())
+        .then(data => {
+            const banner = document.getElementById("gpsStatusBanner");
+            if (data.status === 'success' && banner) {
+                banner.style.background = "#d1f4e0";
+                banner.style.borderColor = "#a7f3d0";
+                banner.style.color = "#065f46";
+                const accStr = accuracy ? ` &plusmn;${Math.round(accuracy)}m` : '';
+                banner.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                        <span>🟢 Live GPS Active (Lat: ${lat.toFixed(4)}, Lng: ${lon.toFixed(4)}${accStr}) &bull; Synced at ${data.timestamp}</span>
+                        <button type="button" onclick="startDeviceGpsTracking(true)" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.55rem; font-size: 0.78rem; background: #fff; color: #065f46; border-color: #86efac;">🔄 Refresh GPS</button>
+                    </div>
+                `;
+            } else if (data.status === 'stopped' && banner) {
+                banner.style.background = "#f1f5f9";
+                banner.style.borderColor = "#cbd5e1";
+                banner.style.color = "#475569";
+                banner.innerHTML = "✅ Tracking concluded. Order is delivered or cancelled.";
+                stopTracking();
+            }
+        })
+        .catch(err => {
+            console.error("GPS Transmission Error:", err);
+        });
+    }
+
+    function updateCourierPositionOnMap(lat, lon, accuracy) {
+        courierLat = lat;
+        courierLon = lon;
+        hasCourierGps = true;
+
+        if (leafletMap) {
+            if (!courierMarker) {
+                courierMarker = L.marker([lat, lon], {
+                    icon: createIcon('#D97736', '🛵')
+                }).addTo(leafletMap).bindPopup("<b>Your Current GPS Location</b>");
+            } else {
+                courierMarker.setLatLng([lat, lon]);
+            }
+        }
+
+        const debugElem = document.getElementById("courier-coord-debug");
+        if (debugElem) {
+            const accStr = accuracy ? ` (&plusmn;${Math.round(accuracy)}m)` : '';
+            debugElem.innerHTML = `🛵 <strong>Courier GPS:</strong> Lat ${lat.toFixed(5)}, Lon ${lon.toFixed(5)}${accStr}`;
+        }
+
+        // Dynamically update Google Maps external navigation URLs with current courier location as origin
+        const navBtn1 = document.getElementById("trackGpsNavBtn");
+        if (navBtn1) {
+            navBtn1.href = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${custLat},${custLon}`;
+        }
+        const navBtn2 = document.getElementById("btn-nav-directions");
+        if (navBtn2) {
+            navBtn2.href = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${custLat},${custLon}`;
+        }
+
+        sendGpsCoordinate(lat, lon, accuracy);
+    }
+
+    function startDeviceGpsTracking(isManualClick = false) {
+        const banner = document.getElementById("gpsStatusBanner");
+        if (isOrderDelivered) {
+            if (banner) banner.innerHTML = "✅ Order Delivered. GPS tracking stopped.";
+            return;
+        }
+
+        if (!navigator.geolocation) {
+            if (banner) {
+                banner.style.background = "#fef2f2";
+                banner.style.borderColor = "#fecaca";
+                banner.style.color = "#991b1b";
+                banner.innerHTML = "❌ Browser Geolocation is not supported on this device.";
+            }
+            return;
+        }
+
+        if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            if (banner) {
+                banner.style.background = "#fffbeb";
+                banner.style.borderColor = "#fef3c7";
+                banner.style.color = "#b45309";
+                banner.innerHTML = "⚠️ Device Geolocation requires HTTPS or localhost connection.";
+            }
+            return;
+        }
+
+        if (banner) {
+            banner.style.background = "#fffbeb";
+            banner.style.borderColor = "#fef3c7";
+            banner.style.color = "#b45309";
+            banner.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                    <div style="width: 14px; height: 14px; border: 2px solid #b45309; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <span>📡 Acquiring live device GPS fix...</span>
+                </div>
+            `;
+        }
+
+        // Request initial position fix with high accuracy
+        navigator.geolocation.getCurrentPosition(
+            function(pos) {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+                const accuracy = pos.coords.accuracy;
+                if (!isFinite(lat) || !isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                    if (banner) {
+                        banner.style.background = "#fef2f2";
+                        banner.style.borderColor = "#fecaca";
+                        banner.style.color = "#991b1b";
+                        banner.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                                <span>⚠️ Invalid GPS coordinates received from device.</span>
+                                <button type="button" onclick="startDeviceGpsTracking(true)" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.6rem; font-size: 0.8rem; background: #fff; color: #991b1b;">🔄 Retry GPS</button>
+                            </div>
+                        `;
+                    }
+                    return;
                 }
-            })
-            .catch(err => console.error("GPS Transmission Error:", err));
+                updateCourierPositionOnMap(lat, lon, accuracy);
+
+                // Start continuous watchPosition without duplicates
+                if (watchId !== null) {
+                    navigator.geolocation.clearWatch(watchId);
+                }
+                watchId = navigator.geolocation.watchPosition(
+                    function(watchPos) {
+                        const wLat = watchPos.coords.latitude;
+                        const wLon = watchPos.coords.longitude;
+                        if (isFinite(wLat) && isFinite(wLon) && wLat >= -90 && wLat <= 90 && wLon >= -180 && wLon <= 180) {
+                            updateCourierPositionOnMap(wLat, wLon, watchPos.coords.accuracy);
+                        }
+                    },
+                    function(err) {
+                        handleGpsError(err);
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 3000 }
+                );
+            },
+            function(err) {
+                handleGpsError(err);
+            },
+            { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }
+        );
+    }
+
+    function handleGpsError(err) {
+        const banner = document.getElementById("gpsStatusBanner");
+        if (!banner) return;
+        banner.style.background = "#fef2f2";
+        banner.style.borderColor = "#fecaca";
+        banner.style.color = "#991b1b";
+        let msg = "";
+        switch (err.code) {
+            case 1:
+                msg = "❌ GPS Permission Denied. Please enable location permissions in browser/device settings.";
+                break;
+            case 2:
+                msg = "⚠️ Device GPS Signal Unavailable. Please enable Location/GPS in device settings.";
+                break;
+            case 3:
+                msg = "⏱️ GPS Request Timed Out.";
+                break;
+            default:
+                msg = "⚠️ GPS Error: " + (err.message || "Failed to obtain device location.");
         }
+        banner.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                <span>${msg}</span>
+                <button type="button" onclick="startDeviceGpsTracking(true)" class="btn btn-sm btn-outline" style="padding: 0.25rem 0.65rem; font-size: 0.8rem; background: #ffffff; color: #991b1b; border-color: #fca5a5;">
+                    🔄 Retry GPS
+                </button>
+            </div>
+        `;
+    }
 
-        function startDeviceGpsTracking(isManualClick = false) {
-            if (!navigator.geolocation) {
-                gpsStatusBanner.innerHTML = `🟢 GPS Active (Lat: ${courierLat.toFixed(4)}, Lng: ${courierLon.toFixed(4)})`;
-                return;
-            }
-
-            if (isManualClick) {
-                gpsStatusBanner.style.background = "#fff8ea";
-                gpsStatusBanner.style.color = "#d97736";
-                gpsStatusBanner.innerHTML = "⌛ Refreshing Device GPS Location...";
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-
-                    courierLat = lat;
-                    courierLon = lon;
-
-                    courierMarker.setLatLng([lat, lon]);
-                    map.panTo([lat, lon]);
-
-                    const navBtn = document.getElementById("trackGpsNavBtn");
-                    if (navBtn) {
-                        navBtn.href = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${custLat},${custLon}`;
-                    }
-
-                    sendGpsCoordinate(lat, lon);
-
-                    if (!watchId) {
-                        watchId = navigator.geolocation.watchPosition(
-                            function(pos) {
-                                const wLat = pos.coords.latitude;
-                                const wLon = pos.coords.longitude;
-                                courierMarker.setLatLng([wLat, wLon]);
-                                const btn = document.getElementById("trackGpsNavBtn");
-                                if (btn) btn.href = `https://www.google.com/maps/dir/?api=1&origin=${wLat},${wLon}&destination=${custLat},${custLon}`;
-                                sendGpsCoordinate(wLat, wLon);
-                            },
-                            null,
-                            { enableHighAccuracy: false, timeout: 5000, maximumAge: 3000 }
-                        );
-                    }
-                },
-                function(error) {
-                    console.warn("Geolocation fallback activated:", error.message);
-                    gpsStatusBanner.style.background = "#d1f4e0";
-                    gpsStatusBanner.style.color = "#065f46";
-                    gpsStatusBanner.innerHTML = `🟢 GPS Active (Lat: ${courierLat.toFixed(4)}, Lng: ${courierLon.toFixed(4)})`;
-                },
-                { enableHighAccuracy: false, timeout: 4000, maximumAge: 10000 }
-            );
-        }
-
-        if (connectGpsBtn) {
-            connectGpsBtn.addEventListener("click", function() {
-                startDeviceGpsTracking(true);
-            });
-        }
-
-        // Auto-start device location check asynchronously on load
-        startDeviceGpsTracking(false);
-
-        // Auto-stop GPS if delivered
-        if (isOrderDelivered && watchId) {
+    function stopTracking() {
+        if (watchId !== null && navigator.geolocation) {
             navigator.geolocation.clearWatch(watchId);
-            gpsStatusBanner.innerHTML = "✅ Order Delivered. GPS Tracking Stopped.";
+            watchId = null;
+        }
+    }
+
+    window.addEventListener("beforeunload", stopTracking);
+
+    document.addEventListener("DOMContentLoaded", function() {
+        initLeafletMap();
+
+        const connectBtn = document.getElementById("connectGpsBtn");
+        if (connectBtn) {
+            connectBtn.addEventListener("click", () => startDeviceGpsTracking(true));
+        }
+
+        if (!isOrderDelivered) {
+            // Automatically prompt for device GPS if tracking assignment is in progress
+            startDeviceGpsTracking(false);
+        } else {
+            stopTracking();
         }
     });
-</script>
 </script>
 {% endblock %}
