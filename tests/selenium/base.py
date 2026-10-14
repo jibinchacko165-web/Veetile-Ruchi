@@ -26,14 +26,29 @@ class BaseSeleniumTest(StaticLiveServerTestCase):
         chrome_options.add_argument('--disable-dev-shm-usage')
         
         cls.driver = None
-        # Initialize Chrome driver with fallback to Selenium Manager
-        try:
-            cls.driver = webdriver.Chrome(options=chrome_options)
-        except Exception:
+        # Check local cache first to avoid network latency/timeout issues
+        local_driver = None
+        user_cache = os.path.expanduser("~/.cache/selenium/chromedriver/win64")
+        if os.path.isdir(user_cache):
+            for root, dirs, files in os.walk(user_cache):
+                if "chromedriver.exe" in files:
+                    local_driver = os.path.join(root, "chromedriver.exe")
+                    break
+
+        if local_driver and os.path.exists(local_driver):
             try:
-                cls.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-            except Exception as e:
-                raise unittest.SkipTest(f"Chrome WebDriver is unavailable: {e}")
+                cls.driver = webdriver.Chrome(service=Service(local_driver), options=chrome_options)
+            except Exception:
+                pass
+
+        if cls.driver is None:
+            try:
+                cls.driver = webdriver.Chrome(options=chrome_options)
+            except Exception:
+                try:
+                    cls.driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+                except Exception as e:
+                    raise unittest.SkipTest(f"Chrome WebDriver is unavailable: {e}")
 
         cls.driver.implicitly_wait(10)
         cls.wait = WebDriverWait(cls.driver, 10)
