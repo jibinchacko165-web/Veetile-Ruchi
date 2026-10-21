@@ -1,5 +1,6 @@
 import warnings
 warnings.filterwarnings('ignore')
+import re
 import numpy as np
 import pandas as pd
 import math
@@ -240,9 +241,10 @@ def recommend_health_and_time_aware_foods(all_foods, health_profile, active_sess
     scored_candidates = []
     for food in session_eligible_foods:
         cat_name = (food.category.name if food.category else '').lower()
-        if pref == 'veg' and 'non-veg' in cat_name:
+        is_veg = getattr(food, 'is_vegetarian', False) or (cat_name and 'non-veg' not in cat_name and 'veg' in cat_name)
+        if pref == 'veg' and not is_veg:
             continue
-        if pref == 'vegan' and not ('vegan' in cat_name or 'veg' in cat_name):
+        if pref == 'vegan' and not (getattr(food, 'is_vegan', False) or ('vegan' in cat_name)):
             continue
 
         desc = ((food.description or '') + ' ' + (food.name or '')).lower()
@@ -256,27 +258,30 @@ def recommend_health_and_time_aware_foods(all_foods, health_profile, active_sess
         fiber = food.nutrition.fiber if has_nutr else 3.0
         total_fat = food.nutrition.total_fat if has_nutr else 6.0
 
-        # Keywords inspection
-        fried_keywords = ['deep-fried', 'deep fried', 'fried', 'fritter', 'fritters', 'vada', 'bajji', 'chips', 'pori']
-        is_fried = any(k in desc for k in fried_keywords)
+        # Keywords inspection with word-boundary awareness (prevent 'pancakes' matching 'cake')
+        fried_keywords = ['deep-fried', 'deep fried', 'vada', 'bajji', 'chips', 'fritter', 'fritters', 'beef fry', 'chicken fry', 'fish fry']
+        is_fried = any(re.search(r'\b' + re.escape(k) + r'\b', desc) for k in fried_keywords) and not ('stir-fried' in desc or 'stir fried' in desc or 'thoran' in desc)
 
-        sweet_keywords = ['jaggery', 'sweet', 'total_sugars', 'halwa', 'payasam', 'cake', 'pudding']
-        is_sweet = any(k in desc for k in sweet_keywords)
+        sweet_keywords = ['jaggery', 'halwa', 'payasam', 'pudding', 'sharkara', 'sugar']
+        is_sweet = any(re.search(r'\b' + re.escape(k) + r'\b', desc) for k in sweet_keywords)
+
+        refined_keywords = ['porotta', 'parotta', 'poori', 'puri', 'bhatura', 'bhature', 'maida']
+        is_refined = any(re.search(r'\b' + re.escape(k) + r'\b', desc) for k in refined_keywords)
 
         is_diab_ok = True
         is_chol_ok = True
         is_bp_ok = True
 
         if diabetes_conscious:
-            if total_sugars > 4.5 or is_sweet or (calories > 550 and total_sugars > 3.0):
+            if total_sugars > 5.0 or is_sweet or is_refined or (calories > 600 and total_sugars > 3.5):
                 is_diab_ok = False
 
         if cholesterol_conscious:
-            if cholesterol > 25.0 or is_fried or total_fat > 18.0:
+            if cholesterol > 35.0 or is_fried or is_refined or total_fat > 18.0:
                 is_chol_ok = False
 
-        if calorie_awareness:
-            if sodium > 280.0:
+        if calorie_awareness: # High Blood Pressure / Sodium Awareness
+            if sodium > 480.0:
                 is_bp_ok = False
 
         if (diabetes_conscious and not is_diab_ok) or (cholesterol_conscious and not is_chol_ok) or (calorie_awareness and not is_bp_ok):
