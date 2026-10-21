@@ -16,4 +16,6 @@ walkthrough.md
 implementation_plan.md
 tests/selenium/screenshots/
 generate_pdf.py
-
+*.sql
+*.backup
+initial_data_backup.json

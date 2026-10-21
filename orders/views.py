@@ -155,6 +155,28 @@ def checkout_view(request):
         branches = HotelBranch.objects.filter(is_active=True, name__icontains='Kanjirappally').select_related('district')
     if not branches.exists():
         branches = HotelBranch.objects.filter(is_active=True).select_related('district')[:1]
+    if not branches.exists():
+        # Safeguard fallback: Ensure Central Kitchen Hub is registered and linked
+        kottayam, _ = District.objects.get_or_create(
+            name='Kottayam',
+            defaults={'code': 'kottayam', 'latitude': 9.5916, 'longitude': 76.5222, 'is_active': True}
+        )
+        hub, _ = HotelBranch.objects.get_or_create(
+            is_central_hub=True,
+            defaults={
+                'name': delivery_setting.name or 'Central Kitchen Hub (Kanjirappally)',
+                'district': kottayam,
+                'address': delivery_setting.address or 'Kanjirappally Town, Kottayam, Kerala',
+                'latitude': delivery_setting.latitude or 9.5564,
+                'longitude': delivery_setting.longitude or 76.7909,
+                'max_delivery_radius_km': 30.0,
+                'is_active': True,
+                'is_central_hub': True,
+                'phone': '+91 7510672355',
+                'operating_status': 'open',
+            }
+        )
+        branches = HotelBranch.objects.filter(id=hub.id).select_related('district')
 
     # Selected default is Central Kitchen Hub (Kanjirappally)
     selected_branch = branches.first()

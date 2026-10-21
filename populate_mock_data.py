@@ -192,11 +192,11 @@ def seed_database():
         NutritionInfo.objects.create(
             food_item=f,
             calories=cal,
-            sugar=sug,
+            total_sugars=sug,
             cholesterol=chol,
             sodium=sod,
             protein=prot,
-            fat=fat,
+            total_fat=fat,
             carbohydrates=carb,
             fiber=fib
         )

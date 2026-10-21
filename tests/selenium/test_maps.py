@@ -7,46 +7,18 @@ from orders.models import CartItem
 
 class MapTest(BaseSeleniumTest):
     def test_staff_perimeter_map_full_workflow(self):
-        """Verify Staff Service Area & Delivery Map renders, tiles load, pin and radius work."""
-        DeliverySetting.objects.all().delete()
-        DeliverySetting.objects.create(
-            name="Central Kitchen Hub (Kanjirappally)",
-            address="Jubilee Junction, Kanjirappally, Kerala",
-            latitude=9.5564,
-            longitude=76.7909,
-            max_delivery_radius_km=20.0,
-            is_active=True
-        )
-
+        """Verify Staff Dashboard renders cleanly and removed perimeter tab is not present."""
         self.login('teststaff', 'testpassword123')
         self.wait.until(lambda d: '/login/' not in d.current_url)
-        self.driver.get(self.live_server_url + '/orders/staff/dashboard/?tab=perimeter')
+        self.driver.get(self.live_server_url + '/orders/staff/dashboard/')
 
-        # 1. Map container presence and visibility
-        map_container = self.wait.until(EC.presence_of_element_located((By.ID, 'admin-perimeter-map')))
-        self.assertTrue(map_container.is_displayed())
-        self.assertIn('leaflet-container', map_container.get_attribute('class'))
-
-        # 2. Controls and attribution
-        zoom_controls = self.driver.find_elements(By.CSS_SELECTOR, '#admin-perimeter-map .leaflet-control-zoom')
-        self.assertTrue(len(zoom_controls) > 0)
-
-        attribution = self.driver.find_element(By.CSS_SELECTOR, '#admin-perimeter-map .leaflet-control-attribution')
-        self.assertTrue('Esri' in attribution.text or 'CARTO' in attribution.text or 'OpenStreetMap' in attribution.text)
-
-        # 3. Markers and Circle
-        markers = self.driver.find_elements(By.CSS_SELECTOR, '#admin-perimeter-map .custom-blue-pin-icon')
-        self.assertTrue(len(markers) > 0)
-
-        # 4. Heading and coordinates
-        coord_display = self.driver.find_element(By.ID, 'map-coord-display')
-        self.assertIn('9.5564', coord_display.text)
-        self.assertIn('76.7909', coord_display.text)
-
-        # 5. Radius and Hub text
+        # Verify staff dashboard loads orders successfully
+        self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'scrollable-pill-bar')))
         page_source = self.driver.page_source
-        self.assertTrue('Service Area' in page_source and 'Delivery Map' in page_source)
-        self.assertIn('Central Kitchen Hub (Kanjirappally)', page_source)
+        self.assertIn('Customer Orders', page_source)
+        # Verify perimeter map container was removed
+        map_containers = self.driver.find_elements(By.ID, 'admin-perimeter-map')
+        self.assertEqual(len(map_containers), 0)
 
     def test_checkout_delivery_map(self):
         """Verify Customer Checkout Map initializes and handles location picking."""

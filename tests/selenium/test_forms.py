@@ -46,7 +46,12 @@ class FormValidationTest(BaseSeleniumTest):
         
         # Invalid phone
         self.driver.find_element(By.NAME, 'phone').send_keys('12345') 
-        self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        submit_btn = self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
+        self.driver.execute_script("arguments[0].scrollIntoView(true);", submit_btn)
+        try:
+            submit_btn.click()
+        except Exception:
+            self.driver.execute_script("arguments[0].click();", submit_btn)
         
         # Should stay on page or show error
         self.assertTrue('register' in self.driver.current_url)

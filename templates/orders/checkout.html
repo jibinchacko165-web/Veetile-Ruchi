@@ -789,6 +789,10 @@
                             <option value="{{ b.id }}" {% if selected_branch and selected_branch.id == b.id %}selected{% endif %}>
                                 {{ b.name }}, {{ b.district.name }} District &mdash; Delivery radius: {{ b.effective_radius_km|floatformat:0 }} km
                             </option>
+                        {% empty %}
+                            <option value="{{ selected_branch.id|default:'' }}" selected>
+                                {{ hub_name|default:delivery_setting.name|default:'Central Kitchen Hub (Kanjirappally)' }}, {{ selected_branch.district.name|default:'Kottayam' }} District &mdash; Delivery radius: {{ hub_radius_km|floatformat:0|default:'30' }} km
+                            </option>
                         {% endfor %}
                     </select>
 

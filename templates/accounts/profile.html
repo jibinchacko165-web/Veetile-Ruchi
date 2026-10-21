@@ -479,6 +479,7 @@
             autoPan: true,
             title: "Drag to set saved location"
         }).addTo(leafletMap);
+        leafletMarker = customerMarker;
 
         // Marker drag: update coordinates on dragend
         customerMarker.on('dragend', function() {

@@ -64,9 +64,9 @@ for food in foods:
     nutrition.calories = cal
     nutrition.protein = pro
     nutrition.carbohydrates = carb
-    nutrition.fat = fat
+    nutrition.total_fat = fat
     nutrition.fiber = fib
-    nutrition.sugar = sug
+    nutrition.total_sugars = sug
     nutrition.cholesterol = chol
     nutrition.sodium = sod
     
