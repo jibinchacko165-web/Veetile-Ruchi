@@ -36,12 +36,12 @@ class Coupon(models.Model):
 
 class Order(models.Model):
     STATUS_CHOICES = (
-        ('pending', 'Pending'),
-        ('preparing', 'Preparing'),
-        ('ready_pickup', 'Ready for Pickup'),
-        ('assigned', 'Assigned'),
-        ('picked_up', 'Picked Up'),
-        ('in_transit', 'In Transit'),
+        ('pending', 'Order Confirmed'),
+        ('preparing', 'Food Preparing'),
+        ('ready_pickup', 'Food Prepared'),
+        ('assigned', 'Courier Assigned'),
+        ('picked_up', 'Food Picked Up'),
+        ('in_transit', 'Out for Delivery'),
         ('delivered', 'Delivered'),
         ('cancelled', 'Cancelled'),
     )
@@ -60,7 +60,11 @@ class Order(models.Model):
     customer_delivery_notes = models.TextField(blank=True, null=True, default='')
     internal_kitchen_notes = models.TextField(blank=True, null=True, default='')
     
+    # Lifecycle Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
+    preparing_started_at = models.DateTimeField(null=True, blank=True)
+    food_prepared_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):

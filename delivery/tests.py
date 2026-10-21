@@ -111,7 +111,7 @@ class CourierWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 302)
 
         order.refresh_from_db()
-        self.assertEqual(order.status, 'ready_pickup')
+        self.assertEqual(order.status, 'assigned')
         
         assignment = DeliveryAssignment.objects.get(order=order)
         self.assertEqual(assignment.delivery_boy, self.courier1_profile)
@@ -254,7 +254,7 @@ class KeralaDistrictsAndBranchesTests(TestCase):
         self.assertEqual(hub.latitude, 9.5564)
         self.assertEqual(hub.longitude, 76.7909)
         self.assertTrue(hub.is_active)
-        self.assertLessEqual(hub.effective_radius_km, 25.0)
+        self.assertLessEqual(hub.effective_radius_km, 30.0)
 
     def test_03_strict_25km_radius_enforcement(self):
         from delivery.models import District, HotelBranch

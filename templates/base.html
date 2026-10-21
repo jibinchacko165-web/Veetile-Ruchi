@@ -16,19 +16,106 @@
     <!-- FontAwesome 6 Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-    <!-- Leaflet OpenStreetMap CSS & JS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Map CSS & JS (Local Static Assets) -->
+    <link rel="stylesheet" href="/static/leaflet/leaflet.css" />
+    <script src="/static/leaflet/leaflet.js"></script>
+    <script>
+        // Configure Leaflet to locate default marker assets from local static directory
+        if (typeof L !== 'undefined' && L.Icon && L.Icon.Default) {
+            L.Icon.Default.imagePath = '/static/leaflet/images/';
+        }
 
-    <!-- Google Maps API -->
+        // Global Map Provider Tokens (Authorized, policy-compliant tile providers with zero 403 blocks)
+        window.MAP_TILE_URL = "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+        window.MAP_TILE_ATTRIBUTION = '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom"|safe }}';
+        window.MAP_TILE_SUBDOMAINS = "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
+        window.MAP_TILE_FALLBACK_URL = "{{ MAP_TILE_FALLBACK_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+        window.MAP_TILE_FALLBACK_ATTRIBUTION = '{{ MAP_TILE_FALLBACK_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, TomTom"|safe }}';
+        window.GOOGLE_MAPS_API_KEY = "{{ GOOGLE_MAPS_API_KEY|default:''|escapejs }}";
+        window._googleMapsAvailable = false;
+        window._googleMapsAuthFailed = false;
+
+        // Global Reverse Geocoding Utility
+        window.veetileReverseGeocode = function(lat, lon, callback) {
+            if (!callback) return;
+            // 1. If Google Maps geocoder is active and key is authenticated
+            if (window.google && window.google.maps && window.google.maps.Geocoder && !window._googleMapsAuthFailed) {
+                try {
+                    const geocoder = new google.maps.Geocoder();
+                    geocoder.geocode({ location: { lat: parseFloat(lat), lng: parseFloat(lon) } }, function(results, status) {
+                        if (status === 'OK' && results && results[0]) {
+                            callback(results[0].formatted_address, 'google');
+                            return;
+                        }
+                        callBackendGeocode(lat, lon, callback);
+                    });
+                    return;
+                } catch(e) {
+                    console.warn("Google Geocoder error:", e);
+                }
+            }
+            callBackendGeocode(lat, lon, callback);
+        };
+
+        function callBackendGeocode(lat, lon, callback) {
+            fetch(`/orders/api/reverse-geocode/?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.success && data.address) {
+                        callback(data.address, data.source || 'backend');
+                    } else {
+                        callback(`Lat: ${Number(lat).toFixed(5)}, Lon: ${Number(lon).toFixed(5)}`, 'fallback');
+                    }
+                })
+                .catch(err => {
+                    console.warn("Reverse geocode fetch error:", err);
+                    callback(`Lat: ${Number(lat).toFixed(5)}, Lon: ${Number(lon).toFixed(5)}`, 'fallback');
+                });
+        }
+    </script>
+
+    <!-- Google Maps JavaScript API (Graceful optional loading if configured) -->
     {% if GOOGLE_MAPS_API_KEY %}
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ GOOGLE_MAPS_API_KEY }}&libraries=places,geometry" async defer></script>
+    <script>
+        window.gm_authFailure = function() {
+            console.warn("Google Maps API authentication or billing check failed. Gracefully falling back to Leaflet.");
+            window._googleMapsAuthFailed = true;
+            window._googleMapsAvailable = false;
+            document.querySelectorAll('.gmap-config-banner').forEach(el => {
+                el.style.display = 'block';
+                el.innerHTML = '⚠️ <strong>Google Maps Notice:</strong> API key authorization or billing required. Seamlessly using Leaflet map provider.';
+            });
+            if (typeof window.onGoogleMapsAuthFailed === 'function') {
+                window.onGoogleMapsAuthFailed();
+            }
+        };
+        window.initGoogleMapsGlobalCallback = function() {
+            window._googleMapsAvailable = true;
+            console.log("Google Maps API loaded successfully.");
+            if (typeof window.onGoogleMapsLoaded === 'function') {
+                window.onGoogleMapsLoaded();
+            }
+        };
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ GOOGLE_MAPS_API_KEY }}&libraries=places,geometry&callback=initGoogleMapsGlobalCallback" async defer></script>
     {% endif %}
 
     <!-- Master Kerala Design System -->
     <link rel="stylesheet" href="/static/css/style.css">
 
     <style>
+        /* Fixed Map Center Pin Overlay (Uber/DoorDash-style Location Selector) */
+        .map-fixed-center-pin {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -100%);
+            pointer-events: none;
+            z-index: 500;
+            user-select: none;
+            will-change: transform;
+        }
+
         /* Kerala Nature Navbar Styles */
         .kerala-navbar {
             position: fixed;

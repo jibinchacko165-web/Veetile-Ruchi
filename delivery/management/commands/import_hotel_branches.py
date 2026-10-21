@@ -59,14 +59,14 @@ class Command(BaseCommand):
                     skipped_count += 1
                     continue
 
-                # Validate radius (maximum 25 km strict limit)
+                # Validate radius (maximum 30 km strict limit)
                 try:
                     radius = float(raw_radius)
                     if radius <= 0:
-                        radius = 25.0
-                    radius = min(radius, 25.0) # Strict ceiling of 25 km
+                        radius = 30.0
+                    radius = min(radius, 30.0) # Strict ceiling of 30 km
                 except ValueError:
-                    radius = 25.0
+                    radius = 30.0
 
                 # Match district
                 district = District.objects.filter(name__iexact=dist_name).first()

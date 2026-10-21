@@ -79,7 +79,7 @@ class HotelBranch(models.Model):
     address = models.CharField(max_length=255)
     latitude = models.FloatField(help_text="Verified branch latitude")
     longitude = models.FloatField(help_text="Verified branch longitude")
-    max_delivery_radius_km = models.FloatField(default=25.0, help_text="Configured delivery radius in km (max 25.0 km)")
+    max_delivery_radius_km = models.FloatField(default=30.0, help_text="Configured delivery radius in km (max 30.0 km)")
     is_active = models.BooleanField(default=True, db_index=True)
     is_central_hub = models.BooleanField(default=False, help_text="Indicates primary central kitchen hub")
     phone = models.CharField(max_length=25, blank=True, null=True, default='')
@@ -106,8 +106,8 @@ class HotelBranch(models.Model):
 
     @property
     def effective_radius_km(self):
-        """Enforces strict ceiling of 25.0 km while respecting stricter configured radius."""
-        return min(float(self.max_delivery_radius_km or 25.0), 25.0)
+        """Enforces delivery radius ceiling of 30.0 km while respecting stricter configured radius."""
+        return min(float(self.max_delivery_radius_km or 30.0), 30.0)
 
     def calculate_distance(self, lat, lon):
         from orders.utils import calculate_distance_km

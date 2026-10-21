@@ -376,7 +376,7 @@
             </optgroup>
         </select>
         <button type="submit" class="btn" style="padding: 0.55rem 1.4rem; font-size: 0.9rem; font-weight: 700; background: #D97736; color: #ffffff; box-shadow: 0 4px 12px rgba(217, 119, 54, 0.35);" {% if available_couriers_count == 0 %}disabled{% endif %}>
-            Assign Courier
+            Assign Delivery Boy / Courier
         </button>
     </form>
                             </div>
@@ -389,12 +389,22 @@
 
                     <!-- Additional Staff Actions (Mark Food Ready, Confirm Payment, View Tracking) -->
                     <div style="display: flex; justify-content: flex-end; gap: 0.6rem; align-items: center; border-top: 1px solid var(--border-light); padding-top: 0.6rem; flex-wrap: wrap;">
+                        {% if order.status == 'pending' %}
+                            <form method="POST" action="{% url 'staff_update_order_status' order.order_id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="status" value="preparing">
+                                <button type="submit" class="btn btn-outline" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; border-color: #2563EB; color: #2563EB; font-weight: 700;">
+                                    🍳 Start Food Preparation
+                                </button>
+                            </form>
+                        {% endif %}
+
                         {% if order.status in 'pending,preparing' %}
                             <form method="POST" action="{% url 'staff_update_order_status' order.order_id %}">
                                 {% csrf_token %}
                                 <input type="hidden" name="status" value="ready_pickup">
                                 <button type="submit" class="btn btn-outline" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; border-color: #D97736; color: #D97736; font-weight: 700;">
-                                    📦 Mark as Food Ready (Ready for Pickup)
+                                    🍲 Mark Food Prepared (Ready for Courier)
                                 </button>
                             </form>
                         {% endif %}
@@ -654,10 +664,7 @@
 </style>
 
 <script>
-    let adminMap, hubMarker, perimeterCircle;
     let leafletMap, leafletHubMarker, leafletCircle;
-    
-    const hasApiKey = "{{ GOOGLE_MAPS_API_KEY|default:'' }}" !== "";
 
     function calcApproxArea(rKm) {
         return (Math.PI * rKm * rKm).toFixed(1);
@@ -692,16 +699,7 @@
         const coordDisplay = document.getElementById('map-coord-display');
         if (coordDisplay) coordDisplay.innerText = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
 
-        if (hasApiKey && typeof google !== 'undefined' && google.maps && adminMap) {
-            const pos = new google.maps.LatLng(lat, lon);
-            if (hubMarker) hubMarker.setPosition(pos);
-            if (perimeterCircle) {
-                perimeterCircle.setCenter(pos);
-                perimeterCircle.setRadius(rKm * 1000);
-            }
-            adminMap.panTo(pos);
-            if (perimeterCircle) adminMap.fitBounds(perimeterCircle.getBounds(), 30);
-        } else if (leafletMap) {
+        if (leafletMap) {
             if (leafletHubMarker) leafletHubMarker.setLatLng([lat, lon]);
             if (leafletCircle) {
                 leafletCircle.setLatLng([lat, lon]);
@@ -762,74 +760,6 @@
         syncPerimeterMapFromInputs();
     }
 
-    function initGoogleMap() {
-        if (!hasApiKey) return;
-        const initLat = parseFloat("{{ delivery_setting.latitude|default:9.5564 }}");
-        const initLon = parseFloat("{{ delivery_setting.longitude|default:76.7909 }}");
-        const initRadiusKm = parseFloat("{{ delivery_setting.max_delivery_radius_km|default:30.0 }}");
-
-        updateRadiusStats(initRadiusKm);
-
-        const mapContainer = document.getElementById('admin-perimeter-map');
-        if (!mapContainer) return;
-
-        adminMap = new google.maps.Map(mapContainer, {
-            center: { lat: initLat, lng: initLon },
-            zoom: 12,
-            mapTypeId: google.maps.MapTypeId.ROADMAP
-        });
-
-        hubMarker = new google.maps.Marker({
-            position: { lat: initLat, lng: initLon },
-            map: adminMap,
-            draggable: true,
-            title: "Central Kitchen Hub (Kanjirappally)",
-            icon: {
-                path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
-                fillColor: "#2563EB",
-                fillOpacity: 1,
-                strokeWeight: 1.5,
-                strokeColor: "#1D4ED8",
-                scale: 1.8,
-                anchor: new google.maps.Point(12, 22)
-            }
-        });
-
-        const infoWindow = new google.maps.InfoWindow({ content: "<b>Central Kitchen Hub</b><br>Drag pin or click map to reposition", disableAutoPan: true });
-        infoWindow.open(adminMap, hubMarker);
-        hubMarker.addListener('click', () => infoWindow.open(adminMap, hubMarker));
-
-        perimeterCircle = new google.maps.Circle({
-            strokeColor: '#2563EB',
-            strokeOpacity: 0.85,
-            strokeWeight: 2,
-            fillColor: '#3B82F6',
-            fillOpacity: 0.12,
-            clickable: false,
-            map: adminMap,
-            center: { lat: initLat, lng: initLon },
-            radius: initRadiusKm * 1000
-        });
-
-        adminMap.fitBounds(perimeterCircle.getBounds(), 30);
-
-        hubMarker.addListener('dragend', function() {
-            const pos = hubMarker.getPosition();
-            document.getElementById('hub_lat').value = pos.lat().toFixed(6);
-            document.getElementById('hub_lon').value = pos.lng().toFixed(6);
-            document.getElementById('map-coord-display').innerText = `${pos.lat().toFixed(6)}, ${pos.lng().toFixed(6)}`;
-            perimeterCircle.setCenter(pos);
-        });
-
-        adminMap.addListener('click', function(e) {
-            hubMarker.setPosition(e.latLng);
-            perimeterCircle.setCenter(e.latLng);
-            document.getElementById('hub_lat').value = e.latLng.lat().toFixed(6);
-            document.getElementById('hub_lon').value = e.latLng.lng().toFixed(6);
-            document.getElementById('map-coord-display').innerText = `${e.latLng.lat().toFixed(6)}, ${e.latLng.lng().toFixed(6)}`;
-        });
-    }
-
     function initLeafletMap() {
         const mapContainer = document.getElementById('admin-perimeter-map');
         if (!mapContainer || typeof L === 'undefined') return;
@@ -871,11 +801,10 @@
             bounceAtZoomLimits: false
         });
 
-        // Add reliable Esri World Street Map TileLayer with fallback to Carto and error handling
-        const primaryTileUrl = "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
-        const primaryTileAttr = '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom"|safe }}';
-        const primaryTileSubdomains = "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
-        const fallbackTileUrl = "{{ MAP_TILE_FALLBACK_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+        const primaryTileUrl = window.MAP_TILE_URL || "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+        const primaryTileAttr = window.MAP_TILE_ATTRIBUTION || '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom"|safe }}';
+        const primaryTileSubdomains = window.MAP_TILE_SUBDOMAINS || "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
+        const fallbackTileUrl = window.MAP_TILE_FALLBACK_URL || "{{ MAP_TILE_FALLBACK_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
 
         const tileLayer = L.tileLayer(primaryTileUrl, {
             subdomains: primaryTileSubdomains,
@@ -885,10 +814,12 @@
         tileLayer.addTo(leafletMap);
 
         let tileErrCount = 0;
+        let fallbackApplied = false;
         tileLayer.on('tileerror', function() {
             tileErrCount++;
-            if (tileErrCount > 4 && !tileLayer._fallbackApplied) {
-                tileLayer._fallbackApplied = true;
+            if (tileErrCount > 3 && !fallbackApplied && fallbackTileUrl && fallbackTileUrl !== primaryTileUrl) {
+                fallbackApplied = true;
+                console.warn("Primary tile provider slow/offline. Switching to fallback provider:", fallbackTileUrl);
                 tileLayer.setUrl(fallbackTileUrl);
             }
             const errBanner = document.getElementById('map-tile-error-banner');
@@ -901,7 +832,7 @@
             const errBanner = document.getElementById('map-tile-error-banner');
             if (errBanner) errBanner.style.display = 'none';
             tileErrCount = 0;
-            tileLayer._fallbackApplied = false;
+            fallbackApplied = false;
             tileLayer.setUrl(primaryTileUrl);
             tileLayer.redraw();
         };
@@ -1048,31 +979,7 @@
     }
 
     document.addEventListener("DOMContentLoaded", function() {
-        if (!hasApiKey) {
-            initLeafletMap();
-            window.initGoogleMap = function() {};
-            return;
-        }
-
-        if (typeof google !== 'undefined' && google.maps) {
-            initGoogleMap();
-        } else {
-            let checkInterval = setInterval(() => {
-                if (typeof google !== 'undefined' && google.maps) {
-                    clearInterval(checkInterval);
-                    initGoogleMap();
-                }
-            }, 100);
-            setTimeout(() => { 
-                clearInterval(checkInterval); 
-                const mapContainer = document.getElementById('admin-perimeter-map');
-                if (mapContainer && typeof google === 'undefined') {
-                    // If Google Maps fails to load even though API key was configured, fallback cleanly to Leaflet
-                    console.warn("Google Maps failed to load. Initializing Leaflet OpenStreetMap fallback.");
-                    initLeafletMap();
-                }
-            }, 5000);
-        }
+        initLeafletMap();
     });
 </script>
 
@@ -1411,10 +1318,18 @@
             bounceAtZoomLimits: false
         });
 
-        const tileUrl = "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
-        const tileAttr = '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri"|safe }}';
+        const tileUrl = window.MAP_TILE_URL || "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+        const tileAttr = window.MAP_TILE_ATTRIBUTION || '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom"|safe }}';
+        const fallbackTileUrl = window.MAP_TILE_FALLBACK_URL || "{{ MAP_TILE_FALLBACK_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
 
-        L.tileLayer(tileUrl, { attribution: tileAttr, maxZoom: 19 }).addTo(branchMap);
+        const bTileLayer = L.tileLayer(tileUrl, { attribution: tileAttr, maxZoom: 19 }).addTo(branchMap);
+        let bTileErr = 0;
+        bTileLayer.on('tileerror', function() {
+            bTileErr++;
+            if (bTileErr > 3 && fallbackTileUrl && fallbackTileUrl !== tileUrl) {
+                bTileLayer.setUrl(fallbackTileUrl);
+            }
+        });
 
         branchCircle = L.circle([bLat, bLon], {
             radius: Math.min(bRad, 25.0) * 1000,

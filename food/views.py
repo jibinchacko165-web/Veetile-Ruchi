@@ -69,7 +69,7 @@ def food_catalog(request):
                 foods = selected_branch.get_menu_items().filter(is_available=True)
             else:
                 foods = FoodItem.objects.none()
-                no_branch_message = f"No serving hotel/kitchen is currently operating in {selected_district.name}. Delivery is available within 25 km of our active branches."
+                no_branch_message = f"No serving hotel/kitchen is currently operating in {selected_district.name}. Delivery is available within 30 km of our active branches."
         else:
             foods = FoodItem.objects.filter(is_available=True)
     elif branch_id:

@@ -13,4 +13,6 @@ urlpatterns = [
     path('password-reset/cancel/', views.password_reset_cancel_view, name='password_reset_cancel'),
     path('notifications/', views.notifications_view, name='notifications'),
     path('notifications/read/<int:notif_id>/', views.mark_notification_read, name='mark_notification_read'),
+    path('api/reverse-geocode/', views.reverse_geocode_api, name='reverse_geocode_api'),
 ]
+

@@ -16,7 +16,7 @@ class RegistrationTest(BaseSeleniumTest):
         # Submit empty form and verify validation (HTML5 required fields usually prevent submit,
         # but we can check if validation messages appear)
         submit_btn = self.driver.find_element(By.CSS_SELECTOR, 'button[type="submit"]')
-        submit_btn.click()
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'}); arguments[0].click();", submit_btn)
         
         username_input = self.driver.find_element(By.NAME, 'username')
         self.check_validation_message(username_input)
@@ -28,7 +28,8 @@ class RegistrationTest(BaseSeleniumTest):
         self.driver.find_element(By.NAME, 'password').send_keys('Test@1234')
         self.driver.find_element(By.NAME, 'confirm_password').send_keys('Test@12345')
         self.driver.find_element(By.NAME, 'phone').send_keys('9876543210')
-        submit_btn.click()
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'}); arguments[0].click();", submit_btn)
+
         
         # Check for error message in the DOM (assuming Django messages are rendered in an alert or list)
         try:
@@ -52,7 +53,9 @@ class RegistrationTest(BaseSeleniumTest):
         self.driver.find_element(By.NAME, 'confirm_password').send_keys('Test@1234')
         
         # Submit valid registration
-        self.driver.find_element(By.CSS_SELECTOR, 'button[type="submit"]').click()
+        sub_btn = self.driver.find_element(By.CSS_SELECTOR, 'button[type="submit"]')
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'}); arguments[0].click();", sub_btn)
+
         
         # Verify redirect to login page
         self.wait.until(EC.url_contains('/login/'))

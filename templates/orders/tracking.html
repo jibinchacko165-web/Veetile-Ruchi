@@ -32,6 +32,38 @@
     .gps-alert-box.success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
     .gps-alert-box.error { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
     .gps-alert-box.warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+    
+    /* Professional Delivery Tracking & Accurate ETA Component Styles */
+    @keyframes livePulse {
+        0% { transform: scale(0.95); opacity: 0.7; }
+        50% { transform: scale(1.25); opacity: 1; }
+        100% { transform: scale(0.95); opacity: 0.7; }
+    }
+    .live-pulse-dot {
+        animation: livePulse 2s infinite ease-in-out;
+    }
+    .delivery-eta-card {
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1.5px solid var(--border-warm);
+        box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+        padding: 1.6rem;
+        margin-bottom: 1.5rem;
+        position: relative;
+        overflow: hidden;
+    }
+    @media (max-width: 768px) {
+        .delivery-eta-card {
+            padding: 1.15rem !important;
+        }
+        #eta-arrival-time {
+            font-size: 1.65rem !important;
+        }
+        .eta-header-meta {
+            text-align: left !important;
+            margin-top: 0.4rem;
+        }
+    }
 </style>
 
 <script>
@@ -49,13 +81,82 @@
     const custLat = parseFloat("{{ cust_lat|default:'9.5564' }}") || 9.5564;
     const custLng = parseFloat("{{ cust_lon|default:'76.7909' }}") || 76.7909;
 
+    function sanitizeCustomerGps(lat, lon, fallbackLat, fallbackLon) {
+        let latNum = Number(lat);
+        let lonNum = Number(lon);
+        if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) {
+            return fallbackLat !== null ? L.latLng(fallbackLat, fallbackLon) : null;
+        }
+        // Auto-correct reversed lat/lon (e.g. lat=76.8, lon=9.55)
+        if (latNum >= 70 && latNum <= 80 && lonNum >= 8 && lonNum <= 13) {
+            const temp = latNum;
+            latNum = lonNum;
+            lonNum = temp;
+        }
+        // Catch offshore sea coordinates west of the Kerala coast (e.g. 10.0, 76.0)
+        const isSea = (Math.round(latNum * 100) / 100 === 10.0 && Math.round(lonNum * 100) / 100 === 76.0) ||
+                      (latNum >= 8.0 && latNum <= 10.0 && lonNum < 76.15) ||
+                      (latNum > 10.0 && latNum <= 11.5 && lonNum < 75.6) ||
+                      (latNum > 11.5 && latNum <= 13.0 && lonNum < 74.9);
+        if (isSea) {
+            console.warn("Offshore sea coordinates detected:", latNum, lonNum, "Falling back to verified land hub.");
+            return fallbackLat !== null ? L.latLng(fallbackLat, fallbackLon) : null;
+        }
+        if (Math.abs(latNum) > 90 || Math.abs(lonNum) > 180) {
+            return fallbackLat !== null ? L.latLng(fallbackLat, fallbackLon) : null;
+        }
+        return L.latLng(latNum, lonNum);
+    }
+
+    const customerLatLng = sanitizeCustomerGps(custLat, custLng, KITCHEN_HUB_LAT, KITCHEN_HUB_LON);
+
     const initialRouteSteps = [
         {% for step in route_steps %}
             [{{ step.lat }}, {{ step.lng }}]{% if not forloop.last %},{% endif %}
         {% endfor %}
     ];
 
+    function hideLiveDeliveryMap() {
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
+        if (userInteractedTimeout) {
+            clearTimeout(userInteractedTimeout);
+            userInteractedTimeout = null;
+        }
+
+        if (leafletMap) {
+            try {
+                if (leafletCourierMarker) leafletMap.removeLayer(leafletCourierMarker);
+                if (leafletCustomerMarker) leafletMap.removeLayer(leafletCustomerMarker);
+                if (leafletCustomerDeviceMarker) leafletMap.removeLayer(leafletCustomerDeviceMarker);
+                if (leafletKitchenMarker) leafletMap.removeLayer(leafletKitchenMarker);
+                if (kitchenCircle) leafletMap.removeLayer(kitchenCircle);
+                if (routePolyline) leafletMap.removeLayer(routePolyline);
+                leafletMap.remove();
+            } catch (e) {
+                console.warn('Map cleanup error:', e);
+            }
+            leafletMap = null;
+            leafletCourierMarker = null;
+            leafletCustomerMarker = null;
+            leafletCustomerDeviceMarker = null;
+            leafletKitchenMarker = null;
+            kitchenCircle = null;
+            routePolyline = null;
+        }
+
+        const mapSection = document.getElementById('live-order-map-section');
+        if (mapSection) {
+            mapSection.style.display = 'none';
+        }
+    }
+
     function initLeafletMap() {
+        if (orderStatus === 'delivered' || orderStatus === 'cancelled') {
+            return;
+        }
         const mapContainer = document.getElementById('live-delivery-map');
         if (!mapContainer || typeof L === 'undefined') return;
         if (leafletMap) {
@@ -63,8 +164,8 @@
             return;
         }
 
-        const centerLat = (custLat + KITCHEN_HUB_LAT) / 2;
-        const centerLng = (custLng + KITCHEN_HUB_LON) / 2;
+        const centerLat = (customerLatLng.lat + KITCHEN_HUB_LAT) / 2;
+        const centerLng = (customerLatLng.lng + KITCHEN_HUB_LON) / 2;
 
         leafletMap = L.map(mapContainer, {
             center: [centerLat, centerLng],
@@ -94,7 +195,7 @@
             if (!leafletMap) return;
             const points = [
                 [KITCHEN_HUB_LAT, KITCHEN_HUB_LON],
-                [custLat, custLng]
+                [customerLatLng.lat, customerLatLng.lng]
             ];
             if (leafletCourierMarker) {
                 const cPos = leafletCourierMarker.getLatLng();
@@ -107,10 +208,11 @@
             leafletMap.fitBounds(L.latLngBounds(points), { padding: [50, 50], maxZoom: 15 });
         };
 
-        const primaryTileUrl = "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
-        const primaryTileAttr = '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom"|safe }}';
-        const primaryTileSubdomains = "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
-        const fallbackTileUrl = "{{ MAP_TILE_FALLBACK_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+        const primaryTileUrl = window.MAP_TILE_URL || "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+        const primaryTileAttr = window.MAP_TILE_ATTRIBUTION || '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom"|safe }}';
+        const primaryTileSubdomains = window.MAP_TILE_SUBDOMAINS || "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
+        const fallbackTileUrl = window.MAP_TILE_FALLBACK_URL || "{{ MAP_TILE_FALLBACK_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+
 
         const tileLayer = L.tileLayer(primaryTileUrl, {
             subdomains: primaryTileSubdomains,
@@ -120,10 +222,12 @@
         tileLayer.addTo(leafletMap);
 
         let tileErrCount = 0;
+        let fallbackApplied = false;
         tileLayer.on('tileerror', function() {
             tileErrCount++;
-            if (tileErrCount > 4 && !tileLayer._fallbackApplied) {
-                tileLayer._fallbackApplied = true;
+            if (tileErrCount > 3 && !fallbackApplied && fallbackTileUrl && fallbackTileUrl !== primaryTileUrl) {
+                fallbackApplied = true;
+                console.warn("Primary tile provider slow/offline. Switching to fallback provider:", fallbackTileUrl);
                 tileLayer.setUrl(fallbackTileUrl);
             }
         });
@@ -153,7 +257,7 @@
             interactive: false
         }).addTo(leafletMap);
 
-        // 2. Customer Destination Marker (📍)
+        // 2. Customer Destination Marker (📍) - Real Geographic Coordinates
         const custIcon = L.divIcon({
             className: 'custom-dest-icon',
             html: `
@@ -170,7 +274,7 @@
             iconAnchor: [17, 46],
             popupAnchor: [0, -46]
         });
-        leafletCustomerMarker = L.marker([custLat, custLng], { 
+        leafletCustomerMarker = L.marker(customerLatLng, { 
             icon: custIcon,
             draggable: false,
             autoPan: false,
@@ -185,7 +289,7 @@
                 opacity: 0.85
             }).addTo(leafletMap);
         } else if (orderStatus === 'in_transit' || orderStatus === 'picked_up') {
-            routePolyline = L.polyline([[KITCHEN_HUB_LAT, KITCHEN_HUB_LON], [custLat, custLng]], {
+            routePolyline = L.polyline([[KITCHEN_HUB_LAT, KITCHEN_HUB_LON], [customerLatLng.lat, customerLatLng.lng]], {
                 color: '#D97736',
                 weight: 4,
                 opacity: 0.8,
@@ -196,7 +300,7 @@
         // Fit map bounds to encompass kitchen and customer initially
         const bounds = L.latLngBounds([
             [KITCHEN_HUB_LAT, KITCHEN_HUB_LON],
-            [custLat, custLng]
+            [customerLatLng.lat, customerLatLng.lng]
         ]);
         leafletMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
 
@@ -315,7 +419,8 @@
 
     function updateCourierLocationOnMap(lat, lon, courierName, lastUpdate) {
         if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon)) return;
-        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return;
+        const courierLatLng = sanitizeCustomerGps(lat, lon, null, null);
+        if (!courierLatLng) return;
 
         const courierIcon = L.divIcon({
             className: 'custom-courier-icon',
@@ -325,7 +430,7 @@
         });
 
         if (!leafletCourierMarker && leafletMap) {
-            leafletCourierMarker = L.marker([lat, lon], {
+            leafletCourierMarker = L.marker(courierLatLng, {
                 icon: courierIcon,
                 zIndexOffset: 1000,
                 autoPan: false,
@@ -333,7 +438,7 @@
                 title: "Delivery Partner"
             }).addTo(leafletMap);
         } else if (leafletCourierMarker) {
-            leafletCourierMarker.setLatLng([lat, lon]);
+            leafletCourierMarker.setLatLng(courierLatLng);
         }
 
         const popupText = `<strong>🛵 Delivery Partner: ${courierName || 'Assigned Courier'}</strong><br>Last GPS update: ${lastUpdate || 'Live'}`;
@@ -350,7 +455,7 @@
         // Update external Google Maps navigation link
         const navBtn = document.getElementById('external-nav-link');
         if (navBtn) {
-            navBtn.href = `https://www.google.com/maps/dir/?api=1&origin=${lat.toFixed(6)},${lon.toFixed(6)}&destination=${custLat.toFixed(6)},${custLng.toFixed(6)}`;
+            navBtn.href = `https://www.google.com/maps/dir/?api=1&origin=${courierLatLng.lat.toFixed(6)},${courierLatLng.lng.toFixed(6)}&destination=${customerLatLng.lat.toFixed(6)},${customerLatLng.lng.toFixed(6)}`;
         }
 
         const indicator = document.getElementById('map-gps-live-indicator');
@@ -361,9 +466,17 @@
         }
     }
 
-    function updateTimelineUI(status) {
+    function updateTimelineUI(status, timestamps) {
         orderStatus = status;
-        const stageIndexMap = { 'pending': 0, 'confirmed': 1, 'preparing': 2, 'ready_pickup': 3, 'assigned': 3, 'picked_up': 4, 'in_transit': 5, 'delivered': 6 };
+        const stageIndexMap = {
+            'pending': 0,
+            'preparing': 1,
+            'ready_pickup': 2,
+            'assigned': 3,
+            'picked_up': 4,
+            'in_transit': 5,
+            'delivered': 6
+        };
         const activeIndex = stageIndexMap[status] !== undefined ? stageIndexMap[status] : 0;
         const percent = Math.min(100, Math.round((activeIndex / 6) * 100));
 
@@ -387,11 +500,56 @@
                 stepLabel.style.fontWeight = (i === activeIndex) ? '700' : '600';
             }
         }
+
+        if (timestamps) {
+            const timeMap = [
+                timestamps.confirmed_time,
+                timestamps.preparing_time,
+                timestamps.prepared_time,
+                timestamps.assigned_time,
+                timestamps.picked_up_time,
+                timestamps.out_for_delivery_time,
+                timestamps.delivered_time
+            ];
+            for (let i = 0; i <= 6; i++) {
+                const timeSpan = document.getElementById(`timeline-time-${i}`);
+                if (timeSpan) {
+                    if (i <= activeIndex && timeMap[i]) {
+                        timeSpan.innerText = timeMap[i];
+                        timeSpan.style.display = 'block';
+                    } else if (i > activeIndex) {
+                        timeSpan.innerText = '';
+                    }
+                }
+            }
+        }
+    }
+
+    let lastProcessedServerTime = 0;
+
+    function formatToKolkataTime(isoString, includeSeconds = true) {
+        if (!isoString) return null;
+        try {
+            const d = new Date(isoString);
+            if (isNaN(d.getTime())) return null;
+            return new Intl.DateTimeFormat('en-IN', {
+                timeZone: 'Asia/Kolkata',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: includeSeconds ? '2-digit' : undefined,
+                hour12: true
+            }).format(d);
+        } catch (e) {
+            return null;
+        }
     }
 
     function pollLiveOrderStatus() {
         if (orderStatus === 'delivered' || orderStatus === 'cancelled') {
-            if (pollInterval) clearInterval(pollInterval);
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
             return;
         }
 
@@ -399,23 +557,135 @@
             .then(res => res.json())
             .then(data => {
                 if (data.status === 'success') {
-                    updateTimelineUI(data.order_status);
+                    // Prevent cached or out-of-order responses from overwriting newer updates
+                    if (data.server_timestamp) {
+                        const respServerTime = new Date(data.server_timestamp).getTime();
+                        if (!isNaN(respServerTime)) {
+                            if (respServerTime < lastProcessedServerTime) {
+                                return; // Ignore older response
+                            }
+                            lastProcessedServerTime = respServerTime;
+                        }
+                    }
+
+                    orderStatus = data.order_status;
+                    updateTimelineUI(data.order_status, data.timestamps);
 
                     const badgeElem = document.getElementById('live-order-status-badge');
-                    if (badgeElem) badgeElem.innerHTML = data.status_display;
+                    if (badgeElem && data.status_display) badgeElem.innerHTML = data.status_display;
 
+                    // Update New Accurate ETA & Delivery Tracking Component
+                    const etaArrivalElem = document.getElementById('eta-arrival-time');
+                    if (etaArrivalElem && data.expected_arrival_time) {
+                        etaArrivalElem.innerText = data.expected_arrival_time;
+                    }
+
+                    const etaStatusPill = document.getElementById('eta-status-pill');
+                    if (etaStatusPill && data.status_label) {
+                        etaStatusPill.innerText = data.status_label;
+                    }
+
+                    const etaGpsPill = document.getElementById('eta-gps-pill');
+                    if (etaGpsPill && data.gps_status_badge) {
+                        etaGpsPill.innerHTML = data.gps_status_badge;
+                    }
+
+                    const etaStatusDisplay = document.getElementById('eta-status-display');
+                    if (etaStatusDisplay && data.status_display) {
+                        etaStatusDisplay.innerHTML = data.status_display;
+                    }
+
+                    const etaLastUpdated = document.getElementById('eta-last-updated');
+                    if (etaLastUpdated) {
+                        if (orderStatus === 'delivered') {
+                            etaLastUpdated.innerText = 'Order Completed';
+                        } else if (data.last_updated_time) {
+                            etaLastUpdated.innerText = 'Live • Updated ' + data.last_updated_time;
+                        }
+                    }
+
+                    const metricTravel = document.getElementById('metric-travel-time');
+                    if (metricTravel && data.remaining_travel_time) {
+                        metricTravel.innerText = data.remaining_travel_time;
+                    }
+                    const metricTravelSub = document.getElementById('metric-travel-sub');
+                    if (metricTravelSub) {
+                        if (orderStatus === 'delivered') {
+                            metricTravelSub.innerText = 'Order fulfilled';
+                        } else if (data.has_courier_gps) {
+                            metricTravelSub.innerText = 'Live road transit time';
+                        } else {
+                            metricTravelSub.innerText = 'Road transit estimate';
+                        }
+                    }
+
+                    const metricRoad = document.getElementById('metric-road-distance');
+                    if (metricRoad && data.road_distance_display) {
+                        metricRoad.innerText = data.road_distance_display;
+                    }
+                    const metricDistanceSub = document.getElementById('metric-distance-sub');
+                    if (metricDistanceSub) {
+                        if (orderStatus === 'delivered') {
+                            metricDistanceSub.innerText = 'Delivery route completed';
+                        } else if (data.is_road_distance) {
+                            metricDistanceSub.innerText = 'OSRM/Google road route';
+                        } else {
+                            metricDistanceSub.innerText = 'Road route estimate';
+                        }
+                    }
+
+                    const metricPrep = document.getElementById('metric-prep-status');
+                    if (metricPrep && data.prep_status_display) {
+                        metricPrep.innerText = data.prep_status_display;
+                    }
+                    const metricPrepSub = document.getElementById('metric-prep-sub');
+                    if (metricPrepSub) {
+                        if (orderStatus === 'delivered') {
+                            metricPrepSub.innerText = 'Food prepared & delivered';
+                        } else {
+                            metricPrepSub.innerText = 'Verified kitchen workflow';
+                        }
+                    }
+
+                    const metricLastGpsTitle = document.getElementById('metric-last-gps-title');
+                    if (metricLastGpsTitle) {
+                        metricLastGpsTitle.innerText = (orderStatus === 'delivered') ? 'Delivery Handover' : 'Last GPS Update';
+                    }
+
+                    const metricLastGps = document.getElementById('metric-last-gps');
+                    if (metricLastGps) {
+                        metricLastGps.innerText = data.last_gps_update || (orderStatus === 'delivered' ? 'Delivered' : 'Waiting for courier GPS location');
+                    }
+
+                    const metricGpsSub = document.getElementById('metric-gps-sub');
+                    if (metricGpsSub && data.gps_status_msg) {
+                        metricGpsSub.innerHTML = data.gps_status_msg;
+                    }
+
+                    const etaMsgText = document.getElementById('eta-message-text');
+                    if (etaMsgText && data.eta_message) {
+                        etaMsgText.innerHTML = data.eta_message;
+                    }
+
+                    const courierCard = document.getElementById('assigned-courier-card');
                     if (data.has_courier && data.courier_name) {
-                        const courierCard = document.getElementById('assigned-courier-card');
                         if (courierCard) {
                             courierCard.style.display = 'block';
-                            document.getElementById('courier-name-display').innerText = data.courier_name;
-                            document.getElementById('courier-phone-display').innerText = data.courier_phone || 'Phone not provided';
+                            const nameDisp = document.getElementById('courier-name-display');
+                            if (nameDisp) nameDisp.innerText = data.courier_name;
+                            const userDisp = document.getElementById('courier-username-display');
+                            if (userDisp) userDisp.innerText = data.courier_username || '';
+                            const phoneDisp = document.getElementById('courier-phone-display');
+                            if (phoneDisp) phoneDisp.innerText = data.courier_phone || 'Phone not provided';
                             if (data.courier_phone) {
-                                document.getElementById('courier-phone-link').href = `tel:${data.courier_phone}`;
+                                const phoneLink = document.getElementById('courier-phone-link');
+                                if (phoneLink) phoneLink.href = `tel:${data.courier_phone}`;
                             }
                             const vElem = document.getElementById('courier-vehicle-display');
                             if (vElem) vElem.innerText = data.vehicle_number || 'N/A';
                         }
+                    } else if (courierCard) {
+                        courierCard.style.display = 'none';
                     }
 
                     // Update Road Route Polyline dynamically if route steps available
@@ -432,7 +702,7 @@
                         }
                     }
 
-                    // Genuine GPS coordinate evaluation & staleness detection
+                    // Genuine GPS coordinate evaluation & staleness detection on Map
                     const indicator = document.getElementById('map-gps-live-indicator');
                     if (data.has_courier_gps && typeof data.courier_lat === 'number' && typeof data.courier_lon === 'number') {
                         updateCourierLocationOnMap(data.courier_lat, data.courier_lon, data.courier_name, data.last_gps_update);
@@ -440,37 +710,53 @@
                         if (indicator && orderStatus !== 'delivered') {
                             indicator.style.background = "#fffbeb";
                             indicator.style.color = "#b45309";
-                            indicator.innerHTML = `🟡 Courier GPS Signal Inactive &bull; Last seen: ${data.last_gps_update || 'Stale'}`;
+                            indicator.innerHTML = `🟡 Location Update Delayed &bull; Last seen: ${data.last_gps_update || 'Stale'}`;
                         }
                     } else {
                         if (indicator && orderStatus !== 'delivered') {
                             indicator.style.background = "#fffbeb";
                             indicator.style.color = "#b45309";
-                            indicator.innerHTML = "⌛ Courier assigned &bull; Waiting for live device GPS broadcast";
+                            indicator.innerHTML = data.gps_status_msg || "⌛ Courier assigned &bull; Waiting for live device GPS broadcast";
                         }
                     }
 
-                    const distElem = document.getElementById('ui-road-distance');
-                    if (distElem && data.distance_km) {
-                        const distType = data.is_road_distance ? '(Road)' : '(Estimate)';
-                        distElem.innerText = `${data.distance_km} km ${distType}`;
-                    }
-                    const timeElem = document.getElementById('ui-delivery-time');
-                    if (timeElem && data.ai_eta_min) {
-                        timeElem.innerText = `${data.ai_eta_min} mins`;
-                    }
-                    const lastUpdateElem = document.getElementById('ui-last-updated');
-                    if (lastUpdateElem) {
-                        lastUpdateElem.innerText = `Updated: ${new Date().toLocaleTimeString()}`;
+                    if (data.show_map === false || orderStatus === 'delivered' || orderStatus === 'cancelled') {
+                        hideLiveDeliveryMap();
+
+                        const etaHeaderIcon = document.getElementById('eta-header-icon');
+                        if (etaHeaderIcon) {
+                            etaHeaderIcon.className = '';
+                            etaHeaderIcon.style = (orderStatus === 'delivered') ? 'color: #10B981; font-size: 0.85rem;' : 'color: #EF4444; font-size: 0.85rem;';
+                            etaHeaderIcon.innerText = (orderStatus === 'delivered') ? '✅' : '❌';
+                        }
+                        const etaLastUpdated = document.getElementById('eta-last-updated');
+                        if (etaLastUpdated) {
+                            etaLastUpdated.innerText = (orderStatus === 'delivered') ? 'Order Completed' : 'Order Cancelled';
+                        }
+
+                        if (orderStatus === 'delivered') {
+                            const feedbackSection = document.getElementById('delivery-feedback-section');
+                            if (feedbackSection) {
+                                feedbackSection.style.display = 'block';
+                            }
+                        }
                     }
                 }
             })
-            .catch(err => console.warn('Live status polling fallback:', err));
+            .catch(err => {
+                console.warn('Live status polling fallback:', err);
+                const recalc = document.getElementById('eta-recalc-indicator');
+                if (recalc) recalc.style.display = 'block';
+            });
     }
 
     document.addEventListener("DOMContentLoaded", function() {
-        initLeafletMap();
-        pollInterval = setInterval(pollLiveOrderStatus, 5000);
+        if (orderStatus !== 'delivered' && orderStatus !== 'cancelled') {
+            initLeafletMap();
+            pollInterval = setInterval(pollLiveOrderStatus, 5000);
+        } else {
+            hideLiveDeliveryMap();
+        }
     });
 
     window.addEventListener("beforeunload", function() {
@@ -486,36 +772,139 @@
         &larr; Back to Order History
     </a>
 
-    <!-- Professional AI Route & Delivery Predictions Card -->
-    <div style="background: #ffffff; padding: 1.5rem; border-radius: 14px; border: 1px solid var(--border-light); box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 1.5rem;">
-        <h4 style="color: var(--primary-brown); font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
-            <span>🤖 AI Delivery Predictions</span>
-            <span id="ui-last-updated" style="font-size: 0.85rem; font-weight: 500; color: var(--text-muted);">Updated: Just now</span>
-        </h4>
-        
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
-            <!-- Road Distance -->
-            <div style="background: var(--bg-cream); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-warm);">
-                <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">Distance</span>
-                <strong id="ui-road-distance" style="font-size: 1.25rem; color: var(--primary-brown);">{{ distance_km }} km {% if is_road_distance %}(Road){% else %}(Estimate){% endif %}</strong>
+    <!-- =========================================================================
+         PROFESSIONAL CUSTOMER DELIVERY TRACKING & ACCURATE ETA COMPONENT
+         Brand-aligned, responsive, live road-route ETA, accurate timestamps
+         ========================================================================= -->
+    <div class="delivery-eta-card">
+        <!-- Top Header Row: Prominent Expected Arrival & Status Pill -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; border-bottom: 1.5px solid var(--border-warm); padding-bottom: 1.25rem; margin-bottom: 1.25rem;">
+            <div>
+                <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.35rem; flex-wrap: wrap;">
+                    <span id="eta-status-pill" class="badge" style="background: var(--primary-green); color: #ffffff; font-size: 0.85rem; font-weight: 700; padding: 0.35rem 0.85rem; border-radius: 50px;">
+                        {{ status_label|default:"Order Processing" }}
+                    </span>
+                    <span id="eta-gps-pill" style="font-size: 0.82rem; font-weight: 600; padding: 0.3rem 0.75rem; border-radius: 50px; background: #FEF3C7; color: #92400E; border: 1px solid rgba(245, 158, 11, 0.3);">
+                        {{ gps_status_badge|default:"Kitchen Stage" }}
+                    </span>
+                </div>
+                <h2 id="eta-arrival-time" style="color: var(--primary-brown); font-size: 2.2rem; font-weight: 800; margin: 0; line-height: 1.15; letter-spacing: -0.5px;">
+                    {{ expected_arrival_time|default:"Calculating ETA..." }}
+                </h2>
+                <p id="eta-status-display" style="color: var(--text-muted); font-size: 0.92rem; margin: 0.35rem 0 0 0; font-weight: 500;">
+                    {{ status_display|safe }}
+                </p>
             </div>
-            <!-- Travel ETA -->
-            <div style="background: var(--bg-cream); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-warm);">
-                <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">Live Travel ETA</span>
-                <strong id="ui-travel-time" style="font-size: 1.25rem; color: var(--primary-orange);">Calculating...</strong>
-            </div>
-            <!-- Delivery ETA -->
-            <div style="background: var(--bg-cream); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-warm);">
-                <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">AI Arrival ETA</span>
-                <strong id="ui-delivery-time" style="font-size: 1.25rem; color: var(--primary-green);">{{ ai_eta_min|default:"35" }} mins</strong>
-            </div>
-            <!-- Delivery Status -->
-            <div style="background: var(--bg-cream); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-warm);">
-                <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">Status</span>
-                <strong id="ui-delivery-status" style="font-size: 1.1rem; color: var(--primary-brown);">{{ ai_status_pred|default:"Processing" }}</strong>
+
+            <!-- Last Updated Time & Live Refresh Indicator -->
+            <div style="text-align: right;" class="eta-header-meta">
+                <div style="display: inline-flex; align-items: center; gap: 0.4rem; background: var(--bg-cream); padding: 0.4rem 0.85rem; border-radius: 8px; border: 1px solid var(--border-warm);">
+                    {% if order.status == 'delivered' %}
+                        <span id="eta-header-icon" style="color: #10B981; font-size: 0.85rem;">✅</span>
+                        <span id="eta-last-updated" style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">
+                            Order Completed
+                        </span>
+                    {% elif order.status == 'cancelled' %}
+                        <span id="eta-header-icon" style="color: #EF4444; font-size: 0.85rem;">❌</span>
+                        <span id="eta-last-updated" style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">
+                            Order Cancelled
+                        </span>
+                    {% else %}
+                        <span id="eta-header-icon" class="live-pulse-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #10B981; display: inline-block;"></span>
+                        <span id="eta-last-updated" style="font-size: 0.8rem; font-weight: 600; color: var(--text-main);">
+                            Live • Updated {{ last_updated_time|default:"Just now" }}
+                        </span>
+                    {% endif %}
+                </div>
+                <div id="eta-recalc-indicator" style="display: none; margin-top: 0.3rem; font-size: 0.78rem; color: var(--primary-orange); font-weight: 600;">
+                    🔄 Recalculating route...
+                </div>
             </div>
         </div>
+
+        <!-- 4-Card Responsive Metric Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-bottom: 1.25rem;">
+            
+            <!-- Card 1: Remaining Travel Time -->
+            <div style="background: var(--bg-cream); border: 1.5px solid var(--border-warm); border-radius: 12px; padding: 1.1rem; position: relative;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem;">
+                    <span style="font-size: 1.2rem;">⏱️</span>
+                    <span style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">
+                        Remaining Travel Time
+                    </span>
+                </div>
+                <div id="metric-travel-time" style="font-size: 1.3rem; font-weight: 800; color: var(--primary-brown); line-height: 1.2;">
+                    {{ remaining_travel_time|default:"Calculating..." }}
+                </div>
+                <span id="metric-travel-sub" style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.3rem;">
+                    {% if order.status == 'delivered' %}Order fulfilled{% elif has_courier_gps %}Live road transit time{% else %}Road transit estimate{% endif %}
+                </span>
+            </div>
+
+            <!-- Card 2: Road Distance Remaining -->
+            <div style="background: var(--bg-cream); border: 1.5px solid var(--border-warm); border-radius: 12px; padding: 1.1rem; position: relative;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem;">
+                    <span style="font-size: 1.2rem;">🛣️</span>
+                    <span style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">
+                        Road Distance Remaining
+                    </span>
+                </div>
+                <div id="metric-road-distance" style="font-size: 1.3rem; font-weight: 800; color: var(--primary-brown); line-height: 1.2;">
+                    {{ road_distance_display|default:"0.0 km" }}
+                </div>
+                <span id="metric-distance-sub" style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.3rem;">
+                    {% if order.status == 'delivered' %}Delivery route completed{% elif is_road_distance %}OSRM/Google road route{% else %}Haversine direct estimate{% endif %}
+                </span>
+            </div>
+
+            <!-- Card 3: Kitchen Prep / Status -->
+            <div style="background: var(--bg-cream); border: 1.5px solid var(--border-warm); border-radius: 12px; padding: 1.1rem; position: relative;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem;">
+                    <span style="font-size: 1.2rem;">🍳</span>
+                    <span style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">
+                        Kitchen Preparation
+                    </span>
+                </div>
+                <div id="metric-prep-status" style="font-size: 1.3rem; font-weight: 800; color: var(--primary-green); line-height: 1.2;">
+                    {{ prep_status_display|default:"Processing" }}
+                </div>
+                <span id="metric-prep-sub" style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.3rem;">
+                    {% if order.status == 'delivered' %}Food prepared &amp; delivered{% else %}Verified kitchen workflow{% endif %}
+                </span>
+            </div>
+
+            <!-- Card 4: GPS Update & Signal / Delivery Handover -->
+            <div style="background: var(--bg-cream); border: 1.5px solid var(--border-warm); border-radius: 12px; padding: 1.1rem; position: relative;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem;">
+                    <span style="font-size: 1.2rem;">📡</span>
+                    <span id="metric-last-gps-title" style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">
+                        {% if order.status == 'delivered' %}Delivery Handover{% else %}Last GPS Update{% endif %}
+                    </span>
+                </div>
+                <div id="metric-last-gps" style="font-size: 1.15rem; font-weight: 700; color: var(--primary-brown); line-height: 1.2;">
+                    {{ last_gps_update|default:"Waiting for courier GPS location" }}
+                </div>
+                <span id="metric-gps-sub" style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.3rem;">
+                    {{ gps_status_msg|safe }}
+                </span>
+            </div>
+
+        </div>
+
+        <!-- Informational / Trustworthy Status Bar -->
+        <div id="eta-message-bar" style="background: #F0FDF4; border: 1px solid #BBF7D0; color: #166534; padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <span style="font-size: 1.1rem;">ℹ️</span>
+                <span id="eta-message-text">{{ eta_message|default:"Live road travel calculations based on current kitchen order stage and verified delivery routes."|safe }}</span>
+            </div>
+            {% if ai_eta_min %}
+                <span style="font-size: 0.75rem; color: #15803D; font-weight: 600; opacity: 0.85;">
+                    ML Baseline: ~{{ ai_eta_min }}m
+                </span>
+            {% endif %}
+        </div>
     </div>
+
 
     <!-- Order Header Summary -->
     <div class="card mb-4" style="padding: 1.75rem;">
@@ -541,62 +930,70 @@
         </div>
 
         <!-- Professional 7-Stage Timeline Progression -->
-        <!-- Order Placed → Confirmed → Preparing → Ready for Pickup → Picked Up → Out for Delivery → Delivered -->
+        <!-- Order Confirmed → Food Preparing → Food Prepared → Courier Assigned → Food Picked Up → Out for Delivery → Delivered -->
         <div style="background: var(--bg-cream); padding: 1.75rem 1rem; border-radius: var(--radius-md); border: 1.5px solid var(--border-warm); margin-bottom: 1.75rem; overflow-x: auto;">
-            <div style="min-width: 720px; position: relative;">
+            <div style="min-width: 760px; position: relative;">
                 <!-- Connection Line -->
                 <div style="position: absolute; top: 18px; left: 6%; right: 6%; height: 5px; background-color: var(--border-warm); z-index: 1;">
-                    <div id="timeline-progress-line" style="height: 100%; background: linear-gradient(90deg, var(--primary-green), #40916C); width: {% if order.status == 'pending' %}0%{% elif order.status == 'confirmed' %}16.6%{% elif order.status == 'preparing' %}33.3%{% elif order.status == 'ready_pickup' or order.status == 'assigned' %}50%{% elif order.status == 'picked_up' %}66.6%{% elif order.status == 'in_transit' %}83.3%{% elif order.status == 'delivered' %}100%{% else %}0%{% endif %}%; transition: width 0.8s ease;"></div>
+                    <div id="timeline-progress-line" style="height: 100%; background: linear-gradient(90deg, var(--primary-green), #40916C); width: {% if order.status == 'pending' %}0%{% elif order.status == 'preparing' %}16.6%{% elif order.status == 'ready_pickup' %}33.3%{% elif order.status == 'assigned' %}50%{% elif order.status == 'picked_up' %}66.6%{% elif order.status == 'in_transit' %}83.3%{% elif order.status == 'delivered' %}100%{% else %}0%{% endif %}; transition: width 0.8s ease;"></div>
                 </div>
                 
                 <div style="display: flex; justify-content: space-between; position: relative; z-index: 2;">
-                    <!-- Stage 0: Order Placed -->
+                    <!-- Stage 0: Order Confirmed -->
                     <div style="text-align: center; width: 14%;">
                         <div id="timeline-circle-0" style="width: 36px; height: 36px; border-radius: 50%; background-color: var(--primary-green); color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">1</div>
-                        <span id="timeline-label-0" style="font-size: 0.82rem; color: var(--primary-green); display: block; font-weight: 700;">Order Placed</span>
+                        <span id="timeline-label-0" style="font-size: 0.82rem; color: var(--primary-green); display: block; font-weight: 700;">Order Confirmed</span>
+                        <span id="timeline-time-0" style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 0.2rem; font-weight: 500;">{{ order.created_at|date:"h:i A" }}</span>
                     </div>
 
-                    <!-- Stage 1: Confirmed -->
+                    <!-- Stage 1: Food Preparing -->
                     <div style="text-align: center; width: 14%;">
                         <div id="timeline-circle-1" style="width: 36px; height: 36px; border-radius: 50%; background-color: {% if order.status in 'preparing,ready_pickup,assigned,picked_up,in_transit,delivered' %}var(--primary-green){% else %}var(--border-warm){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">2</div>
-                        <span id="timeline-label-1" style="font-size: 0.82rem; color: var(--text-heading); display: block; font-weight: 600;">Confirmed</span>
+                        <span id="timeline-label-1" style="font-size: 0.82rem; color: {% if order.status in 'preparing,ready_pickup,assigned,picked_up,in_transit,delivered' %}var(--primary-green){% else %}var(--text-muted){% endif %}; display: block; font-weight: 600;">Food Preparing</span>
+                        <span id="timeline-time-1" style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 0.2rem; font-weight: 500;">{% if timestamps.preparing_time %}{{ timestamps.preparing_time }}{% endif %}</span>
                     </div>
 
-                    <!-- Stage 2: Preparing -->
+                    <!-- Stage 2: Food Prepared -->
                     <div style="text-align: center; width: 14%;">
-                        <div id="timeline-circle-2" style="width: 36px; height: 36px; border-radius: 50%; background-color: {% if order.status in 'preparing,ready_pickup,assigned,picked_up,in_transit,delivered' %}var(--primary-green){% else %}var(--border-warm){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">3</div>
-                        <span id="timeline-label-2" style="font-size: 0.82rem; color: var(--text-heading); display: block; font-weight: 600;">Preparing</span>
+                        <div id="timeline-circle-2" style="width: 36px; height: 36px; border-radius: 50%; background-color: {% if order.status in 'ready_pickup,assigned,picked_up,in_transit,delivered' %}var(--primary-green){% else %}var(--border-warm){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">3</div>
+                        <span id="timeline-label-2" style="font-size: 0.82rem; color: {% if order.status in 'ready_pickup,assigned,picked_up,in_transit,delivered' %}var(--primary-green){% else %}var(--text-muted){% endif %}; display: block; font-weight: 600;">Food Prepared</span>
+                        <span id="timeline-time-2" style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 0.2rem; font-weight: 500;">{% if timestamps.prepared_time %}{{ timestamps.prepared_time }}{% endif %}</span>
                     </div>
 
-                    <!-- Stage 3: Ready for Pickup -->
+                    <!-- Stage 3: Courier Assigned -->
                     <div style="text-align: center; width: 14%;">
-                        <div id="timeline-circle-3" style="width: 36px; height: 36px; border-radius: 50%; background-color: {% if order.status in 'ready_pickup,assigned,picked_up,in_transit,delivered' %}var(--primary-green){% else %}var(--border-warm){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">4</div>
-                        <span id="timeline-label-3" style="font-size: 0.82rem; color: var(--text-heading); display: block; font-weight: 600;">Ready for Pickup</span>
+                        <div id="timeline-circle-3" style="width: 36px; height: 36px; border-radius: 50%; background-color: {% if order.status in 'assigned,picked_up,in_transit,delivered' %}var(--primary-green){% else %}var(--border-warm){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">4</div>
+                        <span id="timeline-label-3" style="font-size: 0.82rem; color: {% if order.status in 'assigned,picked_up,in_transit,delivered' %}var(--primary-green){% else %}var(--text-muted){% endif %}; display: block; font-weight: 600;">Courier Assigned</span>
+                        <span id="timeline-time-3" style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 0.2rem; font-weight: 500;">{% if timestamps.assigned_time %}{{ timestamps.assigned_time }}{% endif %}</span>
                     </div>
 
-                    <!-- Stage 4: Picked Up -->
+                    <!-- Stage 4: Food Picked Up -->
                     <div style="text-align: center; width: 14%;">
                         <div id="timeline-circle-4" style="width: 36px; height: 36px; border-radius: 50%; background-color: {% if order.status in 'picked_up,in_transit,delivered' %}var(--primary-green){% else %}var(--border-warm){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">5</div>
-                        <span id="timeline-label-4" style="font-size: 0.82rem; color: var(--text-heading); display: block; font-weight: 600;">Picked Up</span>
+                        <span id="timeline-label-4" style="font-size: 0.82rem; color: {% if order.status in 'picked_up,in_transit,delivered' %}var(--primary-green){% else %}var(--text-muted){% endif %}; display: block; font-weight: 600;">Food Picked Up</span>
+                        <span id="timeline-time-4" style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 0.2rem; font-weight: 500;">{% if timestamps.picked_up_time %}{{ timestamps.picked_up_time }}{% endif %}</span>
                     </div>
 
                     <!-- Stage 5: Out for Delivery -->
                     <div style="text-align: center; width: 14%;">
                         <div id="timeline-circle-5" style="width: 36px; height: 36px; border-radius: 50%; background-color: {% if order.status in 'in_transit,delivered' %}var(--primary-green){% else %}var(--border-warm){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">6</div>
-                        <span id="timeline-label-5" style="font-size: 0.82rem; color: var(--text-heading); display: block; font-weight: 600;">Out for Delivery</span>
+                        <span id="timeline-label-5" style="font-size: 0.82rem; color: {% if order.status in 'in_transit,delivered' %}var(--primary-green){% else %}var(--text-muted){% endif %}; display: block; font-weight: 600;">Out for Delivery</span>
+                        <span id="timeline-time-5" style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 0.2rem; font-weight: 500;">{% if timestamps.out_for_delivery_time %}{{ timestamps.out_for_delivery_time }}{% endif %}</span>
                     </div>
 
                     <!-- Stage 6: Delivered -->
                     <div style="text-align: center; width: 14%;">
                         <div id="timeline-circle-6" style="width: 36px; height: 36px; border-radius: 50%; background-color: {% if order.status == 'delivered' %}var(--primary-green){% else %}var(--border-warm){% endif %}; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-weight: 700; border: 3px solid #FFFFFF; box-shadow: var(--shadow-sm); font-size: 0.9rem;">7</div>
-                        <span id="timeline-label-6" style="font-size: 0.82rem; color: var(--text-heading); display: block; font-weight: 600;">Delivered</span>
+                        <span id="timeline-label-6" style="font-size: 0.82rem; color: {% if order.status == 'delivered' %}var(--primary-green){% else %}var(--text-muted){% endif %}; display: block; font-weight: 600;">Delivered</span>
+                        <span id="timeline-time-6" style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 0.2rem; font-weight: 500;">{% if timestamps.delivered_time %}{{ timestamps.delivered_time }}{% endif %}</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- LIVE INTERACTIVE LEAFLET TRACKING MAP CARD -->
-        <div class="card mb-4" style="background: #FFFFFF; border: 1.5px solid var(--border-warm); border-radius: 14px; padding: 1.5rem; box-shadow: var(--shadow-sm);">
+        <!-- LIVE INTERACTIVE LEAFLET TRACKING MAP CARD (Active Orders Only) -->
+        {% if order.status != 'delivered' and order.status != 'cancelled' and show_map|default:True %}
+        <div id="live-order-map-section" class="card mb-4" style="background: #FFFFFF; border: 1.5px solid var(--border-warm); border-radius: 14px; padding: 1.5rem; box-shadow: var(--shadow-sm);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.75rem;">
                 <div>
                     <h3 style="color: var(--primary-green); font-size: 1.25rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
@@ -642,19 +1039,8 @@
             <!-- Leaflet Interactive Map Container -->
             <div id="live-delivery-map" style="height: 380px; width: 100%; border-radius: 12px; border: 1.5px solid var(--border-warm); background: #FAFDF9; z-index: 1;"></div>
 
-            <!-- Map Marker Legend -->
-            <div style="margin-top: 0.85rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; font-size: 0.82rem; color: var(--text-muted); background: var(--bg-cream); padding: 0.6rem 1rem; border-radius: 8px; border: 1px solid var(--border-warm);">
-                <div style="display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;">
-                    <span>🏠 <strong>Hotel Hub:</strong> {{ order.branch.name|default:"Central Kitchen Hub (Kanjirappally)" }}</span>
-                    <span>📍 <strong>Destination:</strong> Delivery Address</span>
-                    <span>🛵 <strong>Courier:</strong> Live GPS Partner</span>
-                    <span>👤 <strong>Your Device:</strong> Current Location</span>
-                </div>
-                <div>
-                    <span style="color: var(--primary-green); font-weight: 600;">✓ Verified Service Area Perimeter</span>
-                </div>
-            </div>
         </div>
+        {% endif %}
 
 
         <div class="grid-2" style="gap: 1.5rem;">
@@ -720,7 +1106,7 @@
                                 {{ order.delivery_assignment.delivery_boy.courier_name }}
                             </span>
                             <p style="margin: 0.2rem 0 0 0; font-size: 0.88rem; color: var(--text-main);">
-                                👤 Username: <strong style="color: var(--primary-orange); font-family: monospace;">{{ order.delivery_assignment.delivery_boy.courier_username }}</strong>
+                                👤 Username: <strong id="courier-username-display" style="color: var(--primary-orange); font-family: monospace;">{{ order.delivery_assignment.delivery_boy.courier_username }}</strong>
                             </p>
                             <p style="margin: 0.15rem 0 0 0; font-size: 0.88rem; color: var(--text-main);">
                                 📞 Phone: <a id="courier-phone-link" href="tel:{{ order.delivery_assignment.delivery_boy.user.phone }}" style="color: var(--primary-green); font-weight: 600;"><span id="courier-phone-display">{{ order.delivery_assignment.delivery_boy.user.phone|default:"Phone not provided" }}</span></a>
@@ -756,46 +1142,44 @@
         </div>
 
         <!-- Post Delivery Rating & Review Box -->
-        {% if order.status == 'delivered' %}
-            <div class="mt-4" style="background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-md); border: 1.5px solid var(--border-warm); text-align: center;">
-                <h3 style="color: var(--primary-brown); font-weight: 600; font-size: 1.25rem; margin-bottom: 0.4rem;">
-                    ⭐ How was your meal & delivery experience?
-                </h3>
-                <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.25rem; font-weight: 400;">
-                    Your feedback helps our local home chefs maintain authentic Kanjirappally standards.
-                </p>
+        <div id="delivery-feedback-section" class="mt-4" style="{% if order.status != 'delivered' %}display: none;{% endif %} background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-md); border: 1.5px solid var(--border-warm); text-align: center;">
+            <h3 style="color: var(--primary-brown); font-weight: 600; font-size: 1.25rem; margin-bottom: 0.4rem;">
+                ⭐ How was your meal & delivery experience?
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.25rem; font-weight: 400;">
+                Your feedback helps our local home chefs maintain authentic Kanjirappally standards.
+            </p>
 
-                {% if order.delivery_feedback %}
-                    <div style="display: inline-block; background: #FFFFFF; padding: 0.75rem 1.75rem; border-radius: 50px; border: 1.5px solid var(--border-warm);">
-                        <span style="color: var(--gold-accent); font-size: 1.15rem; font-weight: 600;">
-                            ★ {{ order.delivery_feedback.rating }} / 5 Stars
-                        </span>
-                        <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; color: var(--text-main); font-style: italic; font-weight: 400;">
-                            "{{ order.delivery_feedback.comment }}"
-                        </p>
+            {% if order.delivery_feedback %}
+                <div style="display: inline-block; background: #FFFFFF; padding: 0.75rem 1.75rem; border-radius: 50px; border: 1.5px solid var(--border-warm);">
+                    <span style="color: var(--gold-accent); font-size: 1.15rem; font-weight: 600;">
+                        ★ {{ order.delivery_feedback.rating }} / 5 Stars
+                    </span>
+                    <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; color: var(--text-main); font-style: italic; font-weight: 400;">
+                        "{{ order.delivery_feedback.comment }}"
+                    </p>
+                </div>
+            {% else %}
+                <form method="POST" action="{% url 'submit_delivery_feedback' order.order_id %}" style="max-width: 480px; margin: 0 auto;">
+                    {% csrf_token %}
+                    <div class="form-group mb-2">
+                        <select name="rating" class="form-control" style="font-weight: 500;" required>
+                            <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
+                            <option value="4">⭐⭐⭐⭐ Very Good</option>
+                            <option value="3">⭐⭐⭐ Average</option>
+                            <option value="2">⭐⭐ Needs Improvement</option>
+                            <option value="1">⭐ Poor</option>
+                        </select>
                     </div>
-                {% else %}
-                    <form method="POST" action="{% url 'submit_delivery_feedback' order.order_id %}" style="max-width: 480px; margin: 0 auto;">
-                        {% csrf_token %}
-                        <div class="form-group mb-2">
-                            <select name="rating" class="form-control" style="font-weight: 500;" required>
-                                <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
-                                <option value="4">⭐⭐⭐⭐ Very Good</option>
-                                <option value="3">⭐⭐⭐ Average</option>
-                                <option value="2">⭐⭐ Needs Improvement</option>
-                                <option value="1">⭐ Poor</option>
-                            </select>
-                        </div>
-                        <div class="form-group mb-3">
-                            <input type="text" name="comment" class="form-control" placeholder="Optional comments (e.g. delicious, delivered hot and fresh)...">
-                        </div>
-                        <button type="submit" class="btn btn-secondary btn-sm" style="padding: 0.65rem 2rem;">
-                            Submit Feedback
-                        </button>
-                    </form>
-                {% endif %}
-            </div>
-        {% endif %}
+                    <div class="form-group mb-3">
+                        <input type="text" name="comment" class="form-control" placeholder="Optional comments (e.g. delicious, delivered hot and fresh)...">
+                    </div>
+                    <button type="submit" class="btn btn-secondary btn-sm" style="padding: 0.65rem 2rem;">
+                        Submit Feedback
+                    </button>
+                </form>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}

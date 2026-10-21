@@ -25,7 +25,7 @@
             </div>
             
             <div style="margin-top: 0.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
-                <a id="trackGpsNavBtn" href="https://www.google.com/maps/dir/?api=1&{% if has_courier_gps and courier_lat and courier_lon %}origin={{ courier_lat }},{{ courier_lon }}&{% endif %}destination={{ cust_lat }},{{ cust_lon }}" target="_blank" rel="noopener noreferrer" class="btn" style="padding: 0.45rem 1rem; font-size: 0.85rem; font-weight: 700; background: #2563eb; text-decoration: none; color: #ffffff;">
+                <a id="trackGpsNavBtn" href="https://www.google.com/maps/dir/?api=1&destination={{ cust_lat }},{{ cust_lon }}&travelmode=driving" target="_blank" rel="noopener noreferrer" onclick="startNavigation('{{ cust_lat }}', '{{ cust_lon }}', event);" class="btn" style="padding: 0.45rem 1rem; font-size: 0.85rem; font-weight: 700; background: #2563eb; text-decoration: none; color: #ffffff;">
                     📍 Open Google Maps Navigation (Your Location &rarr; Destination)
                 </a>
                 <span style="font-size: 0.85rem; color: var(--text-muted);">
@@ -86,16 +86,26 @@
 
         <!-- Live Device GPS Control Box -->
         <div class="mb-4" style="background: var(--dark-bg); padding: 1.25rem; border-radius: 14px; border: 1.5px solid var(--dark-border);">
-            <h4 style="color: var(--primary-brown); margin-bottom: 0.5rem; font-size: 1rem;">
-                📡 Real-Time Device GPS Link
-            </h4>
-            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem; line-height: 1.4;">
-                Connect your phone/browser GPS to transmit your live movement coordinates to the customer and navigation system.
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                <h4 style="color: var(--primary-brown); margin: 0; font-size: 1rem;">
+                    📡 Real-Time Device GPS Link
+                </h4>
+                <span id="gpsConnectionBadge" style="font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 20px; background: {% if has_courier_gps and not is_gps_stale %}#dcfce7; color: #15803d;{% elif has_courier_gps and is_gps_stale %}#fef3c7; color: #b45309;{% else %}#f1f5f9; color: #64748b;{% endif %}">
+                    {% if has_courier_gps and not is_gps_stale %}🟢 Connected{% elif has_courier_gps and is_gps_stale %}🟡 Signal Stale{% else %}⚪ Disconnected{% endif %}
+                </span>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.85rem; line-height: 1.4;">
+                Connect your device GPS to broadcast continuous live delivery coordinates to the customer order tracking map and navigation system.
             </p>
 
-            <button id="connectGpsBtn" class="btn" style="width: 100%; padding: 0.65rem; font-weight: 700; margin-bottom: 0.75rem;">
-                📡 Connect Device Live GPS
-            </button>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+                <button id="connectGpsBtn" class="btn" style="flex: 1; min-width: 180px; padding: 0.65rem; font-weight: 700; background: #2563eb; color: #ffffff;">
+                    📡 Connect Device Live GPS
+                </button>
+                <button id="retryGpsBtn" type="button" onclick="retryGpsTracking()" class="btn btn-outline" style="display: none; padding: 0.65rem 1rem; font-weight: 700; background: #ffffff; color: #b45309; border-color: #fcd34d;">
+                    🔄 Retry GPS
+                </button>
+            </div>
             
             <!-- GPS Status Banner -->
             <div id="gpsStatusBanner" style="padding: 0.65rem 0.85rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; text-align: center; {% if has_courier_gps and not is_gps_stale %}background: #d1f4e0; border: 1px solid #a7f3d0; color: #065f46;{% elif has_courier_gps and is_gps_stale %}background: #fffbeb; border: 1px solid #fef3c7; color: #b45309;{% else %}background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569;{% endif %}">
@@ -107,9 +117,11 @@
                     ⚪ GPS Disconnected &bull; Click "Connect Device Live GPS" to broadcast your location
                 {% endif %}
             </div>
-            <p style="font-size: 0.76rem; color: var(--text-muted); margin-top: 0.5rem; margin-bottom: 0; line-height: 1.3;">
-                📱 <em>Keep this tab open while on delivery. Mobile browsers suspend continuous GPS tracking when minimized.</em>
-            </p>
+
+            <div style="margin-top: 0.65rem; padding-top: 0.65rem; border-top: 1px dashed var(--dark-border); font-size: 0.76rem; color: var(--text-muted); line-height: 1.4;">
+                <div>📱 <strong>Mobile Note:</strong> Ensure Location Services & Browser Permissions are turned <strong>ON</strong>.</div>
+                <div>⚡ <em>Mobile browsers automatically suspend continuous GPS tracking when tabs are minimized or screens are locked. Keep this tab active while on delivery, or use a native background-service app for unattended background tracking.</em></div>
+            </div>
         </div>
 
         <!-- Status Transition Action Form -->
@@ -243,7 +255,7 @@
                 </div>
             </div>
             
-            <a id="btn-nav-directions" href="https://www.google.com/maps/dir/?api=1&destination={{ cust_lat }},{{ cust_lon }}" target="_blank" class="btn" style="width: 100%; padding: 0.75rem; font-weight: 700; background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%); color: #ffffff; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none; box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);">
+            <a id="btn-nav-directions" href="https://www.google.com/maps/dir/?api=1&destination={{ cust_lat }},{{ cust_lon }}&travelmode=driving" target="_blank" onclick="startNavigation('{{ cust_lat }}', '{{ cust_lon }}', event);" class="btn" style="width: 100%; padding: 0.75rem; font-weight: 700; background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%); color: #ffffff; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none; box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);">
                 🗺️ Open Google Maps Turn-by-Turn Directions &rarr;
             </a>
         </div>
@@ -272,6 +284,45 @@
 </div>
 
 <script>
+    function startNavigation(latitude, longitude, ev) {
+        if (ev && typeof ev.preventDefault === 'function') {
+            ev.preventDefault();
+        }
+        let lat = Number(latitude);
+        let lng = Number(longitude);
+
+        if (
+            !Number.isFinite(lat) ||
+            !Number.isFinite(lng) ||
+            Math.abs(lat) > 90 ||
+            Math.abs(lng) > 180
+        ) {
+            console.error("Invalid destination coordinates", {
+                latitude,
+                longitude
+            });
+            alert("The delivery location is invalid. Please select it again.");
+            return;
+        }
+
+        // Auto-correct reversed coordinates if latitude/longitude are swapped (Kerala longitude ~76-77, latitude ~8-12)
+        if (lat >= 70 && lat <= 80 && lng >= 8 && lng <= 13) {
+            console.warn("Detected reversed destination coordinates in startNavigation. Auto-correcting to [latitude, longitude]:", { lat, lng });
+            const temp = lat;
+            lat = lng;
+            lng = temp;
+        }
+
+        const destination = `${lat},${lng}`;
+
+        const navigationUrl =
+            `https://www.google.com/maps/dir/?api=1` +
+            `&destination=${encodeURIComponent(destination)}` +
+            `&travelmode=driving`;
+
+        window.open(navigationUrl, "_blank", "noopener,noreferrer");
+    }
+
     let leafletMap = null;
     let kitchenMarker = null;
     let customerMarker = null;
@@ -351,10 +402,11 @@
             leafletMap.fitBounds(L.latLngBounds(pts), { padding: [45, 45], maxZoom: 15 });
         };
 
-        const primaryTileUrl = "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
-        const primaryTileAttr = '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom"|safe }}';
-        const primaryTileSubdomains = "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
-        const fallbackTileUrl = "{{ MAP_TILE_FALLBACK_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+        const primaryTileUrl = window.MAP_TILE_URL || "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+        const primaryTileAttr = window.MAP_TILE_ATTRIBUTION || '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom"|safe }}';
+        const primaryTileSubdomains = window.MAP_TILE_SUBDOMAINS || "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
+        const fallbackTileUrl = window.MAP_TILE_FALLBACK_URL || "{{ MAP_TILE_FALLBACK_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
+
 
         const tileLayer = L.tileLayer(primaryTileUrl, {
             subdomains: primaryTileSubdomains,
@@ -364,10 +416,12 @@
         tileLayer.addTo(leafletMap);
 
         let tileErrCount = 0;
+        let fallbackApplied = false;
         tileLayer.on('tileerror', function() {
             tileErrCount++;
-            if (tileErrCount > 4 && !tileLayer._fallbackApplied) {
-                tileLayer._fallbackApplied = true;
+            if (tileErrCount > 3 && !fallbackApplied && fallbackTileUrl && fallbackTileUrl !== primaryTileUrl) {
+                fallbackApplied = true;
+                console.warn("Primary tile provider slow/offline. Switching to fallback provider:", fallbackTileUrl);
                 tileLayer.setUrl(fallbackTileUrl);
             }
         });
@@ -390,14 +444,43 @@
             interactive: false
         }).addTo(leafletMap);
 
-        // 3. Customer Destination Marker
-        if (isFinite(custLat) && isFinite(custLon)) {
-            customerMarker = L.marker([custLat, custLon], {
-                icon: createIcon('#2563EB', '📍'),
-                draggable: false,
-                autoPan: false
-            }).addTo(leafletMap).bindPopup("<b>Customer Delivery Destination</b><br>Lat: " + custLat.toFixed(5) + ", Lng: " + custLon.toFixed(5), { autoPan: false });
+    function sanitizeGpsCoords(lat, lon, fallbackLat, fallbackLon) {
+        let latNum = Number(lat);
+        let lonNum = Number(lon);
+        if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) {
+            return fallbackLat !== null ? L.latLng(fallbackLat, fallbackLon) : null;
         }
+        // Auto-correct reversed coordinates
+        if (latNum >= 70 && latNum <= 80 && lonNum >= 8 && lonNum <= 13) {
+            const temp = latNum;
+            latNum = lonNum;
+            lonNum = temp;
+        }
+        // Catch offshore sea coordinates west of the Kerala coast (e.g. 10.0, 76.0)
+        const isSea = (Math.round(latNum * 100) / 100 === 10.0 && Math.round(lonNum * 100) / 100 === 76.0) ||
+                      (latNum >= 8.0 && latNum <= 10.0 && lonNum < 76.15) ||
+                      (latNum > 10.0 && latNum <= 11.5 && lonNum < 75.6) ||
+                      (latNum > 11.5 && latNum <= 13.0 && lonNum < 74.9);
+        if (isSea) {
+            console.warn("Offshore sea coordinates detected in courier tracking:", latNum, lonNum, "Falling back to verified hub.");
+            return fallbackLat !== null ? L.latLng(fallbackLat, fallbackLon) : null;
+        }
+        if (Math.abs(latNum) > 90 || Math.abs(lonNum) > 180) {
+            return fallbackLat !== null ? L.latLng(fallbackLat, fallbackLon) : null;
+        }
+        return L.latLng(latNum, lonNum);
+    }
+
+    const customerLatLng = sanitizeGpsCoords(custLat, custLon, chefLat, chefLon);
+
+    // 3. Customer Destination Marker
+    if (customerLatLng) {
+        customerMarker = L.marker(customerLatLng, {
+            icon: createIcon('#2563EB', '📍'),
+            draggable: false,
+            autoPan: false
+        }).addTo(leafletMap).bindPopup("<b>Customer Delivery Destination</b><br>Lat: " + customerLatLng.lat.toFixed(5) + ", Lng: " + customerLatLng.lng.toFixed(5), { autoPan: false });
+    }
 
         // 4. Courier Live Marker (only if genuine coordinates exist)
         if (hasCourierGps && isFinite(courierLat) && isFinite(courierLon)) {
@@ -425,7 +508,11 @@
         }, 300);
     }
 
-    // GPS Transmission with Throttling (min 4s elapsed or > 5m movement)
+    // ── Live GPS State Management ──
+    let isTrackingActive = false;
+    let isGpsConnecting = false;
+    let lastSuccessfulGpsCoords = {% if has_courier_gps and courier_lat and courier_lon %}{ lat: parseFloat("{{ courier_lat }}"), lon: parseFloat("{{ courier_lon }}") }{% else %}null{% endif %};
+    let lastSuccessfulGpsTime = "{{ last_gps_timestamp|default:'' }}";
     let lastSentTimestamp = 0;
     let lastSentLat = null;
     let lastSentLon = null;
@@ -440,13 +527,171 @@
         return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
 
+    function updateGpsBadge(state) {
+        const badge = document.getElementById("gpsConnectionBadge");
+        if (!badge) return;
+        switch (state) {
+            case 'connected':
+                badge.style.background = "#dcfce7";
+                badge.style.color = "#15803d";
+                badge.innerHTML = "🟢 Connected";
+                break;
+            case 'acquiring':
+                badge.style.background = "#fef3c7";
+                badge.style.color = "#b45309";
+                badge.innerHTML = "⏳ Acquiring...";
+                break;
+            case 'error':
+                badge.style.background = "#fee2e2";
+                badge.style.color = "#991b1b";
+                badge.innerHTML = "❌ Offline / Error";
+                break;
+            case 'disconnected':
+            default:
+                badge.style.background = "#f1f5f9";
+                badge.style.color = "#64748b";
+                badge.innerHTML = "⚪ Disconnected";
+                break;
+        }
+    }
+
+    function updateConnectButtonUI(state) {
+        const btn = document.getElementById("connectGpsBtn");
+        const retryBtn = document.getElementById("retryGpsBtn");
+        if (!btn) return;
+        switch (state) {
+            case 'connected':
+                btn.innerHTML = "⏹️ Stop Live GPS";
+                btn.style.background = "#dc2626";
+                btn.style.color = "#ffffff";
+                btn.disabled = false;
+                if (retryBtn) retryBtn.style.display = "none";
+                break;
+            case 'connecting':
+                btn.innerHTML = `<span style="display:inline-flex; align-items:center; gap:0.4rem;"><span style="display:inline-block; width:12px; height:12px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite;"></span> Acquiring Device GPS...</span>`;
+                btn.style.background = "#4b5563";
+                btn.style.color = "#ffffff";
+                btn.disabled = true;
+                if (retryBtn) retryBtn.style.display = "none";
+                break;
+            case 'disconnected':
+            default:
+                btn.innerHTML = "📡 Connect Device Live GPS";
+                btn.style.background = "#2563eb";
+                btn.style.color = "#ffffff";
+                btn.disabled = false;
+                break;
+        }
+    }
+
+    function setGpsStatus(state, customHtml, showRetry = false) {
+        const banner = document.getElementById("gpsStatusBanner");
+        const retryBtn = document.getElementById("retryGpsBtn");
+        if (retryBtn) {
+            retryBtn.style.display = showRetry ? "inline-flex" : "none";
+        }
+        if (!banner) return;
+
+        switch (state) {
+            case 'not_connected':
+                banner.style.background = "#f1f5f9";
+                banner.style.borderColor = "#cbd5e1";
+                banner.style.color = "#475569";
+                banner.innerHTML = customHtml || '⚪ GPS Disconnected &bull; Click "Connect Device Live GPS" to broadcast your location';
+                break;
+            case 'requesting':
+                banner.style.background = "#eff6ff";
+                banner.style.borderColor = "#bfdbfe";
+                banner.style.color = "#1e40af";
+                banner.innerHTML = customHtml || '🔔 Requesting Location Permission &bull; Please tap "Allow" in your browser prompt.';
+                break;
+            case 'acquiring':
+                banner.style.background = "#fffbeb";
+                banner.style.borderColor = "#fef3c7";
+                banner.style.color = "#b45309";
+                banner.innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                        <div style="width: 14px; height: 14px; border: 2px solid #b45309; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                        <span>${customHtml || '📡 Acquiring GPS location &bull; Waiting for device fix...'}</span>
+                    </div>
+                `;
+                break;
+            case 'connected':
+                banner.style.background = "#d1f4e0";
+                banner.style.borderColor = "#a7f3d0";
+                banner.style.color = "#065f46";
+                banner.innerHTML = customHtml;
+                break;
+            case 'error':
+            case 'denied':
+            case 'timeout':
+            case 'unavailable':
+            case 'unsupported':
+            case 'insecure':
+                banner.style.background = (state === 'timeout' || state === 'unavailable') ? "#fffbeb" : "#fef2f2";
+                banner.style.borderColor = (state === 'timeout' || state === 'unavailable') ? "#fef3c7" : "#fecaca";
+                banner.style.color = (state === 'timeout' || state === 'unavailable') ? "#b45309" : "#991b1b";
+                banner.innerHTML = customHtml;
+                break;
+            case 'stopped':
+                banner.style.background = "#f1f5f9";
+                banner.style.borderColor = "#cbd5e1";
+                banner.style.color = "#475569";
+                banner.innerHTML = customHtml || '⏹️ Tracking Stopped &bull; GPS disconnected.';
+                break;
+        }
+    }
+
+    function handleGpsError(err) {
+        updateConnectButtonUI('disconnected');
+        updateGpsBadge('error');
+
+        let title = "";
+        let advice = "";
+        let state = "error";
+
+        switch (err.code) {
+            case 1: // PERMISSION_DENIED
+                state = "denied";
+                title = "❌ Location Permission Denied";
+                advice = "Location access was blocked. Tap the tune/lock icon in your browser address bar, set Location to 'Allow', and tap Retry GPS.";
+                break;
+            case 2: // POSITION_UNAVAILABLE
+                state = "unavailable";
+                title = "⚠️ GPS Signal Weak / Location Unavailable";
+                advice = "The device cannot detect GPS satellites. Ensure Location/GPS is turned ON in phone settings, step near a window or outdoors, and tap Retry GPS.";
+                break;
+            case 3: // TIMEOUT
+                state = "timeout";
+                title = "⏱️ GPS Request Timed Out";
+                advice = "Device took longer than 25 seconds to lock GPS satellites. Ensure Location is set to High Accuracy, then tap Retry GPS.";
+                break;
+            default:
+                state = "error";
+                title = "⚠️ GPS Error: " + (err.message || "Failed to acquire location.");
+                advice = "An unexpected location error occurred. Please check device GPS settings and retry.";
+        }
+
+        setGpsStatus(state, `
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; text-align: left;">
+                <div>
+                    <strong>${title}</strong><br>
+                    <span style="font-size: 0.8rem;">${advice}</span>
+                </div>
+                <button type="button" onclick="retryGpsTracking()" class="btn btn-sm btn-outline" style="padding: 0.25rem 0.65rem; font-size: 0.8rem; background: #fff; color: ${state === 'denied' ? '#991b1b' : '#b45309'}; border-color: ${state === 'denied' ? '#fca5a5' : '#fcd34d'};">
+                    🔄 Retry GPS
+                </button>
+            </div>
+        `, true);
+    }
+
     function sendGpsCoordinate(lat, lon, accuracy) {
         const now = Date.now();
         if (lastSentLat !== null && lastSentLon !== null) {
             const timeDiff = now - lastSentTimestamp;
             const distDiff = calculateDistanceMeters(lastSentLat, lastSentLon, lat, lon);
             if (timeDiff < 4000 && distDiff < 5) {
-                return; // Throttle redundant updates
+                return; // Throttle redundant writes (min 4s elapsed or > 5m movement)
             }
         }
 
@@ -466,30 +711,39 @@
                 accuracy: accuracy || null
             })
         })
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) {
+                throw new Error(`Server returned HTTP ${res.status}`);
+            }
+            return res.json();
+        })
         .then(data => {
-            const banner = document.getElementById("gpsStatusBanner");
-            if (data.status === 'success' && banner) {
-                banner.style.background = "#d1f4e0";
-                banner.style.borderColor = "#a7f3d0";
-                banner.style.color = "#065f46";
-                const accStr = accuracy ? ` &plusmn;${Math.round(accuracy)}m` : '';
-                banner.innerHTML = `
+            if (data.status === 'success') {
+                lastSuccessfulGpsCoords = { lat, lon };
+                lastSuccessfulGpsTime = data.timestamp;
+                updateGpsBadge('connected');
+                const accStr = accuracy ? ` (&plusmn;${Math.round(accuracy)}m)` : '';
+                setGpsStatus('connected', `
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-                        <span>🟢 Live GPS Active (Lat: ${lat.toFixed(4)}, Lng: ${lon.toFixed(4)}${accStr}) &bull; Synced at ${data.timestamp}</span>
-                        <button type="button" onclick="startDeviceGpsTracking(true)" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.55rem; font-size: 0.78rem; background: #fff; color: #065f46; border-color: #86efac;">🔄 Refresh GPS</button>
+                        <span>🟢 GPS Connected &bull; Lat: ${lat.toFixed(4)}, Lng: ${lon.toFixed(4)}${accStr} &bull; Synced at ${data.timestamp}</span>
+                        <button type="button" onclick="retryGpsTracking()" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.55rem; font-size: 0.78rem; background: #fff; color: #065f46; border-color: #86efac;">🔄 Refresh GPS</button>
                     </div>
-                `;
-            } else if (data.status === 'stopped' && banner) {
-                banner.style.background = "#f1f5f9";
-                banner.style.borderColor = "#cbd5e1";
-                banner.style.color = "#475569";
-                banner.innerHTML = "✅ Tracking concluded. Order is delivered or cancelled.";
-                stopTracking();
+                `, false);
+            } else if (data.status === 'stopped') {
+                stopTracking(false);
+                setGpsStatus('stopped', '✅ Tracking concluded. Order is delivered or cancelled.', false);
+            } else {
+                throw new Error(data.message || 'Server rejected GPS coordinates');
             }
         })
         .catch(err => {
             console.error("GPS Transmission Error:", err);
+            setGpsStatus('error', `
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                    <span>⚠️ Server Update Failed: ${err.message || 'Network issue'}. Live coordinates will retry on next movement.</span>
+                    <button type="button" onclick="sendGpsCoordinate(${lat}, ${lon}, ${accuracy || 'null'})" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.55rem; font-size: 0.78rem; background: #fff; color: #b45309; border-color: #fcd34d;">🔄 Retry Sync</button>
+                </div>
+            `, false);
         });
     }
 
@@ -514,157 +768,205 @@
             debugElem.innerHTML = `🛵 <strong>Courier GPS:</strong> Lat ${lat.toFixed(5)}, Lon ${lon.toFixed(5)}${accStr}`;
         }
 
-        // Dynamically update Google Maps external navigation URLs with current courier location as origin
+        // Maintain validated destination on Google Maps external navigation URLs
         const navBtn1 = document.getElementById("trackGpsNavBtn");
         if (navBtn1) {
-            navBtn1.href = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${custLat},${custLon}`;
+            navBtn1.href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(custLat + ',' + custLon)}&travelmode=driving`;
         }
         const navBtn2 = document.getElementById("btn-nav-directions");
         if (navBtn2) {
-            navBtn2.href = `https://www.google.com/maps/dir/?api=1&origin=${lat},${lon}&destination=${custLat},${custLon}`;
+            navBtn2.href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(custLat + ',' + custLon)}&travelmode=driving`;
         }
 
         sendGpsCoordinate(lat, lon, accuracy);
     }
 
-    function startDeviceGpsTracking(isManualClick = false) {
-        const banner = document.getElementById("gpsStatusBanner");
-        if (isOrderDelivered) {
-            if (banner) banner.innerHTML = "✅ Order Delivered. GPS tracking stopped.";
+    function onPositionSuccess(pos) {
+        if (!pos || !pos.coords) return;
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const accuracy = pos.coords.accuracy;
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            setGpsStatus('error', '⚠️ Invalid geographical coordinates received from device GPS.', true);
             return;
         }
 
-        if (!navigator.geolocation) {
-            if (banner) {
-                banner.style.background = "#fef2f2";
-                banner.style.borderColor = "#fecaca";
-                banner.style.color = "#991b1b";
-                banner.innerHTML = "❌ Browser Geolocation is not supported on this device.";
-            }
-            return;
-        }
-
-        if (!window.isSecureContext && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-            if (banner) {
-                banner.style.background = "#fffbeb";
-                banner.style.borderColor = "#fef3c7";
-                banner.style.color = "#b45309";
-                banner.innerHTML = "⚠️ Device Geolocation requires HTTPS or localhost connection.";
-            }
-            return;
-        }
-
-        if (banner) {
-            banner.style.background = "#fffbeb";
-            banner.style.borderColor = "#fef3c7";
-            banner.style.color = "#b45309";
-            banner.innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                    <div style="width: 14px; height: 14px; border: 2px solid #b45309; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                    <span>📡 Acquiring live device GPS fix...</span>
-                </div>
-            `;
-        }
-
-        // Request initial position fix with high accuracy
-        navigator.geolocation.getCurrentPosition(
-            function(pos) {
-                const lat = pos.coords.latitude;
-                const lon = pos.coords.longitude;
-                const accuracy = pos.coords.accuracy;
-                if (!isFinite(lat) || !isFinite(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-                    if (banner) {
-                        banner.style.background = "#fef2f2";
-                        banner.style.borderColor = "#fecaca";
-                        banner.style.color = "#991b1b";
-                        banner.innerHTML = `
-                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-                                <span>⚠️ Invalid GPS coordinates received from device.</span>
-                                <button type="button" onclick="startDeviceGpsTracking(true)" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.6rem; font-size: 0.8rem; background: #fff; color: #991b1b;">🔄 Retry GPS</button>
-                            </div>
-                        `;
-                    }
-                    return;
-                }
-                updateCourierPositionOnMap(lat, lon, accuracy);
-
-                // Start continuous watchPosition without duplicates
-                if (watchId !== null) {
-                    navigator.geolocation.clearWatch(watchId);
-                }
-                watchId = navigator.geolocation.watchPosition(
-                    function(watchPos) {
-                        const wLat = watchPos.coords.latitude;
-                        const wLon = watchPos.coords.longitude;
-                        if (isFinite(wLat) && isFinite(wLon) && wLat >= -90 && wLat <= 90 && wLon >= -180 && wLon <= 180) {
-                            updateCourierPositionOnMap(wLat, wLon, watchPos.coords.accuracy);
-                        }
-                    },
-                    function(err) {
-                        handleGpsError(err);
-                    },
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 3000 }
-                );
-            },
-            function(err) {
-                handleGpsError(err);
-            },
-            { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 }
-        );
+        lastSuccessfulGpsCoords = { lat, lon };
+        updateCourierPositionOnMap(lat, lon, accuracy);
     }
 
-    function handleGpsError(err) {
-        const banner = document.getElementById("gpsStatusBanner");
-        if (!banner) return;
-        banner.style.background = "#fef2f2";
-        banner.style.borderColor = "#fecaca";
-        banner.style.color = "#991b1b";
-        let msg = "";
-        switch (err.code) {
-            case 1:
-                msg = "❌ GPS Permission Denied. Please enable location permissions in browser/device settings.";
-                break;
-            case 2:
-                msg = "⚠️ Device GPS Signal Unavailable. Please enable Location/GPS in device settings.";
-                break;
-            case 3:
-                msg = "⏱️ GPS Request Timed Out.";
-                break;
-            default:
-                msg = "⚠️ GPS Error: " + (err.message || "Failed to obtain device location.");
-        }
-        banner.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-                <span>${msg}</span>
-                <button type="button" onclick="startDeviceGpsTracking(true)" class="btn btn-sm btn-outline" style="padding: 0.25rem 0.65rem; font-size: 0.8rem; background: #ffffff; color: #991b1b; border-color: #fca5a5;">
-                    🔄 Retry GPS
-                </button>
-            </div>
-        `;
-    }
-
-    function stopTracking() {
+    function startContinuousWatch() {
         if (watchId !== null && navigator.geolocation) {
             navigator.geolocation.clearWatch(watchId);
             watchId = null;
         }
+        isTrackingActive = true;
+        updateConnectButtonUI('connected');
+        updateGpsBadge('connected');
+
+        watchId = navigator.geolocation.watchPosition(
+            function(watchPos) {
+                onPositionSuccess(watchPos);
+            },
+            function(err) {
+                console.warn("watchPosition background update notice:", err.code, err.message);
+                if (err.code === err.TIMEOUT) {
+                    // Do not kill the active connection on transient movement timeouts
+                    const banner = document.getElementById("gpsStatusBanner");
+                    if (banner && lastSuccessfulGpsCoords) {
+                        banner.style.background = "#fffbeb";
+                        banner.style.borderColor = "#fef3c7";
+                        banner.style.color = "#b45309";
+                        banner.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                                <span>🟡 GPS Signal Temporarily Weak &bull; Maintaining connection (Last fix: Lat ${lastSuccessfulGpsCoords.lat.toFixed(4)}, Lng ${lastSuccessfulGpsCoords.lon.toFixed(4)})</span>
+                                <button type="button" onclick="retryGpsTracking()" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.55rem; font-size: 0.78rem; background: #fff; color: #b45309; border-color: #fcd34d;">🔄 Reconnect</button>
+                            </div>
+                        `;
+                    }
+                } else if (err.code === err.PERMISSION_DENIED) {
+                    stopTracking(false);
+                    handleGpsError(err);
+                }
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 20000,
+                maximumAge: 5000
+            }
+        );
     }
 
-    window.addEventListener("beforeunload", stopTracking);
+    function startDeviceGpsTracking(isManualClick = true) {
+        if (isOrderDelivered) {
+            setGpsStatus('stopped', '✅ Order Delivered. GPS tracking concluded.', false);
+            return;
+        }
+
+        if (!navigator.geolocation) {
+            setGpsStatus('unsupported', '❌ Browser Geolocation is not supported on this device. Please use Chrome, Safari, or Firefox.', false);
+            return;
+        }
+
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (!window.isSecureContext && !isLocalhost) {
+            setGpsStatus('insecure', `
+                <div style="text-align: left;">
+                    <strong>⚠️ Insecure Connection Detected (HTTPS Required)</strong><br>
+                    <span style="font-size: 0.8rem;">Modern mobile browsers block device GPS on unencrypted HTTP. When testing from a phone on your local network, access the server via HTTPS or configure Chrome remote debugging.</span>
+                </div>
+            `, false);
+            return;
+        }
+
+        if (isGpsConnecting) {
+            console.warn("GPS connection attempt already in progress. Ignoring duplicate click.");
+            return;
+        }
+
+        isGpsConnecting = true;
+        updateConnectButtonUI('connecting');
+        updateGpsBadge('acquiring');
+        setGpsStatus('requesting', '🔔 Requesting Location Permission &bull; Please tap "Allow" in your browser prompt...', false);
+
+        // Clear any previous watcher before beginning new acquisition
+        if (watchId !== null && navigator.geolocation) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+
+        function attemptInitialPosition(highAccuracy) {
+            setGpsStatus('acquiring', `📡 Acquiring GPS Location &bull; Waiting for ${highAccuracy ? 'High-Accuracy GNSS' : 'Network'} fix (up to ${highAccuracy ? '25s' : '15s'})...`, false);
+
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    isGpsConnecting = false;
+                    onPositionSuccess(pos);
+                    startContinuousWatch();
+                },
+                function(err) {
+                    console.warn(`Initial position fix error (highAccuracy=${highAccuracy}):`, err.code, err.message);
+                    // Two-tier recovery: If High Accuracy timed out or position unavailable, attempt low accuracy once before failing!
+                    if (highAccuracy && (err.code === err.TIMEOUT || err.code === err.POSITION_UNAVAILABLE)) {
+                        console.info("GNSS satellites unavailable or slow; attempting standard network positioning fallback...");
+                        setGpsStatus('acquiring', '📡 Satellite fix delayed &bull; Attempting network/Wi-Fi positioning fallback...', false);
+                        attemptInitialPosition(false);
+                        return;
+                    }
+
+                    isGpsConnecting = false;
+                    handleGpsError(err);
+                },
+                {
+                    enableHighAccuracy: highAccuracy,
+                    timeout: highAccuracy ? 25000 : 15000,
+                    maximumAge: 10000
+                }
+            );
+        }
+
+        attemptInitialPosition(true);
+    }
+
+    function retryGpsTracking() {
+        stopTracking(false);
+        startDeviceGpsTracking(true);
+    }
+
+    function stopTracking(userInitiated = true) {
+        if (watchId !== null && navigator.geolocation) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+        }
+        isTrackingActive = false;
+        isGpsConnecting = false;
+        updateConnectButtonUI('disconnected');
+        updateGpsBadge(userInitiated ? 'disconnected' : 'error');
+
+        if (userInitiated) {
+            setGpsStatus('stopped', '⚪ Tracking Stopped &bull; GPS disconnected. Click "Connect Device Live GPS" to resume broadcasting.', false);
+        }
+    }
+
+    // Mobile browser lifecycle: Resume or refresh location when tab returns to foreground
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            if (isTrackingActive && !isOrderDelivered) {
+                const now = Date.now();
+                if (now - lastSentTimestamp > 10000 && navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        function(pos) { onPositionSuccess(pos); },
+                        function(err) { console.warn("Visibility refresh notice:", err); },
+                        { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+                    );
+                }
+            }
+        }
+    });
+
+    window.addEventListener("beforeunload", function() {
+        stopTracking(false);
+    });
 
     document.addEventListener("DOMContentLoaded", function() {
         initLeafletMap();
 
         const connectBtn = document.getElementById("connectGpsBtn");
         if (connectBtn) {
-            connectBtn.addEventListener("click", () => startDeviceGpsTracking(true));
+            connectBtn.addEventListener("click", function() {
+                if (isTrackingActive) {
+                    stopTracking(true);
+                } else {
+                    startDeviceGpsTracking(true);
+                }
+            });
         }
 
-        if (!isOrderDelivered) {
-            // Automatically prompt for device GPS if tracking assignment is in progress
-            startDeviceGpsTracking(false);
-        } else {
-            stopTracking();
+        if (isOrderDelivered) {
+            stopTracking(false);
+            setGpsStatus('stopped', '✅ Order Delivered. GPS tracking concluded.', false);
+            if (connectBtn) connectBtn.disabled = true;
         }
     });
 </script>

@@ -868,7 +868,7 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         order.refresh_from_db()
         self.assertTrue(hasattr(order, 'delivery_assignment'))
         self.assertEqual(order.delivery_assignment.delivery_boy, courier5_profile)
-        self.assertEqual(order.status, 'ready_pickup')
+        self.assertEqual(order.status, 'assigned')
 
         # 4. Courier logs in with username: 'courier5', password: 'password123'
         self.client.login(username='courier5', password='password123')

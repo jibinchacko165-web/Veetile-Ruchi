@@ -12,10 +12,13 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load environment variables early from local .env
+load_dotenv(BASE_DIR / '.env')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -181,11 +184,32 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-import os
-from dotenv import load_dotenv
+# Map Configuration & Credentials
+GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY', '').strip()
+CARTO_API_KEY = os.getenv('CARTO_API_KEY', '').strip()
 
-load_dotenv()
+# Authorized, policy-compliant default tile providers (Esri World Street Map)
+MAP_TILE_URL = os.getenv(
+    'MAP_TILE_URL',
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'
+)
+MAP_TILE_ATTRIBUTION = os.getenv(
+    'MAP_TILE_ATTRIBUTION',
+    'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom'
+)
+MAP_TILE_SUBDOMAINS = os.getenv('MAP_TILE_SUBDOMAINS', 'abc')
+
+# Reliable secondary fallback tile provider (Esri World Topo Map)
+MAP_TILE_FALLBACK_URL = os.getenv(
+    'MAP_TILE_FALLBACK_URL',
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'
+)
+MAP_TILE_FALLBACK_ATTRIBUTION = os.getenv(
+    'MAP_TILE_FALLBACK_ATTRIBUTION',
+    'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, TomTom'
+)
 
 # Email Configuration (Console backend for development)
 # Switch to Gmail SMTP in production

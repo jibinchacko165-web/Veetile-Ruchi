@@ -1,6 +1,2 @@
 name,district,address,latitude,longitude,max_delivery_radius_km,phone,operating_status
-Central Kitchen Hub (Kanjirappally),Kottayam,"Kanjirappally Town, Kottayam, Kerala",9.5564,76.7909,20.0,+91 7510672355,open
-Veetile Ruchi — Kochi Marine Drive Hub,Ernakulam,"Marine Drive, Shanmugham Road, Ernakulam, Kochi, Kerala",9.9816,76.2750,25.0,+91 7510672351,open
-Veetile Ruchi — Trivandrum Kowdiar Hub,Thiruvananthapuram,"Kowdiar Main Road, Thiruvananthapuram, Kerala",8.5241,76.9600,25.0,+91 7510672352,open
-Veetile Ruchi — Calicut Beach Hub,Kozhikode,"Beach Road, Kozhikode, Kerala",11.2588,75.7720,25.0,+91 7510672353,open
-Veetile Ruchi — Thrissur Round Hub,Thrissur,"Swaraj Round East, Thrissur, Kerala",10.5276,76.2144,25.0,+91 7510672354,open
+Central Kitchen Hub (Kanjirappally),Kottayam,"Kanjirappally Town, Kottayam, Kerala",9.5564,76.7909,30.0,+91 7510672355,open

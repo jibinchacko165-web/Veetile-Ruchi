@@ -101,8 +101,8 @@ class DeliveryBoyProfile(models.Model):
     vehicle_number = models.CharField(max_length=30, blank=True, null=True)
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='available', db_index=True)
     rating = models.FloatField(default=5.0)
-    current_latitude = models.FloatField(default=10.0)
-    current_longitude = models.FloatField(default=76.0)
+    current_latitude = models.FloatField(default=9.5564)
+    current_longitude = models.FloatField(default=76.7909)
 
     @property
     def courier_number(self):

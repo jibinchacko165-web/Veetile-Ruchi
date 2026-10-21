@@ -1,9 +1,12 @@
+import os
+from django.conf import settings
 from django.db import models, transaction
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_GET
 from django.contrib import messages
 from django.utils import timezone
 from .models import CartItem, Coupon, Order, OrderItem, Payment, Wishlist, Notification
@@ -145,38 +148,28 @@ def checkout_view(request):
     
     delivery_setting = get_active_delivery_setting()
     districts = District.objects.filter(is_active=True).order_by('name')
-    branches = HotelBranch.objects.filter(is_active=True).select_related('district').order_by('district__name', 'name')
-    
-    # Identify requested or nearest serving branch
-    requested_branch_id = request.GET.get('branch_id')
-    requested_district_code = request.GET.get('district')
-    selected_branch = None
 
-    if requested_branch_id:
-        selected_branch = branches.filter(id=requested_branch_id).first()
-    elif requested_district_code:
-        selected_branch = branches.filter(district__code=requested_district_code).first()
+    # Configure Central Kitchen Hub (Kanjirappally) as the only active kitchen for checkout
+    branches = HotelBranch.objects.filter(is_active=True, is_central_hub=True).select_related('district')
+    if not branches.exists():
+        branches = HotelBranch.objects.filter(is_active=True, name__icontains='Kanjirappally').select_related('district')
+    if not branches.exists():
+        branches = HotelBranch.objects.filter(is_active=True).select_related('district')[:1]
 
-    if not selected_branch:
-        if default_location:
-            selected_branch, _, _ = find_nearest_serving_branch(default_location.latitude, default_location.longitude)
-        elif hasattr(request.user, 'latitude') and request.user.latitude:
-            selected_branch, _, _ = find_nearest_serving_branch(request.user.latitude, request.user.longitude)
+    # Selected default is Central Kitchen Hub (Kanjirappally)
+    selected_branch = branches.first()
 
-    if not selected_branch:
-        selected_branch = branches.filter(is_central_hub=True).first() or branches.first()
-
-    # Determine serving coordinates and max radius
+    # Determine serving coordinates and 30 km max radius
     if selected_branch:
         hub_lat = selected_branch.latitude
         hub_lon = selected_branch.longitude
         hub_name = selected_branch.name
-        hub_radius_km = selected_branch.effective_radius_km
+        hub_radius_km = min(float(selected_branch.max_delivery_radius_km or 30.0), 30.0)
     else:
         hub_lat = delivery_setting.latitude
         hub_lon = delivery_setting.longitude
         hub_name = delivery_setting.name
-        hub_radius_km = min(delivery_setting.max_delivery_radius_km, 25.0)
+        hub_radius_km = min(float(delivery_setting.max_delivery_radius_km or 30.0), 30.0)
 
     context = {
         'cart_items': cart_items,
@@ -267,23 +260,42 @@ def place_order(request):
         latitude, longitude = v_lat, v_lon
 
 
-        # Resolve serving hotel branch (Default to Central Kitchen Hub in Kanjirappally if not specified)
-        serving_branch = None
-        if branch_id:
-            serving_branch = HotelBranch.objects.filter(id=branch_id, is_active=True).first()
-        if not serving_branch:
-            serving_branch = HotelBranch.objects.filter(is_central_hub=True, is_active=True).first()
-            if not serving_branch:
-                serving_branch, _, _ = find_nearest_serving_branch(latitude, longitude)
+        # Resolve serving hotel branch - strictly enforce active Central Kitchen Hub (Kanjirappally)
+        central_branch = HotelBranch.objects.filter(is_central_hub=True, is_active=True).first()
+        if not central_branch:
+            central_branch = HotelBranch.objects.filter(name__icontains='Kanjirappally', is_active=True).first()
+        if not central_branch:
+            central_branch = HotelBranch.objects.filter(is_active=True).first()
 
-        # Enforce Delivery Perimeter Verification (30 km limit for Central Hub)
+        serving_branch = central_branch
+        if branch_id:
+            try:
+                b_id_int = int(branch_id)
+            except (ValueError, TypeError):
+                messages.error(request, "Invalid kitchen branch selected.")
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+                    return JsonResponse({'success': False, 'message': 'Invalid kitchen branch selected.'}, status=400)
+                return redirect('checkout_view')
+
+            requested_branch = HotelBranch.objects.filter(id=b_id_int).first()
+            if not requested_branch or not requested_branch.is_active or (central_branch and requested_branch.id != central_branch.id):
+                error_msg = "Selected kitchen branch is unavailable. Only Central Kitchen Hub (Kanjirappally) is accepting orders."
+                messages.error(request, error_msg)
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+                    return JsonResponse({'success': False, 'message': error_msg}, status=400)
+                return redirect('checkout_view')
+            serving_branch = requested_branch
+
+        # Enforce Delivery Perimeter Verification (strictly 30 km limit for Central Hub)
         is_serviceable, dist_km, perimeter_msg = is_within_delivery_perimeter(
-            latitude, longitude, branch_id=serving_branch.id if serving_branch else None
+            latitude, longitude,
+            branch_id=serving_branch.id if serving_branch else None,
+            max_radius_km=30.0
         )
         if not is_serviceable:
             # Basket remains 100% intact
             messages.error(request, "Sorry, this hotel cannot deliver to your selected location. Please choose a nearer address or another available hotel.")
-            messages.error(request, "Sorry, delivery is currently available only within 30 km of Kanjirappally.")
+            messages.error(request, perimeter_msg)
             return redirect('checkout_view')
         
         # Payment setup
@@ -387,78 +399,29 @@ def order_tracking(request, order_id):
     payment = getattr(order, 'payment', None)
     assignment = getattr(order, 'delivery_assignment', None)
 
-    from .utils import get_active_delivery_setting, validate_coordinates
+    from .utils import get_active_delivery_setting, validate_coordinates, sanitize_customer_coordinates, is_offshore_sea_coordinate
     delivery_setting = get_active_delivery_setting()
     branch = getattr(order, 'branch', None)
     chef_lat = branch.latitude if branch else delivery_setting.latitude
     chef_lon = branch.longitude if branch else delivery_setting.longitude
     
-    cust_lat, cust_lon = validate_coordinates(order.latitude, order.longitude)
-    if cust_lat is None:
-        cust_lat, cust_lon = chef_lat, chef_lon
+    cust_lat, cust_lon = sanitize_customer_coordinates(order.latitude, order.longitude, fallback_lat=chef_lat, fallback_lon=chef_lon)
     
-    # Genuine courier GPS retrieval with freshness check (5 mins)
-    courier_lat = None
-    courier_lon = None
-    has_courier_gps = False
-    is_gps_stale = False
-    last_gps_update = None
-    courier_profile = getattr(assignment, 'delivery_boy', None) if assignment else None
+    from .utils import calculate_accurate_order_eta, get_courier_gps_status
+    gps_info = get_courier_gps_status(order, assignment)
 
-    if assignment:
-        from delivery.models import GPSLocationTracking
-        latest_crumb = GPSLocationTracking.objects.filter(delivery_assignment=assignment).order_by('-timestamp').first()
-        if latest_crumb:
-            c_lat, c_lon = validate_coordinates(latest_crumb.latitude, latest_crumb.longitude)
-            if c_lat is not None and c_lon is not None:
-                courier_lat = c_lat
-                courier_lon = c_lon
-                age_sec = (timezone.now() - latest_crumb.timestamp).total_seconds()
-                if age_sec <= 300:
-                    has_courier_gps = True
-                    is_gps_stale = False
-                    last_gps_update = latest_crumb.timestamp.strftime("%I:%M:%S %p")
-                else:
-                    has_courier_gps = False
-                    is_gps_stale = True
-                    last_gps_update = latest_crumb.timestamp.strftime("%I:%M:%S %p") + " (Signal Stale)"
-        elif courier_profile and courier_profile.current_latitude and courier_profile.current_longitude:
-            c_lat, c_lon = validate_coordinates(courier_profile.current_latitude, courier_profile.current_longitude)
-            if c_lat is not None and c_lon is not None and not (c_lat == 10.0 and c_lon == 76.0):
-                courier_lat = c_lat
-                courier_lon = c_lon
-                if assignment.status in ['in_transit', 'picked_up']:
-                    has_courier_gps = True
-                    is_gps_stale = False
-                    last_gps_update = timezone.localtime().strftime("%I:%M:%S %p")
-
-    # Critical Business Rule: Separate hotel base from actual courier GPS
-    if (order.status in ['in_transit', 'picked_up']) and courier_lat and courier_lon:
-        calc_origin_lat = courier_lat
-        calc_origin_lon = courier_lon
-    else:
-        calc_origin_lat = chef_lat
-        calc_origin_lon = chef_lon
-
-    from ai_models.ml_engine import predict_delivery_time_rf, optimize_delivery_route
-    route_res = optimize_delivery_route(calc_origin_lat, calc_origin_lon, cust_lat, cust_lon)
-    route_steps = route_res.route
-    distance_km = route_res.distance
-    is_road_distance = getattr(route_res, 'is_road', True)
-
-    # Calculate Random Forest Regressor AI Predictions
-    items_cnt = order.items.count() if hasattr(order, 'items') else 1
-    pred_delivery_min, ai_eta_min, dist_km = predict_delivery_time_rf(
-        calc_origin_lat, calc_origin_lon, cust_lat, cust_lon, 
-        items_count=items_cnt, road_distance_km=distance_km
+    tracking_data = calculate_accurate_order_eta(
+        order=order,
+        chef_lat=chef_lat,
+        chef_lon=chef_lon,
+        cust_lat=cust_lat,
+        cust_lon=cust_lon,
+        courier_lat=gps_info['courier_lat'],
+        courier_lon=gps_info['courier_lon'],
+        has_courier_gps=gps_info['has_courier_gps'],
+        is_gps_stale=gps_info['is_gps_stale'],
+        last_gps_update=gps_info['last_gps_update']
     )
-
-    if dist_km <= 0.5:
-        ai_status_pred = "Near Destination 🎯"
-    elif assignment and pred_delivery_min <= (assignment.predicted_delivery_time or 30.0) + 5.0:
-        ai_status_pred = "On Time ⏱️"
-    else:
-        ai_status_pred = "Slightly Delayed ⚠️"
 
     assigned_courier = assignment.delivery_boy.user if assignment and assignment.delivery_boy else None
 
@@ -467,21 +430,21 @@ def order_tracking(request, order_id):
         'payment': payment,
         'assignment': assignment,
         'assigned_courier': assigned_courier,
-        'route_steps': route_steps,
-        'distance_km': dist_km,
-        'is_road_distance': is_road_distance,
-        'pred_delivery_min': pred_delivery_min,
-        'ai_eta_min': ai_eta_min,
-        'ai_status_pred': ai_status_pred,
         'chef_lat': chef_lat,
         'chef_lon': chef_lon,
         'cust_lat': cust_lat,
         'cust_lon': cust_lon,
-        'courier_lat': courier_lat,
-        'courier_lon': courier_lon,
-        'has_courier_gps': has_courier_gps,
-        'is_gps_stale': is_gps_stale,
-        'last_gps_update': last_gps_update,
+        'courier_lat': tracking_data.get('courier_lat'),
+        'courier_lon': tracking_data.get('courier_lon'),
+        'has_courier_gps': tracking_data.get('has_courier_gps'),
+        'is_gps_stale': tracking_data.get('is_gps_stale'),
+        'last_gps_update': tracking_data.get('last_gps_update'),
+        'route_steps': tracking_data.get('route_steps', []),
+        'distance_km': tracking_data.get('remaining_road_distance_km', 0.0),
+        'is_road_distance': tracking_data.get('is_road_distance', True),
+        'ai_eta_min': tracking_data.get('ai_eta_min', 35),
+        'tracking_data': tracking_data,
+        **tracking_data,
     }
     return render(request, 'orders/tracking.html', context)
 
@@ -502,106 +465,43 @@ def api_order_status(request, order_id):
     courier_profile = assignment.delivery_boy if assignment else None
     courier_user = courier_profile.user if courier_profile else None
     
-    from .utils import get_active_delivery_setting, validate_coordinates
+    from .utils import get_active_delivery_setting, validate_coordinates, sanitize_customer_coordinates, is_offshore_sea_coordinate, calculate_accurate_order_eta
     delivery_setting = get_active_delivery_setting()
     branch = getattr(order, 'branch', None)
     chef_lat = branch.latitude if branch else delivery_setting.latitude
     chef_lon = branch.longitude if branch else delivery_setting.longitude
     
-    cust_lat, cust_lon = validate_coordinates(order.latitude, order.longitude)
-    if cust_lat is None:
-        cust_lat, cust_lon = chef_lat, chef_lon
+    cust_lat, cust_lon = sanitize_customer_coordinates(order.latitude, order.longitude, fallback_lat=chef_lat, fallback_lon=chef_lon)
         
-    # Genuine courier GPS retrieval from breadcrumbs or validated profile
-    courier_lat = None
-    courier_lon = None
-    has_courier_gps = False
-    is_gps_stale = False
-    last_gps_update = None
+    from .utils import calculate_accurate_order_eta, get_courier_gps_status
+    gps_info = get_courier_gps_status(order, assignment)
 
-    if assignment:
-        from delivery.models import GPSLocationTracking
-        latest_crumb = GPSLocationTracking.objects.filter(delivery_assignment=assignment).order_by('-timestamp').first()
-        if latest_crumb:
-            c_lat, c_lon = validate_coordinates(latest_crumb.latitude, latest_crumb.longitude)
-            if c_lat is not None and c_lon is not None:
-                courier_lat = c_lat
-                courier_lon = c_lon
-                age_sec = (timezone.now() - latest_crumb.timestamp).total_seconds()
-                if age_sec <= 300: # 5 minutes threshold
-                    has_courier_gps = True
-                    is_gps_stale = False
-                    last_gps_update = latest_crumb.timestamp.strftime("%I:%M:%S %p")
-                else:
-                    has_courier_gps = False
-                    is_gps_stale = True
-                    last_gps_update = latest_crumb.timestamp.strftime("%I:%M:%S %p") + " (Signal Stale)"
-        elif courier_profile and courier_profile.current_latitude and courier_profile.current_longitude:
-            c_lat, c_lon = validate_coordinates(courier_profile.current_latitude, courier_profile.current_longitude)
-            if c_lat is not None and c_lon is not None and not (c_lat == 10.0 and c_lon == 76.0):
-                courier_lat = c_lat
-                courier_lon = c_lon
-                if assignment.status in ['in_transit', 'picked_up']:
-                    has_courier_gps = True
-                    is_gps_stale = False
-                    last_gps_update = timezone.localtime().strftime("%I:%M:%S %p")
-
-    # Hotel Base vs Courier GPS separation
-    if (order.status in ['in_transit', 'picked_up']) and courier_lat and courier_lon:
-        calc_origin_lat = courier_lat
-        calc_origin_lon = courier_lon
-    else:
-        calc_origin_lat = chef_lat
-        calc_origin_lon = chef_lon
-
-    items_cnt = order.items.count() if hasattr(order, 'items') else 1
-    from ai_models.ml_engine import predict_delivery_time_rf, optimize_delivery_route
-    route_res = optimize_delivery_route(calc_origin_lat, calc_origin_lon, cust_lat, cust_lon)
-    route_steps = route_res.route
-    distance_km = route_res.distance
-    is_road_distance = getattr(route_res, 'is_road', True)
-
-    pred_delivery_min, ai_eta_min, dist_km = predict_delivery_time_rf(
-        calc_origin_lat, calc_origin_lon, cust_lat, cust_lon, items_count=items_cnt, road_distance_km=distance_km
+    tracking_data = calculate_accurate_order_eta(
+        order=order,
+        chef_lat=chef_lat,
+        chef_lon=chef_lon,
+        cust_lat=cust_lat,
+        cust_lon=cust_lon,
+        courier_lat=gps_info['courier_lat'],
+        courier_lon=gps_info['courier_lon'],
+        has_courier_gps=gps_info['has_courier_gps'],
+        is_gps_stale=gps_info['is_gps_stale'],
+        last_gps_update=gps_info['last_gps_update']
     )
-    
-    status_display_map = {
-        'pending': 'Order Placed (Pending Kitchen Confirmation)',
-        'preparing': 'Food Being Prepared in Kitchen',
-        'ready_pickup': 'Ready for Pickup',
-        'assigned': 'Courier Assigned & Ready for Pickup',
-        'picked_up': 'Picked Up by Courier',
-        'in_transit': 'Out for Delivery',
-        'delivered': 'Delivered',
-        'cancelled': 'Cancelled',
-    }
-    
+
     return JsonResponse({
         'status': 'success',
-        'order_id': order.order_id,
-        'order_status': order.status,
-        'status_display': status_display_map.get(order.status, order.get_status_display()),
+        **tracking_data,
         'customer_name': order.user.get_full_name() or order.user.username,
         'customer_phone': getattr(order.user, 'phone', '') or 'Phone not provided',
         'customer_delivery_notes': order.customer_delivery_notes or order.delivery_address or '',
         'has_courier': courier_user is not None,
-        'has_courier_gps': has_courier_gps,
-        'is_gps_stale': is_gps_stale,
-        'courier_name': (courier_user.get_full_name() or courier_user.username) if courier_user else None,
+        'courier_name': courier_profile.courier_name if courier_profile else None,
+        'courier_username': courier_profile.courier_username if courier_profile else None,
         'courier_phone': getattr(courier_user, 'phone', '') if courier_user else None,
         'vehicle_number': courier_profile.vehicle_number if courier_profile else None,
-        'ai_eta_min': ai_eta_min,
-        'pred_delivery_min': pred_delivery_min,
-        'distance_km': dist_km,
-        'is_road_distance': is_road_distance,
-        'route_steps': route_steps,
-        'courier_lat': courier_lat,
-        'courier_lon': courier_lon,
-        'last_gps_update': last_gps_update,
-        'chef_lat': chef_lat,
-        'chef_lon': chef_lon,
-        'cust_lat': cust_lat,
-        'cust_lon': cust_lon,
+        'distance_km': tracking_data.get('remaining_road_distance_km', 0.0),
+        'pred_delivery_min': tracking_data.get('remaining_travel_minutes', 0),
     })
 
 
@@ -660,6 +560,15 @@ def staff_update_order_status(request, order_id):
     new_status = request.POST.get('status')
     if new_status in ['pending', 'preparing', 'ready_pickup', 'cancelled']:
         order.status = new_status
+        now = timezone.now()
+        if new_status == 'preparing':
+            if not order.preparing_started_at:
+                order.preparing_started_at = now
+        elif new_status == 'ready_pickup':
+            if not order.food_prepared_at:
+                order.food_prepared_at = now
+            if not order.preparing_started_at:
+                order.preparing_started_at = order.created_at or now
         order.save()
         messages.success(request, f"Order #{order.order_id} status updated to {order.get_status_display()}.")
     return redirect('staff_dashboard')
@@ -761,10 +670,13 @@ def staff_assign_delivery(request, order_id):
             db_profile.status = 'on_delivery'
             db_profile.save()
             
-            # If status is pending or preparing, keep it or move to ready_pickup?
-            # User requirement: "Do not force a courier to be marked On Delivery before the project's actual assignment or dispatch stage if the current business logic distinguishes these states." 
-            # We already mark courier as on_delivery because that's our status enum. Wait, "On Delivery" for the courier means they have an active assignment.
-            order.status = 'ready_pickup'
+            # Advance order status to 'assigned' (Courier Assigned stage)
+            order.status = 'assigned'
+            now = timezone.now()
+            if not order.food_prepared_at:
+                order.food_prepared_at = now
+            if not order.preparing_started_at:
+                order.preparing_started_at = order.created_at or now
             order.save()
             
             Notification.objects.create(
@@ -919,11 +831,11 @@ def staff_save_hotel_branch(request, branch_id=None):
             return redirect(f"{reverse('staff_dashboard')}?tab=branches")
 
         try:
-            radius_km = float(request.POST.get('max_delivery_radius_km', 25.0))
-            # Strict 25 km cap
-            radius_km = min(max(radius_km, 1.0), 25.0)
+            radius_km = float(request.POST.get('max_delivery_radius_km', 30.0))
+            # Strict 30 km cap
+            radius_km = min(max(radius_km, 1.0), 30.0)
         except (ValueError, TypeError):
-            radius_km = 25.0
+            radius_km = 30.0
 
         if branch_id:
             branch = get_object_or_404(HotelBranch, id=branch_id)
@@ -968,4 +880,71 @@ def staff_toggle_branch_status(request, branch_id):
     status_str = "Activated" if branch.is_active else "Deactivated"
     messages.success(request, f"Branch '{branch.name}' {status_str}.")
     return redirect(f"{reverse('staff_dashboard')}?tab=branches")
+
+@require_GET
+def api_reverse_geocode(request):
+    """
+    Reverse-geocode latitude and longitude into a readable address string.
+    Supports Google Maps Geocoding API if configured; falls back gracefully
+    to Nominatim OSM or closest Kerala Landmark presets.
+    """
+    lat_str = request.GET.get('lat')
+    lon_str = request.GET.get('lon')
+    try:
+        lat = float(lat_str)
+        lon = float(lon_str)
+    except (ValueError, TypeError):
+        return JsonResponse({'success': False, 'error': 'Invalid latitude/longitude parameters.'}, status=400)
+
+    if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
+        return JsonResponse({'success': False, 'error': 'Coordinates out of geographical range.'}, status=400)
+
+    # 1. Try Google Maps Geocoding API if GOOGLE_MAPS_API_KEY is configured
+    google_key = getattr(settings, 'GOOGLE_MAPS_API_KEY', os.environ.get('GOOGLE_MAPS_API_KEY', '')).strip()
+    if google_key:
+        try:
+            import requests
+            url = f"https://maps.googleapis.com/maps/api/geocode/json?latlng={lat},{lon}&key={google_key}"
+            resp = requests.get(url, timeout=3)
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get('status') == 'OK' and data.get('results'):
+                    address = data['results'][0].get('formatted_address', '')
+                    if address:
+                        return JsonResponse({'success': True, 'address': address, 'source': 'google'})
+        except Exception:
+            pass
+
+    # 2. Try Nominatim (compliant User-Agent identification per OSM Nominatim Usage Policy)
+    try:
+        import requests
+        headers = {'User-Agent': 'VeetileRuchiApp/1.0 (delivery-contact@veetileruchi.com)'}
+        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}&zoom=18&addressdetails=1"
+        resp = requests.get(url, headers=headers, timeout=2.5)
+        if resp.status_code == 200:
+            data = resp.json()
+            display_name = data.get('display_name')
+            if display_name:
+                return JsonResponse({'success': True, 'address': display_name, 'source': 'nominatim'})
+    except Exception:
+        pass
+
+    # 3. Fallback to Nearest Kerala Preset Place
+    best_place = None
+    min_dist = float('inf')
+    for p in KERALA_PRESET_PLACES:
+        dist = calculate_distance_km(lat, lon, p['lat'], p['lon'])
+        if dist < min_dist:
+            min_dist = dist
+            best_place = p
+
+    if best_place:
+        if min_dist < 0.3:
+            addr = f"{best_place['name']}, {best_place['desc']} (Landmark: {best_place['landmark']})"
+        else:
+            addr = f"Near {best_place['name']} (~{min_dist:.1f} km away), {best_place['desc']}"
+        return JsonResponse({'success': True, 'address': addr, 'source': 'preset', 'distance_km': min_dist})
+
+    return JsonResponse({'success': True, 'address': f"Location: Lat {lat:.5f}, Lon {lon:.5f}", 'source': 'coordinates'})
+
 

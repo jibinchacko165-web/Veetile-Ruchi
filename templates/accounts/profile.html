@@ -32,7 +32,19 @@
 </style>
 
 <script>
-    let leafletMap, leafletMarker, kitchenCircle, kitchenHubMarker;
+    let leafletMap = null;
+    let leafletMarker = null;
+    let customerMarker = null;
+    let kitchenCircle = null;
+    let kitchenHubMarker = null;
+    let googleMap = null;
+    let googleMarker = null;
+    let googleHubMarker = null;
+    let googleCircle = null;
+    let currentMapProvider = 'leaflet';
+    let googleMapsScriptLoaded = false;
+    let revGeocodeTimer = null;
+
     const KITCHEN_HUB_LAT = 9.5564;
     const KITCHEN_HUB_LON = 76.7909;
     const MAX_SERVICE_RADIUS_KM = 30.0;
@@ -49,9 +61,40 @@
         return Math.round(R * c * 10) / 10;
     }
 
+    let profileSelectionSeq = 0;
+
+    function fetchReverseGeocode(lat, lng) {
+        if (revGeocodeTimer) clearTimeout(revGeocodeTimer);
+        const seq = profileSelectionSeq;
+        revGeocodeTimer = setTimeout(() => {
+            fetch(`/accounts/api/reverse-geocode/?lat=${Number(lat).toFixed(6)}&lon=${Number(lng).toFixed(6)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (seq !== profileSelectionSeq) {
+                        return; // Outdated response discarded
+                    }
+                    if (data && data.status === 'success') {
+                        const revElem = document.getElementById('reverse_geocode_display');
+                        if (revElem) {
+                            revElem.innerHTML = `📍 <strong>Detected Area:</strong> ${data.address || data.landmark}`;
+                            revElem.style.display = 'block';
+                        }
+                        const landmarkField = document.getElementById('loc_landmark');
+                        if (landmarkField && (!landmarkField.value || landmarkField.dataset.autoFilled === 'true')) {
+                            landmarkField.value = data.landmark || '';
+                            landmarkField.dataset.autoFilled = 'true';
+                        }
+                    }
+                })
+                .catch(() => {});
+        }, 300);
+    }
+
     function syncProfileCoordinates(lat, lng, accuracy = null) {
         if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) return;
         if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+
+        profileSelectionSeq++;
 
         document.getElementById('loc_lat').value = Number(lat).toFixed(6);
         document.getElementById('loc_lon').value = Number(lng).toFixed(6);
@@ -68,6 +111,9 @@
                 statusMsg.innerHTML = `<span style="color: #B45309; font-weight: 600;">⚠️ Pinned Location:</span> Lat ${lat.toFixed(4)}, Lon ${lng.toFixed(4)}${accText} &mdash; <span style="color: #DC2626; font-weight: 600;">Outside 30 km service area (${dist} km from Kanjirappally Hub)</span>. Delivery requires address within 30 km.`;
             }
         }
+
+        // Trigger reverse geocoding to auto-fill landmark/address details
+        fetchReverseGeocode(lat, lng);
     }
 
     function applyPresetPlace() {
@@ -86,58 +132,76 @@
 
         syncProfileCoordinates(lat, lon);
 
-        if (leafletMap && leafletMarker) {
-            leafletMarker.setLatLng([lat, lon]);
-            leafletMap.setView([lat, lon], 13);
-            leafletMarker.openPopup();
+        const customerLatLng = L.latLng(Number(lat), Number(lon));
+        if (leafletMap && customerMarker) {
+            customerMarker.setLatLng(customerLatLng);
+            leafletMap.setView(customerLatLng, 14);
+        } else if (leafletMap) {
+            leafletMap.setView(customerLatLng, 14);
+        }
+        if (googleMap) {
+            googleMap.setCenter({ lat: lat, lng: lon });
+            googleMap.setZoom(14);
         }
     }
 
     function getDeviceLiveGPS() {
         const statusElem = document.getElementById('gps_status_msg');
         if (!navigator.geolocation) {
-            if (statusElem) statusElem.innerHTML = `<span style="color: #DC2626;">❌ Geolocation is not supported by your browser. Please drag the pin on the map.</span>`;
+            if (statusElem) statusElem.innerHTML = `<span style="color: #DC2626;">❌ Geolocation is not supported by your browser. Please pan the map to set location.</span>`;
             return;
         }
 
         const isSecure = window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         if (!isSecure) {
-            if (statusElem) statusElem.innerHTML = `<span style="color: #B45309;">⚠️ Browser Geolocation requires HTTPS or localhost. Please drag the pin on the map manually.</span>`;
+            if (statusElem) statusElem.innerHTML = `<span style="color: #B45309;">⚠️ Browser Geolocation requires HTTPS or localhost. Please pan the map manually.</span>`;
             return;
         }
+
+        const gpsSeq = ++profileSelectionSeq;
 
         if (statusElem) statusElem.innerHTML = `<span style="color: #2563EB; display: inline-flex; align-items: center; gap: 0.4rem;"><span style="width: 14px; height: 14px; border: 2px solid #2563EB; border-top-color: transparent; border-radius: 50%; display: inline-block; animation: spin 1s linear infinite;"></span> 📡 Requesting device GPS permission...</span>`;
 
         navigator.geolocation.getCurrentPosition(
             function(position) {
+                if (gpsSeq !== profileSelectionSeq) {
+                    return; // Outdated GPS callback discarded
+                }
+
                 const lat = position.coords.latitude;
                 const lon = position.coords.longitude;
                 const accuracy = position.coords.accuracy;
 
                 if (typeof lat !== 'number' || typeof lon !== 'number' || isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-                    if (statusElem) statusElem.innerHTML = `<span style="color: #DC2626;">❌ Invalid coordinates received from device GPS. Please drag the pin on the map.</span> <button type="button" class="btn btn-sm btn-outline" onclick="getDeviceLiveGPS()" style="margin-left: 0.5rem; padding: 0.2rem 0.6rem; font-size: 0.8rem;">🔄 Retry GPS</button>`;
+                    if (statusElem) statusElem.innerHTML = `<span style="color: #DC2626;">❌ Invalid coordinates received from device GPS. Please pan the map.</span> <button type="button" class="btn btn-sm btn-outline" onclick="getDeviceLiveGPS()" style="margin-left: 0.5rem; padding: 0.2rem 0.6rem; font-size: 0.8rem;">🔄 Retry GPS</button>`;
                     return;
                 }
 
                 syncProfileCoordinates(lat, lon, accuracy);
 
-                if (leafletMap && leafletMarker) {
-                    leafletMarker.setLatLng([lat, lon]);
-                    leafletMap.setView([lat, lon], 14);
-                    leafletMarker.openPopup();
+                const customerLatLng = L.latLng(Number(lat), Number(lon));
+                if (leafletMap && customerMarker) {
+                    customerMarker.setLatLng(customerLatLng);
+                    leafletMap.setView(customerLatLng, 15);
+                } else if (leafletMap) {
+                    leafletMap.setView(customerLatLng, 15);
+                }
+                if (googleMap) {
+                    googleMap.setCenter({ lat: lat, lng: lon });
+                    googleMap.setZoom(15);
                 }
             },
             function(error) {
                 let msg = "Geolocation failed.";
                 switch (error.code) {
                     case error.PERMISSION_DENIED:
-                        msg = "Location permission denied. Please allow location access in your browser or drag the pin on the map.";
+                        msg = "Location permission denied. Please allow location access in your browser or select your location on the map.";
                         break;
                     case error.POSITION_UNAVAILABLE:
-                        msg = "Device GPS position unavailable. Please drag the pin or click on the map to set location.";
+                        msg = "Device GPS position unavailable. Please pan the map to set location.";
                         break;
                     case error.TIMEOUT:
-                        msg = "GPS request timed out. Please retry or drag the pin on the map.";
+                        msg = "GPS request timed out. Please retry or pan the map.";
                         break;
                     default:
                         msg = error.message || "Failed to retrieve device location.";
@@ -146,6 +210,150 @@
             },
             { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
         );
+    }
+
+    function showMapProviderNotice(msg) {
+        const notice = document.getElementById('map-provider-notice');
+        if (notice) {
+            notice.innerHTML = msg;
+            notice.style.display = 'block';
+            setTimeout(() => { if (notice) notice.style.display = 'none'; }, 9000);
+        }
+    }
+
+    // Official Google Maps Authentication Failure callback
+    window.gm_authFailure = function() {
+        console.warn("Google Maps JavaScript API authentication failed. Falling back to policy-compliant Leaflet.");
+        showMapProviderNotice("<strong>Google Maps Notice:</strong> Google Maps authentication failed (billing or API key configuration issue). Switched back to policy-compliant Leaflet (Esri Basemap).");
+        setMapProvider('leaflet');
+    };
+
+    function initGoogleMap() {
+        const gContainer = document.getElementById('profile-location-map-google');
+        if (!gContainer) return;
+
+        const rawLat = parseFloat(document.getElementById('loc_lat').value);
+        const rawLng = parseFloat(document.getElementById('loc_lon').value);
+        const lat = (!isNaN(rawLat) && rawLat >= -90 && rawLat <= 90) ? rawLat : KITCHEN_HUB_LAT;
+        const lng = (!isNaN(rawLng) && rawLng >= -180 && rawLng <= 180) ? rawLng : KITCHEN_HUB_LON;
+
+        if (googleMap) {
+            google.maps.event.trigger(googleMap, 'resize');
+            googleMap.setCenter({ lat, lng });
+            return;
+        }
+
+        if (typeof google === 'undefined' || !google.maps) {
+            const googleKey = "{{ GOOGLE_MAPS_API_KEY|escapejs }}".trim();
+            if (!googleKey) {
+                showMapProviderNotice("Google Maps API key is not configured. Falling back to Leaflet.");
+                setMapProvider('leaflet');
+                return;
+            }
+            if (!googleMapsScriptLoaded) {
+                googleMapsScriptLoaded = true;
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(googleKey)}&libraries=geometry&callback=onGoogleMapsLoaded`;
+                script.async = true;
+                script.defer = true;
+                script.onerror = function() {
+                    showMapProviderNotice("Failed to load Google Maps script. Check network or API key. Falling back to Leaflet.");
+                    setMapProvider('leaflet');
+                };
+                document.head.appendChild(script);
+            }
+            return;
+        }
+
+        onGoogleMapsLoaded();
+    }
+
+    window.onGoogleMapsLoaded = function() {
+        const gContainer = document.getElementById('profile-location-map-google');
+        if (!gContainer || typeof google === 'undefined' || !google.maps) return;
+
+        const rawLat = parseFloat(document.getElementById('loc_lat').value);
+        const rawLng = parseFloat(document.getElementById('loc_lon').value);
+        const lat = (!isNaN(rawLat) && rawLat >= -90 && rawLat <= 90) ? rawLat : KITCHEN_HUB_LAT;
+        const lng = (!isNaN(rawLng) && rawLng >= -180 && rawLng <= 180) ? rawLng : KITCHEN_HUB_LON;
+
+        googleMap = new google.maps.Map(gContainer, {
+            center: { lat, lng },
+            zoom: 13,
+            mapTypeControl: true,
+            streetViewControl: false,
+            fullscreenControl: true
+        });
+
+        // Hub Marker
+        googleHubMarker = new google.maps.Marker({
+            position: { lat: KITCHEN_HUB_LAT, lng: KITCHEN_HUB_LON },
+            map: googleMap,
+            title: "Central Kitchen Hub (Kanjirappally)"
+        });
+
+        // 30 km circle
+        googleCircle = new google.maps.Circle({
+            strokeColor: '#10B981',
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+            fillColor: '#10B981',
+            fillOpacity: 0.08,
+            map: googleMap,
+            center: { lat: KITCHEN_HUB_LAT, lng: KITCHEN_HUB_LON },
+            radius: MAX_SERVICE_RADIUS_METERS,
+            clickable: false
+        });
+
+        // Fixed-Center Pin: Coordinates are calculated from map center on idle (movement end)
+        googleMap.addListener('idle', function() {
+            const center = googleMap.getCenter();
+            if (center) {
+                syncProfileCoordinates(center.lat(), center.lng());
+            }
+        });
+
+        // Clicking on the map smoothly centers the clicked location under the fixed pin
+        googleMap.addListener('click', function(e) {
+            if (e.latLng) {
+                googleMap.panTo(e.latLng);
+            }
+        });
+    };
+
+    function setMapProvider(provider) {
+        currentMapProvider = provider;
+        const googleKey = "{{ GOOGLE_MAPS_API_KEY|escapejs }}".trim();
+        const lBtn = document.getElementById('btn-provider-leaflet');
+        const gBtn = document.getElementById('btn-provider-google');
+        const badge = document.getElementById('provider-badge');
+        const lContainer = document.getElementById('profile-location-map');
+        const gContainer = document.getElementById('profile-location-map-google');
+
+        if (provider === 'google') {
+            if (!googleKey) {
+                showMapProviderNotice("<strong>Google Maps API is not configured:</strong> <code>GOOGLE_MAPS_API_KEY</code> is empty in your local <code>.env</code> file. To enable Google Maps, add a valid key with Maps JavaScript API & billing enabled. Currently using policy-compliant Leaflet (Esri World Street) by default.");
+                setMapProvider('leaflet');
+                return;
+            }
+            if (lBtn) { lBtn.classList.remove('btn-primary'); lBtn.classList.add('btn-outline'); }
+            if (gBtn) { gBtn.classList.remove('btn-outline'); gBtn.classList.add('btn-primary'); }
+            if (lContainer) lContainer.style.display = 'none';
+            if (gContainer) gContainer.style.display = 'block';
+            if (badge) badge.innerHTML = 'Provider: <strong>Google Maps JavaScript API</strong>';
+            initGoogleMap();
+        } else {
+            if (lBtn) { lBtn.classList.remove('btn-outline'); lBtn.classList.add('btn-primary'); }
+            if (gBtn) { gBtn.classList.remove('btn-primary'); gBtn.classList.add('btn-outline'); }
+            if (gContainer) gContainer.style.display = 'none';
+            if (lContainer) lContainer.style.display = 'block';
+            if (badge) badge.innerHTML = 'Provider: <strong>Leaflet / Esri World Street (Compliant)</strong>';
+            if (!leafletMap) {
+                initLeafletMap();
+            } else {
+                setTimeout(() => { if (leafletMap) leafletMap.invalidateSize(); }, 60);
+            }
+        }
     }
 
     function initLeafletMap() {
@@ -172,6 +380,7 @@
             bounceAtZoomLimits: false
         });
 
+        // Policy-compliant, high-availability Esri map tiles (authorized for Leaflet, no 403 blocks)
         const primaryTileUrl = "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
         const primaryTileAttr = '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom"|safe }}';
         const primaryTileSubdomains = "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
@@ -187,11 +396,24 @@
         let tileErrCount = 0;
         tileLayer.on('tileerror', function() {
             tileErrCount++;
-            if (tileErrCount > 4 && !tileLayer._fallbackApplied) {
+            if (tileErrCount > 3 && !tileLayer._fallbackApplied) {
                 tileLayer._fallbackApplied = true;
+                console.warn("Primary tile provider encountered errors. Switching to secondary fallback tile provider.");
                 tileLayer.setUrl(fallbackTileUrl);
+            } else if (tileErrCount > 8) {
+                const banner = document.getElementById('map-tile-error-banner');
+                if (banner) banner.style.display = 'flex';
             }
         });
+
+        window.retryProfileTiles = function() {
+            const banner = document.getElementById('map-tile-error-banner');
+            if (banner) banner.style.display = 'none';
+            tileErrCount = 0;
+            tileLayer._fallbackApplied = false;
+            tileLayer.setUrl(primaryTileUrl);
+            tileLayer.redraw();
+        };
 
         // 1. Central Kitchen Hub Marker (Green Badge)
         const hubIcon = L.divIcon({
@@ -217,12 +439,12 @@
             interactive: false
         }).addTo(leafletMap);
 
-        // 3. Customer Delivery Location Pin (Blue Marker)
-        const bluePinIcon = L.divIcon({
-            className: 'custom-blue-pin-icon',
+        // Real Geographic Customer Location Marker (Blue Pin)
+        const custIcon = L.divIcon({
+            className: 'custom-profile-dest-icon',
             html: `
-                <div style="position: relative; width: 34px; height: 46px; display: flex; align-items: center; justify-content: center; pointer-events: auto; cursor: grab;">
-                    <svg width="34" height="46" viewBox="0 0 34 46" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.4)); pointer-events: auto;">
+                <div style="position: relative; width: 34px; height: 46px; display: flex; align-items: center; justify-content: center; cursor: grab;">
+                    <svg width="34" height="46" viewBox="0 0 34 46" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.4));">
                         <path d="M17 0C7.61 0 0 7.61 0 17C0 28.5 14.5 44.5 16.1 46.2C16.6 46.7 17.4 46.7 17.9 46.2C19.5 44.5 34 28.5 34 17C34 7.61 26.39 0 17 0Z" fill="#1E40AF"/>
                         <path d="M17 1.8C25.39 1.8 32.2 8.61 32.2 17C32.2 26.8 19.4 41.2 17 43.8C14.6 41.2 1.8 26.8 1.8 17C1.8 8.61 8.61 1.8 17 1.8Z" fill="#2563EB"/>
                         <circle cx="17" cy="17" r="6" fill="#FFFFFF"/>
@@ -235,77 +457,42 @@
             popupAnchor: [0, -46]
         });
 
-        // Geographically anchored delivery marker with separate drag support
-        leafletMarker = L.marker([initLat, initLng], { 
-            icon: bluePinIcon,
+        let profileLat = Number(initLat);
+        let profileLng = Number(initLng);
+        if (profileLat >= 70 && profileLat <= 80 && profileLng >= 8 && profileLng <= 13) {
+            const t = profileLat; profileLat = profileLng; profileLng = t;
+        }
+
+        const customerLatLng = L.latLng(profileLat, profileLng);
+        if (
+            !Number.isFinite(customerLatLng.lat) ||
+            !Number.isFinite(customerLatLng.lng) ||
+            Math.abs(customerLatLng.lat) > 90 ||
+            Math.abs(customerLatLng.lng) > 180
+        ) {
+            throw new Error("Invalid customer GPS coordinates");
+        }
+
+        customerMarker = L.marker(customerLatLng, {
+            icon: custIcon,
             draggable: true,
-            autoPan: false,
-            title: "Selected Delivery Location"
-        }).addTo(leafletMap).bindPopup("<b>Delivery Location</b><br>Drag pin or click map to reposition", { autoPan: false });
-        
-        leafletMarker.openPopup();
+            autoPan: true,
+            title: "Drag to set saved location"
+        }).addTo(leafletMap);
 
-        // Marker drag: update coordinates ONLY on intentional dragend
-        leafletMarker.on('dragstart', function() {
-            leafletMarker.closePopup();
-        });
-
-        leafletMarker.on('dragend', function(e) {
-            const pos = leafletMarker.getLatLng();
+        // Marker drag: update coordinates on dragend
+        customerMarker.on('dragend', function() {
+            const pos = customerMarker.getLatLng();
             syncProfileCoordinates(pos.lat, pos.lng);
         });
 
-        // Robust map dragging detection: strictly separate map panning from intentional marker positioning
-        let mapInteractionDownPos = null;
-        let mapDragOccurred = false;
-        let mapLastDragEndTime = 0;
-
-        mapElem.addEventListener('mousedown', function(e) {
-            mapInteractionDownPos = { x: e.clientX, y: e.clientY };
-            mapDragOccurred = false;
-        }, { passive: true });
-
-        mapElem.addEventListener('touchstart', function(e) {
-            if (e.touches && e.touches[0]) {
-                mapInteractionDownPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                mapDragOccurred = false;
-            }
-        }, { passive: true });
-
-        leafletMap.on('movestart dragstart', function() {
-            mapDragOccurred = true;
-        });
-
-        leafletMap.on('move drag', function() {
-            mapDragOccurred = true;
-        });
-
-        leafletMap.on('moveend dragend', function() {
-            mapLastDragEndTime = Date.now();
-            setTimeout(() => { mapDragOccurred = false; }, 400);
-        });
-
-        // Location selection via deliberate map click ONLY (strictly ignored after panning/dragging)
+        // Clicking on the map moves the customer marker directly to the clicked point
         leafletMap.on('click', function(e) {
-            if (mapDragOccurred || (Date.now() - mapLastDragEndTime < 400)) {
-                return;
-            }
-            if (e.originalEvent) {
-                const orig = e.originalEvent;
-                const clientX = orig.clientX !== undefined ? orig.clientX : (orig.touches && orig.touches[0] ? orig.touches[0].clientX : null);
-                const clientY = orig.clientY !== undefined ? orig.clientY : (orig.touches && orig.touches[0] ? orig.touches[0].clientY : null);
-                if (mapInteractionDownPos && clientX !== null && clientY !== null) {
-                    const distMoved = Math.hypot(clientX - mapInteractionDownPos.x, clientY - mapInteractionDownPos.y);
-                    if (distMoved > 6) {
-                        return; // Was a drag gesture, not a static click
-                    }
-                }
-            }
-            leafletMarker.setLatLng(e.latlng);
+            customerMarker.setLatLng(e.latlng);
             syncProfileCoordinates(e.latlng.lat, e.latlng.lng);
         });
 
-        syncProfileCoordinates(initLat, initLng);
+        syncProfileCoordinates(customerLatLng.lat, customerLatLng.lng);
 
         if (window.ResizeObserver && mapElem) {
             const ro = new ResizeObserver(() => {
@@ -320,6 +507,7 @@
         setTimeout(() => { if (leafletMap) leafletMap.invalidateSize(); }, 250);
         setTimeout(() => { if (leafletMap) leafletMap.invalidateSize(); }, 600);
     }
+
 
     document.addEventListener("DOMContentLoaded", function() {
         initLeafletMap();
@@ -609,16 +797,39 @@
                 </select>
             </div>
 
-            <!-- Live GPS Detect Button -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                <span style="font-weight: 500; font-size: 0.92rem; color: var(--primary-brown);">Pin Coordinates on Map:</span>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="getDeviceLiveGPS()">
+            <!-- Map Provider Selector & GPS Controls -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                    <span style="font-weight: 600; font-size: 0.88rem; color: var(--primary-brown);">Map View:</span>
+                    <span id="provider-badge" style="font-size: 0.78rem; color: var(--text-muted); margin-left: 0.35rem;">
+                        Provider: <strong>Leaflet / Esri World Street (Compliant)</strong>
+                    </span>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="getDeviceLiveGPS()" id="btn-detect-gps">
                     📡 Detect Live Device GPS
                 </button>
             </div>
 
-            <div id="profile-location-map" style="min-height: 380px; height: 380px; width: 100%; border-radius: var(--radius-sm); border: 1.5px solid var(--border-warm); margin-bottom: 0.5rem; z-index: 1; background: #e2e8f0;"></div>
-            <p id="gps_status_msg" style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1.25rem; font-weight: 400;">Drag the blue pin or click on the map to set exact coordinates. Dragging the map pans smoothly without shifting the pin.</p>
+            <!-- Informational Banner for Map Providers -->
+            <div id="map-provider-notice" style="display: none; margin-bottom: 0.75rem; padding: 0.65rem 0.95rem; border-radius: var(--radius-sm); background: #FEF3C7; color: #92400E; font-size: 0.85rem; border: 1.5px solid #F59E0B; line-height: 1.45;"></div>
+
+            <!-- Map Tile Error Recovery Banner -->
+            <div id="map-tile-error-banner" style="display: none; margin-bottom: 0.75rem; padding: 0.65rem 0.95rem; border-radius: var(--radius-sm); background: #FEE2E2; color: #991B1B; font-size: 0.85rem; border: 1.5px solid #EF4444; align-items: center; justify-content: space-between;">
+                <span>⚠️ Primary map tiles are unavailable. Switched to backup provider.</span>
+                <button type="button" class="btn btn-sm btn-outline" onclick="retryProfileTiles()" style="padding: 0.2rem 0.6rem; font-size: 0.8rem; background: white;">🔄 Retry Map Provider</button>
+            </div>
+
+            <!-- Map Containers -->
+            <div class="profile-map-wrapper" style="position: relative; width: 100%;">
+                <div id="profile-location-map" style="min-height: 380px; height: 380px; width: 100%; border-radius: var(--radius-sm); border: 1.5px solid var(--border-warm); margin-bottom: 0.5rem; z-index: 1; background: #e2e8f0;"></div>
+                <div id="profile-location-map-google" style="display: none; min-height: 380px; height: 380px; width: 100%; border-radius: var(--radius-sm); border: 1.5px solid var(--border-warm); margin-bottom: 0.5rem; z-index: 1; background: #e2e8f0;"></div>
+            </div>
+
+            <!-- Reverse Geocode Detected Area Badge -->
+            <div id="reverse_geocode_display" style="display: none; margin-bottom: 0.5rem; font-size: 0.85rem; color: #1E3A8A; background: #EFF6FF; border: 1px solid #BFDBFE; padding: 0.4rem 0.75rem; border-radius: var(--radius-sm);"></div>
+
+            <p id="gps_status_msg" style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1.25rem; font-weight: 400;">Drag the blue pin or click anywhere on the map to set your location. Coordinates update automatically.</p>
+
 
             <form method="POST" action="{% url 'profile' %}">
                 {% csrf_token %}

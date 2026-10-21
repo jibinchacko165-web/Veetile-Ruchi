@@ -7,7 +7,8 @@ class FormValidationTest(BaseSeleniumTest):
         self.driver.get(self.live_server_url + '/register/')
         
         # Test required fields
-        self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        btn = self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'}); arguments[0].click();", btn)
         username_input = self.driver.find_element(By.NAME, 'username')
         self.check_validation_message(username_input)
         
@@ -15,7 +16,8 @@ class FormValidationTest(BaseSeleniumTest):
         username_input.send_keys('testuser')
         email_input = self.driver.find_element(By.NAME, 'email')
         email_input.send_keys('invalid-email')
-        self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        btn = self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'}); arguments[0].click();", btn)
         self.check_validation_message(email_input)
         
         # Test password mismatch
@@ -23,7 +25,9 @@ class FormValidationTest(BaseSeleniumTest):
         email_input.send_keys('testuser@example.com')
         self.driver.find_element(By.NAME, 'password').send_keys('ValidPass123!')
         self.driver.find_element(By.NAME, 'confirm_password').send_keys('Mismatch123!')
-        self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
+        btn = self.driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'}); arguments[0].click();", btn)
+
         
         # Wait for django message
         try:

@@ -71,39 +71,27 @@ class ChefTest(BaseSeleniumTest):
         self.assertIn('NEW ORDER', self.driver.page_source)
         
         # 2. Accept Order (Change status to 'preparing')
-        # There should be an "Accept & Start Preparing" button in a form
         try:
             accept_form = self.driver.find_element(By.CSS_SELECTOR, f"form[action*='{order.order_id}'] input[value='preparing']").find_element(By.XPATH, "..")
             accept_btn = accept_form.find_element(By.CSS_SELECTOR, "button[type='submit']")
-            # Selenium click might be intercepted if elements overlap, so use javascript or just click
-            self.driver.execute_script("arguments[0].scrollIntoView(true);", accept_btn)
-            import time
-            time.sleep(0.5)
-            accept_btn.click()
+            self.driver.execute_script("arguments[0].click();", accept_btn)
             
             # Wait for dashboard to reload
             self.wait.until(EC.presence_of_element_located((By.ID, 'kitchen-queue')))
-            
-            # Check if status changed
-            self.assertIn('Preparing', self.driver.page_source)
+            self.wait.until(lambda d: 'Preparing' in d.page_source)
         except Exception as e:
             self.take_screenshot('chef_accept_order_fail')
             raise e
 
         # 3. Update Preparation Status (Change status to 'ready_pickup')
-        # There should be a "Ready for Pickup" button
         try:
             ready_form = self.driver.find_element(By.CSS_SELECTOR, f"form[action*='{order.order_id}'] input[value='ready_pickup']").find_element(By.XPATH, "..")
             ready_btn = ready_form.find_element(By.CSS_SELECTOR, "button[type='submit']")
-            self.driver.execute_script("arguments[0].scrollIntoView(true);", ready_btn)
-            time.sleep(0.5)
-            ready_btn.click()
+            self.driver.execute_script("arguments[0].click();", ready_btn)
             
             # Wait for dashboard to reload
             self.wait.until(EC.presence_of_element_located((By.ID, 'kitchen-queue')))
-            
-            # Check if status changed
-            self.assertIn('Ready and awaiting courier pickup', self.driver.page_source)
+            self.wait.until(lambda d: 'Ready and awaiting courier pickup' in d.page_source)
         except Exception as e:
             self.take_screenshot('chef_ready_order_fail')
             raise e

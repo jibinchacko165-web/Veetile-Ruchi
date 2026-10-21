@@ -201,9 +201,8 @@ def delivery_boy_track(request, assignment_id):
     chef_lat = branch.latitude if branch else delivery_setting.latitude
     chef_lon = branch.longitude if branch else delivery_setting.longitude
     
-    cust_lat, cust_lon = validate_coordinates(order.latitude, order.longitude)
-    if cust_lat is None:
-        cust_lat, cust_lon = chef_lat, chef_lon
+    from orders.utils import sanitize_customer_coordinates, is_offshore_sea_coordinate
+    cust_lat, cust_lon = sanitize_customer_coordinates(order.latitude, order.longitude, fallback_lat=chef_lat, fallback_lon=chef_lon)
     
     # Genuine courier GPS retrieval with freshness validation (max 5 mins = 300s)
     latest_gps = GPSLocationTracking.objects.filter(delivery_assignment=assignment).order_by('-timestamp').first()
@@ -217,16 +216,19 @@ def delivery_boy_track(request, assignment_id):
         age_seconds = (timezone.now() - latest_gps.timestamp).total_seconds()
         courier_lat = latest_gps.latitude
         courier_lon = latest_gps.longitude
+        from orders.utils import to_kolkata_datetime
+        local_gps_dt = to_kolkata_datetime(latest_gps.timestamp)
+        formatted_gps_time = local_gps_dt.strftime("%I:%M:%S %p")
         if age_seconds <= 300:
             has_courier_gps = True
             is_gps_stale = False
-            last_gps_timestamp = latest_gps.timestamp.strftime("%I:%M:%S %p")
+            last_gps_timestamp = formatted_gps_time
         else:
             has_courier_gps = False
             is_gps_stale = True
-            last_gps_timestamp = latest_gps.timestamp.strftime("%I:%M:%S %p") + " (Stale)"
+            last_gps_timestamp = formatted_gps_time + " (Stale)"
     elif profile and profile.current_latitude and profile.current_longitude:
-        if -90.0 <= profile.current_latitude <= 90.0 and -180.0 <= profile.current_longitude <= 180.0 and not (profile.current_latitude == 10.0 and profile.current_longitude == 76.0):
+        if -90.0 <= profile.current_latitude <= 90.0 and -180.0 <= profile.current_longitude <= 180.0 and not is_offshore_sea_coordinate(profile.current_latitude, profile.current_longitude):
             courier_lat = profile.current_latitude
             courier_lon = profile.current_longitude
             # Only consider profile GPS live if courier is on active delivery task
@@ -417,7 +419,9 @@ def complete_delivery(request, assignment_id):
         assignment.save(update_fields=['status', 'delivered_at', 'is_active', 'actual_delivery_time'])
 
         order.status = 'delivered'
-        order.save(update_fields=['status'])
+        order.delivered_at = now
+        order.updated_at = now
+        order.save(update_fields=['status', 'delivered_at', 'updated_at'])
 
         # Check if courier has other active tasks
         other_active = DeliveryAssignment.objects.filter(
@@ -620,19 +624,21 @@ def get_live_gps_location(request, order_id):
         if c_lat is not None and c_lon is not None:
             courier_lat = c_lat
             courier_lon = c_lon
-            age_sec = (timezone.now() - latest_crumb.timestamp).total_seconds()
+            from orders.utils import to_kolkata_datetime
+            local_crumb_dt = to_kolkata_datetime(latest_crumb.timestamp)
+            formatted_crumb_time = local_crumb_dt.strftime("%I:%M:%S %p")
             if age_sec <= 300: # 5 minutes threshold for live freshness
                 has_courier_gps = True
                 is_stale = False
-                last_update_str = latest_crumb.timestamp.strftime("%I:%M:%S %p")
+                last_update_str = formatted_crumb_time
             else:
                 has_courier_gps = False
                 is_stale = True
-                last_update_str = latest_crumb.timestamp.strftime("%I:%M:%S %p") + " (Signal Stale)"
+                last_update_str = formatted_crumb_time + " (Signal Stale)"
     elif assignment.delivery_boy.current_latitude and assignment.delivery_boy.current_longitude:
-        from orders.utils import validate_coordinates
+        from orders.utils import validate_coordinates, is_offshore_sea_coordinate
         c_lat, c_lon = validate_coordinates(assignment.delivery_boy.current_latitude, assignment.delivery_boy.current_longitude)
-        if c_lat is not None and c_lon is not None and not (c_lat == 10.0 and c_lon == 76.0):
+        if c_lat is not None and c_lon is not None and not is_offshore_sea_coordinate(c_lat, c_lon):
             courier_lat = c_lat
             courier_lon = c_lon
             if assignment.status in ['in_transit', 'picked_up']:
@@ -799,9 +805,7 @@ def get_courier_notifications(request):
                     status_display = notif.order.delivery_assignment.get_status_display()
                 
         track_url = f"/orders/notifications/mark-read/{notif.id}/" if notif.id else '#'
-        profile = getattr(request.user, 'delivery_boy_profile', None)
-        origin_str = f"origin={profile.current_latitude},{profile.current_longitude}&" if (profile and profile.current_latitude and profile.current_longitude) else ""
-        nav_url = f"https://www.google.com/maps/dir/?api=1&{origin_str}destination={lat},{lon}" if lat and lon else '#'
+        nav_url = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&travelmode=driving" if lat and lon else '#'
             
         data.append({
             'id': notif.id,

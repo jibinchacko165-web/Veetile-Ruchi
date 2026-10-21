@@ -622,21 +622,26 @@ def predict_delivery_time(lat1, lon1, lat2, lon2, status='assigned'):
 class RouteResult(tuple):
     """
     Subclass of tuple returning (route, distance_km) for 100% backward compatibility
-    while also exposing .is_road and .route attributes.
+    while also exposing .is_road, .route, and .duration_min attributes.
     """
-    def __new__(cls, route, distance, is_road=True):
+    def __new__(cls, route, distance, is_road=True, duration_min=None):
         return super().__new__(cls, (route, distance))
 
-    def __init__(self, route, distance, is_road=True):
+    def __init__(self, route, distance, is_road=True, duration_min=None):
         self.route = route
         self.distance = distance
         self.is_road = is_road
+        if duration_min is not None:
+            self.duration_min = round(float(duration_min), 1)
+        else:
+            # Estimate duration based on urban Kerala road speeds (~25 km/h)
+            self.duration_min = round((float(distance) / 25.0) * 60.0, 1) if distance > 0 else 0.0
 
 def optimize_delivery_route(chef_lat, chef_lon, cust_lat, cust_lon):
     """
-    Calls the Google Maps Directions API or OSRM to get actual road distance and route.
+    Calls the Google Maps Directions API or OSRM to get actual road distance, route polyline, and duration.
     Falls back to straight-line Haversine estimate if APIs fail or keys are missing.
-    Returns RouteResult(route, distance_km, is_road).
+    Returns RouteResult(route, distance_km, is_road, duration_min).
     """
     import requests
     from django.conf import settings
@@ -647,10 +652,10 @@ def optimize_delivery_route(chef_lat, chef_lon, cust_lat, cust_lon):
         c_cust_lat = float(cust_lat)
         c_cust_lon = float(cust_lon)
     except (ValueError, TypeError):
-        return RouteResult([], 0.0, False)
+        return RouteResult([], 0.0, False, 0.0)
 
     if math.isnan(c_chef_lat) or math.isnan(c_chef_lon) or math.isnan(c_cust_lat) or math.isnan(c_cust_lon):
-        return RouteResult([], 0.0, False)
+        return RouteResult([], 0.0, False, 0.0)
 
     straight_line_dist = calculate_distance(c_chef_lat, c_chef_lon, c_cust_lat, c_cust_lon)
     api_key = getattr(settings, 'GOOGLE_MAPS_API_KEY', None)
@@ -665,14 +670,16 @@ def optimize_delivery_route(chef_lat, chef_lon, cust_lat, cust_lon):
                     route = []
                     legs = data['routes'][0]['legs']
                     distance_meters = legs[0]['distance']['value']
+                    duration_seconds = legs[0]['duration']['value']
                     road_distance_km = distance_meters / 1000.0
+                    duration_minutes = duration_seconds / 60.0
                     
                     for step in legs[0]['steps']:
                         route.append({
                             'lat': round(step['end_location']['lat'], 6),
                             'lng': round(step['end_location']['lng'], 6)
                         })
-                    return RouteResult(route, round(road_distance_km, 2), True)
+                    return RouteResult(route, round(road_distance_km, 2), True, round(duration_minutes, 1))
         except Exception:
             pass
             
@@ -685,14 +692,17 @@ def optimize_delivery_route(chef_lat, chef_lon, cust_lat, cust_lon):
             if osrm_data.get('code') == 'Ok' and osrm_data.get('routes'):
                 primary_route = osrm_data['routes'][0]
                 road_dist_km = primary_route['distance'] / 1000.0
+                duration_seconds = primary_route.get('duration', 0)
+                duration_minutes = duration_seconds / 60.0 if duration_seconds else (road_dist_km / 25.0) * 60.0
                 coords = primary_route['geometry']['coordinates']  # [lon, lat] pairs
                 route = [{'lat': round(c[1], 6), 'lng': round(c[0], 6)} for c in coords]
-                return RouteResult(route, round(road_dist_km, 2), True)
+                return RouteResult(route, round(road_dist_km, 2), True, round(duration_minutes, 1))
     except Exception:
         pass
 
     # No routing service available or network unreachable:
     # Do NOT fabricate fake roads. Return empty route with Haversine distance flagged as estimate.
-    return RouteResult([], round(straight_line_dist, 2), False)
+    fallback_duration_min = (straight_line_dist * 1.3 / 25.0) * 60.0 if straight_line_dist > 0 else 0.0
+    return RouteResult([], round(straight_line_dist, 2), False, round(fallback_duration_min, 1))
 
 

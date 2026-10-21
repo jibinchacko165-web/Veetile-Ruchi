@@ -134,7 +134,7 @@ class Command(BaseCommand):
                 'address': setting.address or 'Kanjirappally Town, Kottayam, Kerala',
                 'latitude': setting.latitude or 9.5564,
                 'longitude': setting.longitude or 76.7909,
-                'max_delivery_radius_km': setting.max_delivery_radius_km or 20.0,
+                'max_delivery_radius_km': 30.0,
                 'is_active': True,
                 'is_central_hub': True,
                 'phone': '+91 7510672355',
@@ -145,17 +145,21 @@ class Command(BaseCommand):
         )
 
         if not hub_created:
-            central_hub.name = setting.name
+            central_hub.name = setting.name or 'Central Kitchen Hub (Kanjirappally)'
             central_hub.district = kottayam
-            central_hub.address = setting.address
-            central_hub.latitude = setting.latitude
-            central_hub.longitude = setting.longitude
-            central_hub.max_delivery_radius_km = min(setting.max_delivery_radius_km, 25.0)
+            central_hub.address = setting.address or 'Kanjirappally Town, Kottayam, Kerala'
+            central_hub.latitude = setting.latitude or 9.5564
+            central_hub.longitude = setting.longitude or 76.7909
+            central_hub.max_delivery_radius_km = 30.0
             central_hub.is_active = True
             central_hub.save()
 
+        # Deactivate obsolete kitchen branches so Kanjirappally is the only active kitchen
+        HotelBranch.objects.exclude(id=central_hub.id).update(is_active=False)
+
         # Link DeliverySetting to central hub
         setting.branch = central_hub
+        setting.max_delivery_radius_km = 30.0
         setting.save()
 
         self.stdout.write(self.style.SUCCESS(

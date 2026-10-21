@@ -18,6 +18,7 @@ urlpatterns = [
     path('notifications/', views.notifications_view, name='notifications'),
     path('notifications/mark-read/<int:notification_id>/', views.mark_notification_read, name='mark_notification_read'),
     path('live-status/<str:order_id>/', views.api_order_status, name='api_order_status'),
+    path('api/reverse-geocode/', views.api_reverse_geocode, name='api_reverse_geocode'),
     
     # Staff mappings
     path('staff/dashboard/', views.staff_dashboard, name='staff_dashboard'),
