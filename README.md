@@ -1,7 +1,7 @@
 # Veetile-Ruchi (വീട്ടിലെ രുചി)
 **Authentic Kerala Homemade Food Delivery Platform**
 
-Veetile-Ruchi is a full-featured online food ordering and delivery system connecting local home chefs in Kerala with customers. Built with Django and PostgreSQL, the platform features multi-role dashboards (Customer, Home Chef, Courier Delivery Boy, Staff/Admin), AI-driven delivery time predictions, real-time GPS courier delivery tracking, OpenStreetMap/Leaflet road routing via OSRM, nutritional tracking, and health profiling.
+Veetile-Ruchi is a full-featured online food ordering and delivery system connecting local home chefs in Kerala with customers. Built with Django and PostgreSQL, the platform features multi-role dashboards (Customer, Home Chef, Courier Delivery Boy, Staff/Admin), AI-driven delivery time predictions, real-time GPS courier delivery tracking, OpenStreetMap/Leaflet delivery tracking with straight-line distance estimation, nutritional tracking, and health profiling.
 
 ---
 
@@ -14,7 +14,6 @@ Veetile-Ruchi is a full-featured online food ordering and delivery system connec
 - **Mapping & Geolocation**:
   - Map Display: **Leaflet.js** (Local static assets, zero CDN dependencies for offline reliability)
   - Map Tiles: **OpenStreetMap** (`https://tile.openstreetmap.org/{z}/{x}/{y}.png`)
-  - Road Routing & ETA: **OSRM** (Open Source Routing Machine)
   - Geolocation: **HTML5 Browser Geolocation API** (High Accuracy)
   - Reverse Geocoding: OpenStreetMap Nominatim with local Kerala preset fallbacks and server caching
 - **Machine Learning & Analytics**:
@@ -28,9 +27,8 @@ Veetile-Ruchi is a full-featured online food ordering and delivery system connec
 1. **Leaflet + OpenStreetMap Only**:
    - Zero Google Maps dependency. Google Maps scripts, API keys, and SDK calls have been completely removed.
    - Map tiles are served via OpenStreetMap with automated tile failover.
-2. **Accurate Road Routing via OSRM**:
-   - Road distances, durations, and polylines are fetched directly from OSRM (`/route/v1/driving/`).
-   - Straight-line Haversine calculations are used solely as fallback when routing servers are unreachable, and are explicitly flagged in UI/backend metrics.
+2. **Accurate Distance & Transit Estimation**:
+   - Haversine straight-line distance calculations provide reliable, consistent distance measurements and transit time estimates without third-party routing service failure risks.
 3. **Strict Separation of Hub & Courier Live GPS**:
    - Central Kitchen Hub coordinates (`Kanjirappally, Kottayam: 9.5564, 76.7909`) represent the physical preparation facility.
    - Courier live GPS coordinates are continuously recorded from the courier's device during active transit and displayed on the customer's live tracking map.
@@ -121,11 +119,10 @@ Configure these settings in your `.env` file (do not commit `.env` to Git):
 | `DB_PORT` | PostgreSQL port | `5432` |
 | `MAP_TILE_URL` | Map tile template URL | `https://tile.openstreetmap.org/{z}/{x}/{y}.png` |
 | `MAP_TILE_ATTRIBUTION` | Legal tile attribution markup | OpenStreetMap contributors |
-| `OSRM_ROUTING_URL` | OSRM road routing endpoint | `https://router.project-osrm.org/route/v1/driving/{coords}?overview=simplified&geometries=geojson` |
 
 ---
 
-## 5. Live GPS Tracking & Road Routing Workflow
+## 5. Live GPS Tracking Workflow
 
 ### Customer GPS
 - Handled via `navigator.geolocation.getCurrentPosition` with `enableHighAccuracy: true`.
@@ -138,16 +135,11 @@ Configure these settings in your `.env` file (do not commit `.env` to Git):
 - Server records breadcrumb updates in `GPSLocationTracking` models.
 - If the courier's location is older than 5 minutes, the customer tracking UI highlights a "Stale Location Warning" and displays the last known timestamp.
 
-### OSRM Routing
-- Real road polylines, road distances (in km), and travel duration (in minutes) are retrieved through OSRM.
-- Requests are cached in Django's cache framework for 30 minutes to reduce network overhead and honor public API fair-use guidelines.
-- For high-volume production deployments, configure a self-hosted OSRM backend via `OSRM_ROUTING_URL`.
-
 ---
 
 ## 6. Running Tests
 
-The test suite covers models, forms, views, APIs, authentication, permissions, GPS validation, and OSRM routing.
+The test suite covers models, forms, views, APIs, authentication, permissions, and GPS delivery tracking.
 
 ```bash
 # Run all core app unit tests
@@ -170,9 +162,6 @@ python manage.py test --keepdb
 - **Browser Geolocation Denied / Timeout**:
   - The HTML5 Geolocation API requires a secure context (`https://` or `localhost` / `127.0.0.1`).
   - Ensure browser permissions allow location access for `localhost`.
-- **OSRM Network Timeout**:
-  - The public OSRM server (`router.project-osrm.org`) has fair-use rate limits. If unreachable, the system automatically falls back to Haversine distance with estimated travel time without throwing unhandled exceptions.
-  - In production, set `OSRM_ROUTING_URL` to your own internal OSRM container.
 
 ---
 
@@ -180,5 +169,4 @@ python manage.py test --keepdb
 
 - Developed for **Veetile-Ruchi** home food delivery.
 - Map tiles: &copy; [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
-- Routing engine: [Project OSRM](https://project-osrm.org/).
 - Icons: FontAwesome 6 Free.

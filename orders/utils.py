@@ -819,9 +819,9 @@ def calculate_accurate_order_eta(order, chef_lat, chef_lon, cust_lat, cust_lon,
     total_remaining_mins = prep_time_minutes + travel_mins + pickup_buffer
     arrival_dt = now_local + datetime.timedelta(minutes=total_remaining_mins)
     expected_arrival_time = f"Expected by {arrival_dt.strftime('%I:%M %p')}"
-    remaining_travel_time = f"~{int(round(travel_mins))} mins road travel"
-    road_distance_display = f"{road_dist_km} km (Kitchen to Delivery Location)"
-    eta_message = "Estimated arrival includes kitchen preparation and road transit time."
+    remaining_travel_time = f"~{int(round(travel_mins))} mins transit estimate"
+    road_distance_display = f"{road_dist_km} km (Straight-line distance)"
+    eta_message = "Estimated arrival calculated from straight-line distance and kitchen workflow."
 
     # Supplementary AI prediction
     _, ai_eta_min, _ = predict_delivery_time_rf(origin_lat, origin_lon, cust_lat, cust_lon, items_count=items_cnt, road_distance_km=road_dist_km)

@@ -326,19 +326,52 @@
         customerMarker = L.marker(customerLatLng, {
             icon: custIcon,
             draggable: true,
-            autoPan: true,
-            title: "Drag to set saved location"
+            autoPan: false,
+            title: "Saved Delivery Location"
         }).addTo(leafletMap);
         leafletMarker = customerMarker;
 
-        // Marker drag: update coordinates on dragend
-        customerMarker.on('dragend', function() {
-            const pos = customerMarker.getLatLng();
+        customerMarker.on('dragend', function(e) {
+            const pos = e.target.getLatLng();
             syncProfileCoordinates(pos.lat, pos.lng);
         });
 
-        // Clicking on the map moves the customer marker directly to the clicked point
+        // Map pan/drag tracking: dragging pans the map without moving the location marker
+        let profileDragOccurred = false;
+        let profileLastDragEndTime = 0;
+        let profileDownPos = null;
+
+        mapElem.addEventListener('mousedown', function(e) {
+            profileDownPos = { x: e.clientX, y: e.clientY };
+            profileDragOccurred = false;
+        }, { passive: true });
+
+        mapElem.addEventListener('touchstart', function(e) {
+            if (e.touches && e.touches[0]) {
+                profileDownPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                profileDragOccurred = false;
+            }
+        }, { passive: true });
+
+        leafletMap.on('movestart dragstart', function() { profileDragOccurred = true; });
+        leafletMap.on('move drag', function() { profileDragOccurred = true; });
+        leafletMap.on('moveend dragend', function() {
+            profileLastDragEndTime = Date.now();
+            setTimeout(() => { profileDragOccurred = false; }, 350);
+        });
+
+        // Clicking on the map explicitly moves the marker directly to the clicked point
         leafletMap.on('click', function(e) {
+            if (profileDragOccurred || (Date.now() - profileLastDragEndTime < 350)) return;
+            if (e.originalEvent) {
+                const orig = e.originalEvent;
+                const clientX = orig.clientX !== undefined ? orig.clientX : (orig.touches && orig.touches[0] ? orig.touches[0].clientX : null);
+                const clientY = orig.clientY !== undefined ? orig.clientY : (orig.touches && orig.touches[0] ? orig.touches[0].clientY : null);
+                if (profileDownPos && clientX !== null && clientY !== null) {
+                    const distMoved = Math.hypot(clientX - profileDownPos.x, clientY - profileDownPos.y);
+                    if (distMoved > 6) return;
+                }
+            }
             customerMarker.setLatLng(e.latlng);
             syncProfileCoordinates(e.latlng.lat, e.latlng.lng);
         });

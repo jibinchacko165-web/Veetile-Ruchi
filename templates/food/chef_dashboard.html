@@ -262,6 +262,87 @@
     </div>
 </div>
 
+<!-- Chef Customer Reviews & Culinary Feedback Section -->
+<div class="card mb-4" style="border-top: 4px solid var(--primary-green); padding: 1.75rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+        <div>
+            <h2 style="color: var(--primary-brown); font-size: 1.35rem; font-weight: 700; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                ⭐ Customer Food & Chef Reviews
+            </h2>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0.25rem 0 0 0;">
+                Verified customer ratings for home-cooked dishes prepared in your kitchen
+            </p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; background: var(--bg-cream); border: 1.5px solid var(--border-warm); padding: 0.4rem 1rem; border-radius: 30px;">
+            <span style="font-size: 1.3rem; color: #D97736;">⭐</span>
+            <strong style="font-size: 1.2rem; color: var(--primary-brown);">{{ avg_chef_rating }}</strong>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">/ 5.0 ({{ total_chef_reviews }} genuine review{{ total_chef_reviews|pluralize }})</span>
+        </div>
+    </div>
+
+    <!-- Metric Cards Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="background: var(--bg-cream); border: 1px solid var(--border-warm); border-radius: 12px; padding: 1rem; text-align: center;">
+            <span style="font-size: 0.8rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); display: block;">Overall Rating</span>
+            <strong style="font-size: 1.6rem; color: var(--primary-green); display: block; margin: 0.25rem 0;">⭐ {{ avg_chef_rating }}</strong>
+            <span style="font-size: 0.78rem; color: var(--text-muted);">Based on {{ total_chef_reviews }} order{{ total_chef_reviews|pluralize }}</span>
+        </div>
+        <div style="background: var(--bg-cream); border: 1px solid var(--border-warm); border-radius: 12px; padding: 1rem; text-align: center;">
+            <span style="font-size: 0.8rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); display: block;">Taste & Quality</span>
+            <strong style="font-size: 1.6rem; color: #D97736; display: block; margin: 0.25rem 0;">🍛 {{ avg_taste_rating }} ★</strong>
+            <span style="font-size: 0.78rem; color: var(--text-muted);">Authentic Kerala Spicing</span>
+        </div>
+        <div style="background: var(--bg-cream); border: 1px solid var(--border-warm); border-radius: 12px; padding: 1rem; text-align: center;">
+            <span style="font-size: 0.8rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); display: block;">Freshness & Prep</span>
+            <strong style="font-size: 1.6rem; color: #10B981; display: block; margin: 0.25rem 0;">♨️ {{ avg_freshness_rating }} ★</strong>
+            <span style="font-size: 0.78rem; color: var(--text-muted);">Piping Hot Preparation</span>
+        </div>
+        <div style="background: var(--bg-cream); border: 1px solid var(--border-warm); border-radius: 12px; padding: 1rem; text-align: center;">
+            <span style="font-size: 0.8rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); display: block;">Packaging & Safety</span>
+            <strong style="font-size: 1.6rem; color: #6366F1; display: block; margin: 0.25rem 0;">📦 {{ avg_packaging_rating }} ★</strong>
+            <span style="font-size: 0.78rem; color: var(--text-muted);">Hygienic Eco-Containers</span>
+        </div>
+    </div>
+
+    <!-- Recent Permitted Comments / Feedbacks -->
+    <h3 style="color: var(--primary-brown); font-size: 1.1rem; font-weight: 700; margin-bottom: 0.75rem;">
+        💬 Recent Customer Comments & Praise
+    </h3>
+    {% if total_chef_reviews > 0 %}
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            {% for fb in recent_chef_comments %}
+                <div style="background: #ffffff; border: 1px solid var(--border-warm); border-left: 4px solid var(--primary-green); border-radius: 8px; padding: 0.85rem 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem; flex-wrap: wrap; gap: 0.5rem;">
+                        <span style="font-weight: 700; font-size: 0.9rem; color: var(--primary-brown);">
+                            Order #{{ fb.order.order_id }} &bull; {{ fb.customer.first_name|default:fb.customer.username|title }}
+                        </span>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span style="color: #D97736; font-weight: 700; font-size: 0.88rem;">⭐ {{ fb.rating }}★</span>
+                            <span style="font-size: 0.78rem; color: var(--text-muted);">{{ fb.created_at|date:"M d, Y • h:i A" }}</span>
+                        </div>
+                    </div>
+                    <p style="margin: 0; font-size: 0.88rem; color: var(--text-main); font-style: italic;">
+                        "{{ fb.comment }}"
+                    </p>
+                </div>
+            {% empty %}
+                <div style="background: var(--bg-cream); padding: 1.25rem; border-radius: 8px; text-align: center; color: var(--text-muted); font-size: 0.9rem;">
+                    Customer ratings recorded with no written comments yet.
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- Empty State -->
+        <div style="text-align: center; padding: 2.5rem 1rem; background: var(--bg-cream); border-radius: 12px; border: 1.5px dashed var(--border-warm);">
+            <span style="font-size: 2.5rem; display: block; margin-bottom: 0.4rem;">👩‍🍳</span>
+            <strong style="color: var(--primary-brown); font-size: 1.05rem; display: block;">No customer reviews submitted yet</strong>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0.25rem 0 0 0;">
+                Reviews and ratings will appear here as soon as customers rate their delivered meals.
+            </p>
+        </div>
+    {% endif %}
+</div>
+
 <style>
     @keyframes pulse {
         0% { transform: scale(1); }

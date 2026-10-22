@@ -30,3 +30,12 @@ class DeliverySettingAdmin(admin.ModelAdmin):
     list_filter = ('is_active',)
     search_fields = ('name', 'address')
 
+@admin.register(DeliveryFeedback)
+class DeliveryFeedbackAdmin(admin.ModelAdmin):
+    list_display = ('order', 'delivery_boy', 'customer', 'rating', 'timeliness_rating', 'behavior_rating', 'food_handling_rating', 'is_moderated', 'is_hidden_by_admin', 'created_at')
+    list_filter = ('rating', 'is_moderated', 'is_hidden_by_admin', 'created_at')
+    search_fields = ('order__order_id', 'delivery_boy__user__username', 'customer__username', 'comment')
+    list_editable = ('is_moderated', 'is_hidden_by_admin')
+    readonly_fields = ('order', 'delivery_assignment', 'delivery_boy', 'customer', 'rating', 'timeliness_rating', 'behavior_rating', 'food_handling_rating', 'comment', 'created_at', 'updated_at')
+
+

@@ -67,15 +67,47 @@
                         </td>
                         <td style="padding: 1rem 0.75rem; text-align: right;">
                             {% if order.status == 'delivered' %}
-                                {% if order.delivery_feedback %}
-                                    <a href="{% url 'order_tracking' order.order_id %}" class="btn btn-outline btn-sm">
-                                        ⭐ Rated {{ order.delivery_feedback.rating }}★
+                                <div style="display: flex; flex-direction: column; gap: 0.45rem; align-items: flex-end;">
+                                    <!-- 1. Food & Chef Review Action -->
+                                    {% if order.chef_feedback %}
+                                        <button type="button" 
+                                                class="btn btn-outline btn-sm"
+                                                onclick="openChefReviewModal('{{ order.order_id }}', '{% if order.responsible_chef %}{{ order.responsible_chef.get_full_name|default:order.responsible_chef.username|escapejs }}{% else %}Home Chef{% endif %}', {{ order.chef_feedback.rating }}, {{ order.chef_feedback.taste_rating }}, {{ order.chef_feedback.freshness_rating }}, {{ order.chef_feedback.packaging_rating }}, '{{ order.chef_feedback.comment|default:''|escapejs }}', '{{ order.chef_feedback.problem_reported|default:''|escapejs }}')"
+                                                style="padding: 0.35rem 0.75rem; font-size: 0.8rem; border-color: var(--primary-green); color: var(--primary-green); background: #F0FDF4; font-weight: 600;">
+                                            ✅ Food Rated ⭐ {{ order.chef_feedback.rating }}★
+                                        </button>
+                                    {% else %}
+                                        <button type="button" 
+                                                class="btn btn-sm"
+                                                onclick="openChefReviewModal('{{ order.order_id }}', '{% if order.responsible_chef %}{{ order.responsible_chef.get_full_name|default:order.responsible_chef.username|escapejs }}{% else %}Home Chef{% endif %}', 5, 5, 5, 5, '', '')"
+                                                style="padding: 0.35rem 0.75rem; font-size: 0.8rem; background: var(--primary-green); color: white; font-weight: 600;">
+                                            🍲 Rate Food & Chef
+                                        </button>
+                                    {% endif %}
+
+                                    <!-- 2. Delivery & Courier Review Action -->
+                                    {% if order.delivery_feedback %}
+                                        <button type="button" 
+                                                class="btn btn-outline btn-sm"
+                                                onclick="openCourierReviewModal('{{ order.order_id }}', '{{ order.assigned_courier.courier_name|default:'Assigned Courier'|escapejs }}', '{{ order.assigned_courier.vehicle_number|default:''|escapejs }}', {{ order.delivery_feedback.rating }}, {{ order.delivery_feedback.timeliness_rating }}, {{ order.delivery_feedback.behavior_rating }}, {{ order.delivery_feedback.food_handling_rating }}, '{{ order.delivery_feedback.comment|default:''|escapejs }}')"
+                                                style="padding: 0.35rem 0.75rem; font-size: 0.8rem; border-color: var(--primary-orange); color: var(--primary-orange); background: #FFF7ED; font-weight: 600;">
+                                            ✅ Delivery Rated ⭐ {{ order.delivery_feedback.rating }}★
+                                        </button>
+                                    {% elif order.delivery_assignment and order.delivery_assignment.delivery_boy %}
+                                        <button type="button" 
+                                                class="btn btn-sm"
+                                                onclick="openCourierReviewModal('{{ order.order_id }}', '{{ order.assigned_courier.courier_name|default:'Assigned Courier'|escapejs }}', '{{ order.assigned_courier.vehicle_number|default:''|escapejs }}', 5, 5, 5, 5, '')"
+                                                style="padding: 0.35rem 0.75rem; font-size: 0.8rem; background: var(--primary-orange); color: white; font-weight: 600;">
+                                            🚚 Rate Delivery & Courier
+                                        </button>
+                                    {% else %}
+                                        <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">No courier assigned</span>
+                                    {% endif %}
+
+                                    <a href="{% url 'order_tracking' order.order_id %}" style="font-size: 0.78rem; color: var(--text-muted); text-decoration: none;">
+                                        View Details &rarr;
                                     </a>
-                                {% else %}
-                                    <a href="{% url 'order_tracking' order.order_id %}" class="btn btn-sm" style="background: var(--primary-orange);">
-                                        ⭐ Review
-                                    </a>
-                                {% endif %}
+                                </div>
                             {% else %}
                                 <a href="{% url 'order_tracking' order.order_id %}" class="btn btn-secondary btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem;">
                                     🚚 Track Live
@@ -98,4 +130,222 @@
         </div>
     </div>
 </div>
+
+<!-- ================= Modal 1: Rate Food and Chef ================= -->
+<div id="chefFeedbackModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9999; align-items: center; justify-content: center; padding: 1rem;">
+    <div style="background: #ffffff; border-radius: 16px; max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 1.75rem; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative;">
+        <button type="button" onclick="closeChefModal()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+        
+        <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.25rem;">
+            <span style="font-size: 1.6rem;">🍲</span>
+            <h3 style="margin: 0; color: var(--primary-green); font-size: 1.25rem; font-weight: 700;">Rate Food & Chef</h3>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0 0 1.25rem 0;">
+            Share your dining experience for Order <strong id="chefModalOrderId" style="color: var(--primary-brown);"></strong> prepared by <strong id="chefModalChefName" style="color: var(--primary-green);"></strong>.
+        </p>
+
+        <form id="chefFeedbackForm" method="POST" action="">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'order_history' %}">
+
+            <!-- Star Rating Grid -->
+            <div style="display: flex; flex-direction: column; gap: 0.85rem; margin-bottom: 1.25rem; background: var(--bg-cream); padding: 1rem; border-radius: 12px; border: 1px solid var(--border-warm);">
+                <!-- Overall Rating -->
+                <div>
+                    <label style="display: flex; justify-content: space-between; font-weight: 600; font-size: 0.88rem; color: var(--primary-brown);">
+                        <span>Overall Meal Rating:</span>
+                        <span id="chefOverallVal" style="color: #D97736; font-weight: 700;">5 ★</span>
+                    </label>
+                    <input type="range" name="rating" id="chefRatingInput" min="1" max="5" value="5" step="1" style="width: 100%; accent-color: #D97736;" oninput="document.getElementById('chefOverallVal').innerText = this.value + ' ★'">
+                </div>
+
+                <!-- Taste & Quality -->
+                <div>
+                    <label style="display: flex; justify-content: space-between; font-weight: 500; font-size: 0.84rem; color: var(--text-main);">
+                        <span>Taste & Authenticity:</span>
+                        <span id="chefTasteVal" style="color: #D97736; font-weight: 700;">5 ★</span>
+                    </label>
+                    <input type="range" name="taste_rating" id="chefTasteInput" min="1" max="5" value="5" step="1" style="width: 100%; accent-color: #D97736;" oninput="document.getElementById('chefTasteVal').innerText = this.value + ' ★'">
+                </div>
+
+                <!-- Freshness & Preparation -->
+                <div>
+                    <label style="display: flex; justify-content: space-between; font-weight: 500; font-size: 0.84rem; color: var(--text-main);">
+                        <span>Freshness & Hot Serving:</span>
+                        <span id="chefFreshnessVal" style="color: #D97736; font-weight: 700;">5 ★</span>
+                    </label>
+                    <input type="range" name="freshness_rating" id="chefFreshnessInput" min="1" max="5" value="5" step="1" style="width: 100%; accent-color: #D97736;" oninput="document.getElementById('chefFreshnessVal').innerText = this.value + ' ★'">
+                </div>
+
+                <!-- Packaging & Presentation -->
+                <div>
+                    <label style="display: flex; justify-content: space-between; font-weight: 500; font-size: 0.84rem; color: var(--text-main);">
+                        <span>Packaging & Presentation:</span>
+                        <span id="chefPackagingVal" style="color: #D97736; font-weight: 700;">5 ★</span>
+                    </label>
+                    <input type="range" name="packaging_rating" id="chefPackagingInput" min="1" max="5" value="5" step="1" style="width: 100%; accent-color: #D97736;" oninput="document.getElementById('chefPackagingVal').innerText = this.value + ' ★'">
+                </div>
+            </div>
+
+            <!-- Optional Comments -->
+            <div style="margin-bottom: 1rem;">
+                <label for="chefCommentInput" style="display: block; font-weight: 600; font-size: 0.85rem; color: var(--primary-brown); margin-bottom: 0.3rem;">
+                    Food Comments & Highlights (Optional):
+                </label>
+                <textarea id="chefCommentInput" name="comment" rows="3" maxlength="1000" placeholder="Tell the home chef what you loved about this authentic dish..." style="width: 100%; border: 1.5px solid var(--border-warm); border-radius: 8px; padding: 0.6rem; font-size: 0.88rem; box-sizing: border-box;"></textarea>
+            </div>
+
+            <!-- Optional Problem Report -->
+            <div style="margin-bottom: 1.25rem;">
+                <label for="chefProblemInput" style="display: block; font-weight: 600; font-size: 0.85rem; color: #DC2626; margin-bottom: 0.3rem;">
+                    Report Food Quality Issue (Optional):
+                </label>
+                <textarea id="chefProblemInput" name="problem_reported" rows="2" maxlength="1000" placeholder="If any item was missing, damaged, or unsatisfactory, let the kitchen team know..." style="width: 100%; border: 1.5px solid #FCA5A5; border-radius: 8px; padding: 0.6rem; font-size: 0.88rem; box-sizing: border-box; background: #FFFBFB;"></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.6rem;">
+                <button type="button" onclick="closeChefModal()" class="btn btn-outline btn-sm" style="padding: 0.5rem 1rem;">Cancel</button>
+                <button type="submit" class="btn btn-sm" style="background: var(--primary-green); color: white; padding: 0.5rem 1.4rem;">Submit Chef Review</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= Modal 2: Rate Delivery and Courier ================= -->
+<div id="courierFeedbackModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 9999; align-items: center; justify-content: center; padding: 1rem;">
+    <div style="background: #ffffff; border-radius: 16px; max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 1.75rem; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative;">
+        <button type="button" onclick="closeCourierModal()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+        
+        <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.25rem;">
+            <span style="font-size: 1.6rem;">🚚</span>
+            <h3 style="margin: 0; color: var(--primary-orange); font-size: 1.25rem; font-weight: 700;">Rate Delivery & Courier</h3>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0 0 1.25rem 0;">
+            Review delivery service for Order <strong id="courierModalOrderId" style="color: var(--primary-brown);"></strong> handled by <strong id="courierModalCourierName" style="color: var(--primary-orange);"></strong> <span id="courierModalVehicle" style="font-family: monospace; font-size: 0.8rem; background: #FFF7ED; padding: 0.1rem 0.35rem; border-radius: 4px;"></span>.
+        </p>
+
+        <form id="courierFeedbackForm" method="POST" action="">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'order_history' %}">
+
+            <!-- Star Rating Grid -->
+            <div style="display: flex; flex-direction: column; gap: 0.85rem; margin-bottom: 1.25rem; background: var(--bg-cream); padding: 1rem; border-radius: 12px; border: 1px solid var(--border-warm);">
+                <!-- Overall Delivery Rating -->
+                <div>
+                    <label style="display: flex; justify-content: space-between; font-weight: 600; font-size: 0.88rem; color: var(--primary-brown);">
+                        <span>Overall Delivery Experience:</span>
+                        <span id="courierOverallVal" style="color: #D97736; font-weight: 700;">5 ★</span>
+                    </label>
+                    <input type="range" name="rating" id="courierRatingInput" min="1" max="5" value="5" step="1" style="width: 100%; accent-color: #D97736;" oninput="document.getElementById('courierOverallVal').innerText = this.value + ' ★'">
+                </div>
+
+                <!-- Timeliness Rating -->
+                <div>
+                    <label style="display: flex; justify-content: space-between; font-weight: 500; font-size: 0.84rem; color: var(--text-main);">
+                        <span>Delivery Timeliness & Punctuality:</span>
+                        <span id="courierTimelinessVal" style="color: #D97736; font-weight: 700;">5 ★</span>
+                    </label>
+                    <input type="range" name="timeliness_rating" id="courierTimelinessInput" min="1" max="5" value="5" step="1" style="width: 100%; accent-color: #D97736;" oninput="document.getElementById('courierTimelinessVal').innerText = this.value + ' ★'">
+                </div>
+
+                <!-- Behavior & Communication -->
+                <div>
+                    <label style="display: flex; justify-content: space-between; font-weight: 500; font-size: 0.84rem; color: var(--text-main);">
+                        <span>Courier Behavior & Politeness:</span>
+                        <span id="courierBehaviorVal" style="color: #D97736; font-weight: 700;">5 ★</span>
+                    </label>
+                    <input type="range" name="behavior_rating" id="courierBehaviorInput" min="1" max="5" value="5" step="1" style="width: 100%; accent-color: #D97736;" oninput="document.getElementById('courierBehaviorVal').innerText = this.value + ' ★'">
+                </div>
+
+                <!-- Food Handling & Condition -->
+                <div>
+                    <label style="display: flex; justify-content: space-between; font-weight: 500; font-size: 0.84rem; color: var(--text-main);">
+                        <span>Food Handling & Package Condition:</span>
+                        <span id="courierHandlingVal" style="color: #D97736; font-weight: 700;">5 ★</span>
+                    </label>
+                    <input type="range" name="food_handling_rating" id="courierHandlingInput" min="1" max="5" value="5" step="1" style="width: 100%; accent-color: #D97736;" oninput="document.getElementById('courierHandlingVal').innerText = this.value + ' ★'">
+                </div>
+            </div>
+
+            <!-- Optional Comments -->
+            <div style="margin-bottom: 1.25rem;">
+                <label for="courierCommentInput" style="display: block; font-weight: 600; font-size: 0.85rem; color: var(--primary-brown); margin-bottom: 0.3rem;">
+                    Delivery Comments (Optional):
+                </label>
+                <textarea id="courierCommentInput" name="comment" rows="3" maxlength="1000" placeholder="Share your feedback on courier communication and delivery service..." style="width: 100%; border: 1.5px solid var(--border-warm); border-radius: 8px; padding: 0.6rem; font-size: 0.88rem; box-sizing: border-box;"></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 0.6rem;">
+                <button type="button" onclick="closeCourierModal()" class="btn btn-outline btn-sm" style="padding: 0.5rem 1rem;">Cancel</button>
+                <button type="submit" class="btn btn-sm" style="background: var(--primary-orange); color: white; padding: 0.5rem 1.4rem;">Submit Delivery Review</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openChefReviewModal(orderId, chefName, rating, taste, freshness, packaging, comment, problem) {
+    document.getElementById('chefModalOrderId').innerText = orderId;
+    document.getElementById('chefModalChefName').innerText = chefName || 'Home Chef';
+    document.getElementById('chefFeedbackForm').action = '/orders/feedback/chef/' + encodeURIComponent(orderId) + '/';
+    
+    document.getElementById('chefRatingInput').value = rating || 5;
+    document.getElementById('chefOverallVal').innerText = (rating || 5) + ' ★';
+    
+    document.getElementById('chefTasteInput').value = taste || 5;
+    document.getElementById('chefTasteVal').innerText = (taste || 5) + ' ★';
+    
+    document.getElementById('chefFreshnessInput').value = freshness || 5;
+    document.getElementById('chefFreshnessVal').innerText = (freshness || 5) + ' ★';
+    
+    document.getElementById('chefPackagingInput').value = packaging || 5;
+    document.getElementById('chefPackagingVal').innerText = (packaging || 5) + ' ★';
+    
+    document.getElementById('chefCommentInput').value = comment || '';
+    document.getElementById('chefProblemInput').value = problem || '';
+    
+    const modal = document.getElementById('chefFeedbackModal');
+    modal.style.display = 'flex';
+}
+
+function closeChefModal() {
+    document.getElementById('chefFeedbackModal').style.display = 'none';
+}
+
+function openCourierReviewModal(orderId, courierName, vehicleNo, rating, timeliness, behavior, handling, comment) {
+    document.getElementById('courierModalOrderId').innerText = orderId;
+    document.getElementById('courierModalCourierName').innerText = courierName || 'Assigned Courier';
+    document.getElementById('courierModalVehicle').innerText = vehicleNo ? '[' + vehicleNo + ']' : '';
+    document.getElementById('courierFeedbackForm').action = '/delivery/feedback/' + encodeURIComponent(orderId) + '/';
+    
+    document.getElementById('courierRatingInput').value = rating || 5;
+    document.getElementById('courierOverallVal').innerText = (rating || 5) + ' ★';
+    
+    document.getElementById('courierTimelinessInput').value = timeliness || 5;
+    document.getElementById('courierTimelinessVal').innerText = (timeliness || 5) + ' ★';
+    
+    document.getElementById('courierBehaviorInput').value = behavior || 5;
+    document.getElementById('courierBehaviorVal').innerText = (behavior || 5) + ' ★';
+    
+    document.getElementById('courierHandlingInput').value = handling || 5;
+    document.getElementById('courierHandlingVal').innerText = (handling || 5) + ' ★';
+    
+    document.getElementById('courierCommentInput').value = comment || '';
+    
+    const modal = document.getElementById('courierFeedbackModal');
+    modal.style.display = 'flex';
+}
+
+function closeCourierModal() {
+    document.getElementById('courierFeedbackModal').style.display = 'none';
+}
+
+// Close modals when clicking outside
+window.addEventListener('click', function(e) {
+    const chefModal = document.getElementById('chefFeedbackModal');
+    const courierModal = document.getElementById('courierFeedbackModal');
+    if (e.target === chefModal) closeChefModal();
+    if (e.target === courierModal) closeCourierModal();
+});
+</script>
 {% endblock %}

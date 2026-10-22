@@ -124,7 +124,44 @@ def delivery_boy_dashboard(request):
 
         assignments = assignments.filter(q_filter).distinct()
 
-    feedbacks = DeliveryFeedback.objects.filter(delivery_boy=profile).select_related('order', 'customer').order_by('-created_at') if profile else []
+    feedbacks = DeliveryFeedback.objects.filter(
+        delivery_boy=profile,
+        is_hidden_by_admin=False
+    ).select_related('order', 'customer').order_by('-created_at') if profile else []
+    
+    total_delivery_reviews = feedbacks.count() if profile else 0
+    if total_delivery_reviews > 0:
+        agg = feedbacks.aggregate(
+            avg_rating=models.Avg('rating'),
+            avg_time=models.Avg('timeliness_rating'),
+            avg_behavior=models.Avg('behavior_rating'),
+            avg_handling=models.Avg('food_handling_rating')
+        )
+        avg_delivery_rating = round(float(agg['avg_rating'] or 5.0), 1)
+        avg_timeliness = round(float(agg['avg_time'] or 5.0), 1)
+        avg_behavior = round(float(agg['avg_behavior'] or 5.0), 1)
+        avg_handling = round(float(agg['avg_handling'] or 5.0), 1)
+        
+        star_counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
+        for fb in feedbacks:
+            r = min(5, max(1, fb.rating))
+            star_counts[r] += 1
+            
+        rating_distribution = [
+            {'star': s, 'count': star_counts[s], 'pct': round((star_counts[s] / total_delivery_reviews) * 100, 1)}
+            for s in range(5, 0, -1)
+        ]
+    else:
+        avg_delivery_rating = round(float(profile.rating if profile else 5.0), 1)
+        avg_timeliness = 5.0
+        avg_behavior = 5.0
+        avg_handling = 5.0
+        rating_distribution = [
+            {'star': s, 'count': 0, 'pct': 0.0} for s in range(5, 0, -1)
+        ]
+
+    recent_delivery_comments = feedbacks.exclude(comment__isnull=True).exclude(comment__exact='')[:10] if profile else []
+
     notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:20]
     
     total_assigned_count = all_assignments.count()
@@ -133,10 +170,10 @@ def delivery_boy_dashboard(request):
     active_count = in_transit_assignments.count()
     completed_count = completed_assignments.count()
     todays_count = todays_assignments.count()
-    unread_notifications = Notification.objects.filter(user=request.user, is_read=False).select_related('order').order_by('-created_at')
+    unread_notifications = Notification.objects.filter(user=request.user, is_read=False).select_related('order__branch').order_by('-created_at')
     unread_notif_count = unread_notifications.count()
     
-    avg_rating = profile.rating if profile else 5.0
+    avg_rating = avg_delivery_rating
 
     context = {
         'assignments': assignments,
@@ -145,6 +182,13 @@ def delivery_boy_dashboard(request):
         'all_profiles': all_profiles,
         'active_vehicle_number': active_vehicle_number,
         'feedbacks': feedbacks,
+        'total_delivery_reviews': total_delivery_reviews,
+        'avg_delivery_rating': avg_delivery_rating,
+        'avg_timeliness': avg_timeliness,
+        'avg_behavior': avg_behavior,
+        'avg_handling': avg_handling,
+        'rating_distribution': rating_distribution,
+        'recent_delivery_comments': recent_delivery_comments,
         'notifications': notifications,
         'unread_notifications': unread_notifications,
         'profile': profile,
@@ -749,18 +793,14 @@ def submit_delivery_feedback(request, order_id):
 
     if order.status != 'delivered':
         messages.error(request, "Delivery feedback can only be submitted after the order status is Delivered.")
-        return redirect('order_tracking', order_id=order_id)
+        return redirect('order_history')
 
-    if not hasattr(order, 'delivery_assignment'):
-        messages.error(request, "No delivery record associated with this order.")
+    if not hasattr(order, 'delivery_assignment') or not order.delivery_assignment or not order.delivery_assignment.delivery_boy:
+        messages.error(request, "No delivery courier record associated with this order.")
         return redirect('order_history')
 
     assignment = order.delivery_assignment
     delivery_boy = assignment.delivery_boy
-
-    if DeliveryFeedback.objects.filter(order=order).exists():
-        messages.warning(request, "Feedback has already been submitted for this delivered order.")
-        return redirect('order_tracking', order_id=order_id)
 
     if request.method == 'POST':
         try:
@@ -769,26 +809,101 @@ def submit_delivery_feedback(request, order_id):
         except (ValueError, TypeError):
             rating = 5
 
-        comment = request.POST.get('comment', '').strip()
+        try:
+            timeliness_rating = int(request.POST.get('timeliness_rating', rating))
+            timeliness_rating = max(1, min(5, timeliness_rating))
+        except (ValueError, TypeError):
+            timeliness_rating = rating
 
-        DeliveryFeedback.objects.create(
-            order=order,
-            delivery_assignment=assignment,
-            delivery_boy=delivery_boy,
-            customer=request.user,
-            rating=rating,
-            comment=comment
-        )
+        try:
+            behavior_rating = int(request.POST.get('behavior_rating', rating))
+            behavior_rating = max(1, min(5, behavior_rating))
+        except (ValueError, TypeError):
+            behavior_rating = rating
 
-        avg_rating = DeliveryFeedback.objects.filter(delivery_boy=delivery_boy).aggregate(models.Avg('rating'))['rating__avg']
-        if avg_rating:
-            delivery_boy.rating = round(float(avg_rating), 1)
-            delivery_boy.save()
+        try:
+            food_handling_rating = int(request.POST.get('food_handling_rating', rating))
+            food_handling_rating = max(1, min(5, food_handling_rating))
+        except (ValueError, TypeError):
+            food_handling_rating = rating
 
-        messages.success(request, f"Thank you! Your feedback for delivery boy {delivery_boy.user.username.title()} has been submitted successfully.")
-        return redirect('order_tracking', order_id=order_id)
+        comment = request.POST.get('comment', '').strip()[:1000]
 
-    return redirect('order_tracking', order_id=order_id)
+        with transaction.atomic():
+            feedback, created = DeliveryFeedback.objects.update_or_create(
+                order=order,
+                defaults={
+                    'delivery_assignment': assignment,
+                    'delivery_boy': delivery_boy,
+                    'customer': request.user,
+                    'rating': rating,
+                    'timeliness_rating': timeliness_rating,
+                    'behavior_rating': behavior_rating,
+                    'food_handling_rating': food_handling_rating,
+                    'comment': comment,
+                }
+            )
+
+            # Recompute delivery boy average rating from genuine unmoderated reviews
+            avg_rating = DeliveryFeedback.objects.filter(
+                delivery_boy=delivery_boy,
+                is_hidden_by_admin=False
+            ).aggregate(models.Avg('rating'))['rating__avg']
+            if avg_rating is not None:
+                delivery_boy.rating = round(float(avg_rating), 1)
+                delivery_boy.save(update_fields=['rating'])
+
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+            return JsonResponse({
+                'status': 'success',
+                'message': f"Thank you! Your feedback for courier {delivery_boy.courier_name} has been submitted successfully.",
+                'rating': rating,
+                'timeliness_rating': timeliness_rating,
+                'behavior_rating': behavior_rating,
+                'food_handling_rating': food_handling_rating,
+                'comment': comment
+            })
+
+        messages.success(request, f"Thank you! Your feedback for courier {delivery_boy.courier_name} has been submitted successfully.")
+        next_url = request.POST.get('next') or request.META.get('HTTP_REFERER') or 'order_history'
+        return redirect(next_url)
+
+    # GET request - return existing saved feedback if any
+    existing = DeliveryFeedback.objects.filter(order=order).first()
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+        if existing:
+            return JsonResponse({
+                'status': 'success',
+                'has_feedback': True,
+                'rating': existing.rating,
+                'timeliness_rating': existing.timeliness_rating,
+                'behavior_rating': existing.behavior_rating,
+                'food_handling_rating': existing.food_handling_rating,
+                'comment': existing.comment,
+                'created_at': existing.created_at.strftime("%b %d, %Y • %I:%M %p")
+            })
+        else:
+            return JsonResponse({
+                'status': 'success',
+                'has_feedback': False,
+                'courier_name': delivery_boy.courier_name,
+                'vehicle_number': delivery_boy.vehicle_number
+            })
+
+    return redirect('order_history')
+
+
+@login_required
+@role_required('delivery_boy')
+def dismiss_courier_notification(request, notif_id):
+    """Marks a courier notification as read/dismissed without altering order status."""
+    notif = get_object_or_404(Notification, id=notif_id, user=request.user)
+    notif.is_read = True
+    notif.save(update_fields=['is_read'])
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+        return JsonResponse({'status': 'success', 'message': 'Notification dismissed'})
+    messages.info(request, "Notification dismissed.")
+    return redirect('delivery_boy_dashboard')
 
 
 @login_required
@@ -796,16 +911,12 @@ def get_courier_notifications(request):
     """API endpoint for real-time notification polling and entrance popup modal in Courier Portal."""
     if request.user.role != 'delivery_boy':
         return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
-        
-    session_vehicle = request.session.get('selected_vehicle_number')
-    notif_q = models.Q(user=request.user)
-    if session_vehicle:
-        notif_q |= models.Q(user__delivery_boy_profile__vehicle_number__iexact=session_vehicle)
 
+    # Strictly load notifications for the authenticated courier only
     notifications = Notification.objects.filter(
-        notif_q,
+        user=request.user,
         is_read=False
-    ).select_related('order__user').prefetch_related('order__items__food_item').order_by('-created_at')[:10]
+    ).select_related('order__branch', 'order__user').prefetch_related('order__items__food_item').order_by('-created_at')[:10]
     
     data = []
     for notif in notifications:
@@ -818,6 +929,7 @@ def get_courier_notifications(request):
         delivery_address = "GPS Destination"
         order_date = ""
         status_display = "Assigned / Pending Delivery"
+        pickup_location = "Central Kitchen Hub (Kanjirappally)"
         
         if notif.order:
             lat = notif.order.latitude
@@ -825,6 +937,8 @@ def get_courier_notifications(request):
             delivery_address = f"Lat {lat}, Lon {lon}"
             order_dt = to_kolkata_datetime(notif.order.created_at)
             order_date = order_dt.strftime("%b %d, %Y • %I:%M %p") if order_dt else ""
+            if notif.order.branch:
+                pickup_location = f"{notif.order.branch.name} ({notif.order.branch.address})"
             
             first_item = notif.order.items.first()
             if first_item:
@@ -836,7 +950,9 @@ def get_courier_notifications(request):
                 assignment_id = notif.order.delivery_assignment.id
                 st = notif.order.delivery_assignment.status
                 if st == 'assigned':
-                    status_display = "Assigned / Pending Delivery"
+                    status_display = "Assigned — Awaiting Pickup"
+                elif st == 'picked_up':
+                    status_display = "Food Picked Up"
                 elif st == 'in_transit':
                     status_display = "Out for Delivery"
                 elif st == 'delivered':
@@ -845,7 +961,8 @@ def get_courier_notifications(request):
                     status_display = notif.order.delivery_assignment.get_status_display()
                 
         track_url = f"/orders/notifications/mark-read/{notif.id}/" if notif.id else '#'
-        nav_url = f"https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=%3B{lat},{lon}" if lat and lon else '#'
+        dismiss_url = f"/delivery/notifications/dismiss/{notif.id}/" if notif.id else '#'
+        nav_url = f"https://www.openstreetmap.org/?mlat={lat}&mlon={lon}#map=16/{lat}/{lon}" if lat and lon else '#'
             
         notif_dt = to_kolkata_datetime(notif.created_at)
         data.append({
@@ -859,14 +976,15 @@ def get_courier_notifications(request):
             'latitude': lat,
             'longitude': lon,
             'delivery_address': delivery_address,
+            'pickup_location': pickup_location,
             'order_date': order_date,
             'status': status_display,
             'assignment_id': assignment_id,
             'track_url': track_url,
+            'dismiss_url': dismiss_url,
             'nav_url': nav_url,
-            'created_at': notif_dt.strftime("%I:%M %p") if notif_dt else "",
+            'created_at': notif_dt.strftime("%b %d, %Y • %I:%M %p") if notif_dt else "",
         })
-        
         
     return JsonResponse({
         'status': 'success',

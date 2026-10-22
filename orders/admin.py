@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CartItem, Coupon, Order, OrderItem, Payment, Wishlist, Notification
+from .models import CartItem, Coupon, Order, OrderItem, Payment, Wishlist, Notification, ChefFeedback
 
 @admin.register(CartItem)
 class CartItemAdmin(admin.ModelAdmin):
@@ -36,4 +36,13 @@ class NotificationAdmin(admin.ModelAdmin):
     list_display = ('user', 'notification_type', 'title', 'is_read', 'created_at')
     list_filter = ('is_read', 'notification_type', 'created_at')
     search_fields = ('user__username', 'title', 'message')
+
+@admin.register(ChefFeedback)
+class ChefFeedbackAdmin(admin.ModelAdmin):
+    list_display = ('order', 'chef', 'customer', 'rating', 'taste_rating', 'freshness_rating', 'packaging_rating', 'is_moderated', 'is_hidden_by_admin', 'created_at')
+    list_filter = ('rating', 'is_moderated', 'is_hidden_by_admin', 'created_at')
+    search_fields = ('order__order_id', 'chef__username', 'customer__username', 'comment', 'problem_reported')
+    list_editable = ('is_moderated', 'is_hidden_by_admin')
+    readonly_fields = ('order', 'chef', 'customer', 'branch', 'rating', 'taste_rating', 'freshness_rating', 'packaging_rating', 'comment', 'problem_reported', 'created_at', 'updated_at')
+
 

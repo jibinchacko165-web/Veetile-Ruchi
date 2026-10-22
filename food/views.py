@@ -9,7 +9,7 @@ from django.db.models import Q, Avg, Sum, Count, F, FloatField
 from .models import FoodItem, Category, MealSession, NutritionInfo, ReviewSentiment
 from accounts.models import User, ChefProfile, DeliveryBoyProfile
 from accounts.decorators import role_required
-from orders.models import Wishlist, Order, OrderItem, Coupon, Payment
+from orders.models import Wishlist, Order, OrderItem, Coupon, Payment, ChefFeedback
 from orders.utils import to_kolkata_datetime
 from delivery.models import DeliveryAssignment, GPSLocationTracking, District, HotelBranch
 from health.models import HealthProfile, HealthRecommendation
@@ -386,6 +386,32 @@ def chef_dashboard(request):
         })
         
     has_pending_orders = any(item.order.status == 'pending' for item in orders_items)
+
+    # Chef Genuine Customer Reviews & Ratings Calculation
+    if request.user.role == 'admin':
+        chef_feedbacks = ChefFeedback.objects.filter(is_hidden_by_admin=False).select_related('order', 'customer', 'chef').order_by('-created_at')
+    else:
+        chef_feedbacks = ChefFeedback.objects.filter(chef=request.user, is_hidden_by_admin=False).select_related('order', 'customer').order_by('-created_at')
+
+    total_chef_reviews = chef_feedbacks.count()
+    if total_chef_reviews > 0:
+        agg = chef_feedbacks.aggregate(
+            avg_rating=Avg('rating'),
+            avg_taste=Avg('taste_rating'),
+            avg_freshness=Avg('freshness_rating'),
+            avg_packaging=Avg('packaging_rating')
+        )
+        avg_chef_rating = round(float(agg['avg_rating'] or 5.0), 1)
+        avg_taste_rating = round(float(agg['avg_taste'] or 5.0), 1)
+        avg_freshness_rating = round(float(agg['avg_freshness'] or 5.0), 1)
+        avg_packaging_rating = round(float(agg['avg_packaging'] or 5.0), 1)
+    else:
+        avg_chef_rating = round(float(chef_profile.rating if chef_profile else 5.0), 1)
+        avg_taste_rating = 5.0
+        avg_freshness_rating = 5.0
+        avg_packaging_rating = 5.0
+
+    recent_chef_comments = chef_feedbacks.exclude(comment__isnull=True).exclude(comment__exact='')[:10]
     
     context = {
         'chef_profile': chef_profile,
@@ -394,6 +420,13 @@ def chef_dashboard(request):
         'order_items': orders_items,
         'has_pending_orders': has_pending_orders,
         'forecasts': forecasts,
+        'chef_feedbacks': chef_feedbacks,
+        'total_chef_reviews': total_chef_reviews,
+        'avg_chef_rating': avg_chef_rating,
+        'avg_taste_rating': avg_taste_rating,
+        'avg_freshness_rating': avg_freshness_rating,
+        'avg_packaging_rating': avg_packaging_rating,
+        'recent_chef_comments': recent_chef_comments,
     }
     return render(request, 'food/chef_dashboard.html', context)
 

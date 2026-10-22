@@ -544,9 +544,9 @@
 
         leafletMarker = L.marker(customerLatLng, {
             icon: custIcon,
-            draggable: true,
-            autoPan: true,
-            title: "Drag to set delivery destination"
+            draggable: false,
+            autoPan: false,
+            title: "Delivery Destination"
         }).addTo(leafletMap);
 
         // Kitchen Hub Marker (Green 🏠)
@@ -575,14 +575,42 @@
             interactive: false
         }).addTo(leafletMap);
 
-        // Marker drag: update destination coordinates on dragend
-        leafletMarker.on('dragend', function() {
-            const pos = leafletMarker.getLatLng();
-            syncDestinationCoordinates(pos.lat, pos.lng, null, 'drag');
+        // Map pan/drag tracking: dragging pans the map smoothly without altering marker coordinates
+        let checkoutDragOccurred = false;
+        let checkoutLastDragEndTime = 0;
+        let checkoutDownPos = null;
+
+        mapContainer.addEventListener('mousedown', function(e) {
+            checkoutDownPos = { x: e.clientX, y: e.clientY };
+            checkoutDragOccurred = false;
+        }, { passive: true });
+
+        mapContainer.addEventListener('touchstart', function(e) {
+            if (e.touches && e.touches[0]) {
+                checkoutDownPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                checkoutDragOccurred = false;
+            }
+        }, { passive: true });
+
+        leafletMap.on('movestart dragstart', function() { checkoutDragOccurred = true; });
+        leafletMap.on('move drag', function() { checkoutDragOccurred = true; });
+        leafletMap.on('moveend dragend', function() {
+            checkoutLastDragEndTime = Date.now();
+            setTimeout(() => { checkoutDragOccurred = false; }, 350);
         });
 
-        // Clicking on the map moves the customer marker directly to the clicked point
+        // Intentional click on the map moves the destination marker to the explicitly selected location
         leafletMap.on('click', function(e) {
+            if (checkoutDragOccurred || (Date.now() - checkoutLastDragEndTime < 350)) return;
+            if (e.originalEvent) {
+                const orig = e.originalEvent;
+                const clientX = orig.clientX !== undefined ? orig.clientX : (orig.touches && orig.touches[0] ? orig.touches[0].clientX : null);
+                const clientY = orig.clientY !== undefined ? orig.clientY : (orig.touches && orig.touches[0] ? orig.touches[0].clientY : null);
+                if (checkoutDownPos && clientX !== null && clientY !== null) {
+                    const distMoved = Math.hypot(clientX - checkoutDownPos.x, clientY - checkoutDownPos.y);
+                    if (distMoved > 6) return;
+                }
+            }
             leafletMarker.setLatLng(e.latlng);
             syncDestinationCoordinates(e.latlng.lat, e.latlng.lng, null, 'click');
         });

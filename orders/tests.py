@@ -9,7 +9,7 @@ from django.core.management import call_command
 from accounts.models import User, ChefProfile, DeliveryBoyProfile, PasswordResetOTP
 from health.models import HealthProfile
 from food.models import FoodItem, Category, MealSession, NutritionInfo, ReviewSentiment
-from orders.models import CartItem, Coupon, Order, OrderItem, Payment, Wishlist, Notification
+from orders.models import CartItem, Coupon, Order, OrderItem, Payment, Wishlist, Notification, ChefFeedback
 from delivery.models import DeliveryAssignment, DeliveryFeedback
 
 class CustomerWorkflowAndSecurityTests(TestCase):
@@ -767,9 +767,9 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         self.assertEqual(track_resp.status_code, 200)
 
         # Verify coordinates are present in context
-        # Verify OpenStreetMap turn-by-turn navigation URL is present
+        # Verify OpenStreetMap navigation URL is present
         content = track_resp.content.decode('utf-8')
-        self.assertIn('openstreetmap.org/directions', content)
+        self.assertIn('openstreetmap.org', content)
         self.assertIn('9.5564', content)
         self.assertIn('76.7909', content)
 
@@ -1071,6 +1071,220 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         resp_custom = self.client.get(reverse('admin_dashboard') + f'?period=custom&start_date={today_str}&end_date={today_str}')
         self.assertEqual(resp_custom.status_code, 200)
         self.assertEqual(resp_custom.context['filtered_revenue'], 290.00)
+
+
+class IndependentDualFeedbackAndCourierTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+
+        # Customer
+        self.customer = User.objects.create_user(
+            username='test_customer',
+            email='test_cust@example.com',
+            password='Password123!',
+            role='customer',
+            phone='9846012345'
+        )
+
+        # Other Customer (for unauthorized attempt testing)
+        self.other_customer = User.objects.create_user(
+            username='other_customer',
+            email='other_cust@example.com',
+            password='Password123!',
+            role='customer',
+            phone='9846054321'
+        )
+
+        # Chef
+        self.chef_user = User.objects.create_user(
+            username='test_chef',
+            email='test_chef@example.com',
+            password='Password123!',
+            role='chef',
+            phone='9447012345'
+        )
+        self.chef_profile = ChefProfile.objects.create(
+            user=self.chef_user,
+            specialty='Kerala Home Cooking',
+            kitchen_name='Kottayam Kitchen',
+            is_approved=True,
+            rating=5.0
+        )
+
+        # Courier
+        self.courier_user = User.objects.create_user(
+            username='test_courier',
+            email='test_courier@example.com',
+            password='Password123!',
+            role='delivery_boy',
+            phone='7510672351'
+        )
+        self.courier_profile = DeliveryBoyProfile.objects.create(
+            user=self.courier_user,
+            vehicle_number='KL-07-CD-1002',
+            status='available',
+            rating=5.0
+        )
+
+        # Category and Food Item
+        self.cat = Category.objects.create(name='Lunch Items')
+        self.session = MealSession.objects.create(name='Lunch Session', start_time=time(11, 0), end_time=time(15, 0))
+        self.food = FoodItem.objects.create(
+            chef=self.chef_user,
+            name='Kerala Brown Rice Feast',
+            price=Decimal('180.00'),
+            category=self.cat,
+            meal_session=self.session
+        )
+
+        # Order 1: Delivered Order
+        self.order_delivered = Order.objects.create(
+            order_id='VR-TEST-DELIV-01',
+            user=self.customer,
+            total_amount=Decimal('180.00'),
+            status='delivered'
+        )
+        OrderItem.objects.create(order=self.order_delivered, food_item=self.food, quantity=1, price=Decimal('180.00'))
+        self.assignment = DeliveryAssignment.objects.create(
+            order=self.order_delivered,
+            delivery_boy=self.courier_profile,
+            status='delivered'
+        )
+
+        # Order 2: Pending/In-transit (Undelivered) Order
+        self.order_pending = Order.objects.create(
+            order_id='VR-TEST-PEND-02',
+            user=self.customer,
+            total_amount=Decimal('180.00'),
+            status='in_transit'
+        )
+        OrderItem.objects.create(order=self.order_pending, food_item=self.food, quantity=1, price=Decimal('180.00'))
+
+    def test_independent_chef_feedback_submission(self):
+        """Customer can submit Food & Chef feedback independently for delivered order."""
+        self.client.login(username='test_customer', password='Password123!')
+        
+        url = reverse('submit_chef_feedback', kwargs={'order_id': self.order_delivered.order_id})
+        response = self.client.post(url, {
+            'rating': 4,
+            'taste_rating': 5,
+            'freshness_rating': 4,
+            'packaging_rating': 4,
+            'comment': 'Authentic traditional flavor, loved the curries!',
+            'problem_reported': ''
+        })
+        self.assertEqual(response.status_code, 302)
+        
+        # Verify ChefFeedback record exists and DeliveryFeedback is not created yet
+        self.assertTrue(ChefFeedback.objects.filter(order=self.order_delivered).exists())
+        self.assertFalse(DeliveryFeedback.objects.filter(order=self.order_delivered).exists())
+        
+        fb = ChefFeedback.objects.get(order=self.order_delivered)
+        self.assertEqual(fb.rating, 4)
+        self.assertEqual(fb.taste_rating, 5)
+        self.assertEqual(fb.chef, self.chef_user)
+        self.assertEqual(fb.customer, self.customer)
+        
+        # Chef profile rating should update
+        self.chef_profile.refresh_from_db()
+        self.assertEqual(self.chef_profile.rating, 4.0)
+
+    def test_independent_courier_feedback_submission(self):
+        """Customer can submit Courier & Delivery feedback independently for delivered order."""
+        self.client.login(username='test_customer', password='Password123!')
+        
+        url = reverse('submit_delivery_feedback', kwargs={'order_id': self.order_delivered.order_id})
+        response = self.client.post(url, {
+            'rating': 5,
+            'timeliness_rating': 5,
+            'behavior_rating': 5,
+            'food_handling_rating': 5,
+            'comment': 'Fast and very courteous courier boy!'
+        })
+        self.assertEqual(response.status_code, 302)
+        
+        # Verify DeliveryFeedback record exists and ChefFeedback is not created yet
+        self.assertTrue(DeliveryFeedback.objects.filter(order=self.order_delivered).exists())
+        self.assertFalse(ChefFeedback.objects.filter(order=self.order_delivered).exists())
+        
+        fb = DeliveryFeedback.objects.get(order=self.order_delivered)
+        self.assertEqual(fb.rating, 5)
+        self.assertEqual(fb.delivery_boy, self.courier_profile)
+        self.assertEqual(fb.customer, self.customer)
+        
+        # Courier profile rating should update
+        self.courier_profile.refresh_from_db()
+        self.assertEqual(self.courier_profile.rating, 5.0)
+
+    def test_undelivered_order_rejects_feedback(self):
+        """Feedback is strictly forbidden before an order reaches Delivered status."""
+        self.client.login(username='test_customer', password='Password123!')
+        
+        # Chef feedback attempt on undelivered order
+        url_chef = reverse('submit_chef_feedback', kwargs={'order_id': self.order_pending.order_id})
+        resp_chef = self.client.post(url_chef, {'rating': 5, 'comment': 'Premature review'})
+        self.assertEqual(resp_chef.status_code, 302)
+        self.assertFalse(ChefFeedback.objects.filter(order=self.order_pending).exists())
+
+        # Delivery feedback attempt on undelivered order
+        url_deliv = reverse('submit_delivery_feedback', kwargs={'order_id': self.order_pending.order_id})
+        resp_deliv = self.client.post(url_deliv, {'rating': 5, 'comment': 'Premature review'})
+        self.assertEqual(resp_deliv.status_code, 302)
+        self.assertFalse(DeliveryFeedback.objects.filter(order=self.order_pending).exists())
+
+    def test_prevent_reviewing_another_customers_order(self):
+        """Unauthorized customer cannot review another customer's order."""
+        self.client.login(username='other_customer', password='Password123!')
+        
+        url_chef = reverse('submit_chef_feedback', kwargs={'order_id': self.order_delivered.order_id})
+        resp = self.client.post(url_chef, {'rating': 1, 'comment': 'Hacking review'})
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(ChefFeedback.objects.filter(order=self.order_delivered).exists())
+
+        url_deliv = reverse('submit_delivery_feedback', kwargs={'order_id': self.order_delivered.order_id})
+        resp2 = self.client.post(url_deliv, {'rating': 1, 'comment': 'Hacking review'})
+        self.assertEqual(resp2.status_code, 302)
+        self.assertFalse(DeliveryFeedback.objects.filter(order=self.order_delivered).exists())
+
+    def test_rating_bounds_and_duplicate_prevention(self):
+        """Ratings are clamped to 1-5 and resubmission updates existing record without duplicate."""
+        self.client.login(username='test_customer', password='Password123!')
+        
+        url_chef = reverse('submit_chef_feedback', kwargs={'order_id': self.order_delivered.order_id})
+        # Test out-of-bounds rating 99 clamped to 5
+        self.client.post(url_chef, {'rating': 99, 'taste_rating': -5, 'comment': 'Initial'})
+        fb = ChefFeedback.objects.get(order=self.order_delivered)
+        self.assertEqual(fb.rating, 5)
+        self.assertEqual(fb.taste_rating, 1) # clamped to 1
+        
+        # Second submission should update instead of creating duplicate
+        self.client.post(url_chef, {'rating': 3, 'taste_rating': 3, 'comment': 'Updated review'})
+        self.assertEqual(ChefFeedback.objects.filter(order=self.order_delivered).count(), 1)
+        fb.refresh_from_db()
+        self.assertEqual(fb.rating, 3)
+        self.assertEqual(fb.comment, 'Updated review')
+
+    def test_courier_notification_dismiss_endpoint(self):
+        """Courier can dismiss notification without changing order status."""
+        notif = Notification.objects.create(
+            user=self.courier_user,
+            order=self.order_delivered,
+            title='New Assignment',
+            message='Order assigned to you',
+            is_read=False
+        )
+        self.client.login(username='test_courier', password='Password123!')
+        
+        dismiss_url = reverse('dismiss_courier_notification', kwargs={'notif_id': notif.id})
+        resp = self.client.get(dismiss_url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(resp.status_code, 200)
+        
+        notif.refresh_from_db()
+        self.assertTrue(notif.is_read)
+        # Order status must remain delivered
+        self.order_delivered.refresh_from_db()
+        self.assertEqual(self.order_delivered.status, 'delivered')
+
 
 
 

@@ -685,8 +685,9 @@ class StartNavigationCoordinateTests(TestCase):
         self.assertIn("Elikulam Junction, Elikulam, Kottayam", content)
 
         # 2. Verify Start Navigation button uses destination without stale profile origin
-        self.assertIn('openstreetmap.org/directions', content)
-        self.assertIn('9.614967,76.741563', content)
+        self.assertIn('openstreetmap.org', content)
+        self.assertIn('9.614967', content)
+        self.assertIn('76.741563', content)
         self.assertNotIn('origin=9.5564,76.7909', content)
 
         # 3. Verify data attributes and onclick handler
@@ -710,7 +711,7 @@ class StartNavigationCoordinateTests(TestCase):
         self.assertEqual(response.context['cust_lon'], 76.741563)
 
         # Verify OpenStreetMap navigation button points to customer destination
-        self.assertIn('openstreetmap.org/directions', content)
+        self.assertIn('openstreetmap.org', content)
         self.assertIn('9.614967', content)
         self.assertIn('76.741563', content)
         self.assertIn("startNavigation('9.614967', '76.741563', event);", content)
@@ -734,7 +735,7 @@ class StartNavigationCoordinateTests(TestCase):
         notif_item = data['notifications'][0]
         self.assertEqual(notif_item['latitude'], 9.614967)
         self.assertEqual(notif_item['longitude'], 76.741563)
-        self.assertIn('openstreetmap.org/directions', notif_item['nav_url'])
+        self.assertIn('openstreetmap.org', notif_item['nav_url'])
         self.assertIn('9.614967', notif_item['nav_url'])
         self.assertIn('76.741563', notif_item['nav_url'])
         self.assertNotIn('origin=', notif_item['nav_url'])

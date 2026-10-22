@@ -41,15 +41,28 @@ class DeliveryFeedback(models.Model):
     delivery_assignment = models.ForeignKey(DeliveryAssignment, on_delete=models.CASCADE, related_name='feedbacks')
     delivery_boy = models.ForeignKey(DeliveryBoyProfile, on_delete=models.CASCADE, related_name='feedbacks')
     customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='submitted_delivery_feedbacks')
-    rating = models.PositiveIntegerField(default=5)
-    comment = models.TextField(blank=True, null=True)
+    
+    # 1-5 Star Ratings
+    rating = models.PositiveIntegerField(default=5, help_text="Overall delivery rating (1-5)")
+    timeliness_rating = models.PositiveIntegerField(default=5, help_text="Timeliness rating (1-5)")
+    behavior_rating = models.PositiveIntegerField(default=5, help_text="Courier behavior and communication rating (1-5)")
+    food_handling_rating = models.PositiveIntegerField(default=5, help_text="Food handling and delivery condition rating (1-5)")
+    
+    comment = models.TextField(blank=True, null=True, max_length=1000)
+    
+    # Moderation & Audit History
+    is_moderated = models.BooleanField(default=False)
+    moderation_notes = models.TextField(blank=True, null=True)
+    is_hidden_by_admin = models.BooleanField(default=False)
+    
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Feedback for Order #{self.order.order_id} - {self.rating}★ by {self.customer.username}"
+        return f"Delivery Feedback for Order #{self.order.order_id} - {self.rating}★ by {self.customer.username}"
 
 class District(models.Model):
     name = models.CharField(max_length=60, unique=True, db_index=True)

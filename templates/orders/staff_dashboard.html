@@ -97,7 +97,7 @@
                                     </strong>
                                     <div style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.4;">
                                         👤 Username: <span style="font-family: monospace; color: var(--primary-orange); font-weight: 700;">{{ assign.delivery_boy.courier_username }}</span><br>
-                                        📞 Phone: <strong>{{ assign.delivery_boy.user.phone|default:"No Phone" }}</strong><br>
+                                        📞 Phone: {% if assign.delivery_boy.user.phone %}<a href="tel:{{ assign.delivery_boy.user.phone }}" style="color: var(--primary-green); font-weight: 700; text-decoration: none;"><strong>{{ assign.delivery_boy.user.phone }}</strong></a>{% else %}<strong>No Phone</strong>{% endif %}<br>
                                         {% if assign.delivery_boy.vehicle_number %}
                                             🛵 Vehicle: <span style="font-family: monospace; font-weight: 600;">{{ assign.delivery_boy.vehicle_number }}</span>
                                         {% endif %}
@@ -152,7 +152,7 @@
                     <span style="font-size: 1.4rem; display: block; margin-bottom: 0.25rem;">🚚</span>
                     <strong style="color: var(--primary-brown); font-size: 0.95rem; display: block;">{{ c.courier_name }}</strong>
                     <div style="font-size: 0.82rem; color: var(--primary-orange); font-family: monospace; font-weight: 700; margin-top: 0.1rem;">👤 {{ c.courier_username }}</div>
-                    <div style="font-size: 0.8rem; color: var(--primary-green); font-weight: 600; margin-top: 0.15rem;">📞 {{ c.user.phone|default:"No Phone" }}</div>
+                    <div style="font-size: 0.8rem; color: var(--primary-green); font-weight: 600; margin-top: 0.15rem;">📞 {% if c.user.phone %}<a href="tel:{{ c.user.phone }}" style="color: inherit; text-decoration: none;">{{ c.user.phone }}</a>{% else %}No Phone{% endif %}</div>
                     {% if c.vehicle_number %}
                         <div style="font-size: 0.78rem; color: var(--text-muted); font-family: monospace; margin-top: 0.1rem;">🛵 {{ c.vehicle_number }}</div>
                     {% endif %}
@@ -302,7 +302,7 @@
                                     </div>
                                     <div style="font-size: 0.88rem; color: #374151; display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: center;">
                                         <span>👤 Username: <strong style="color: var(--primary-orange); font-family: monospace;">{{ order.delivery_assignment.delivery_boy.courier_username }}</strong></span>
-                                        <span>📞 Phone: <strong>{{ order.delivery_assignment.delivery_boy.user.phone|default:"No Phone" }}</strong></span>
+                                        <span>📞 Phone: {% if order.delivery_assignment.delivery_boy.user.phone %}<a href="tel:{{ order.delivery_assignment.delivery_boy.user.phone }}" style="color: #4338CA; text-decoration: none;"><strong>{{ order.delivery_assignment.delivery_boy.user.phone }}</strong></a>{% else %}<strong>No Phone</strong>{% endif %}</span>
                                         {% if order.delivery_assignment.delivery_boy.vehicle_number %}
                                             <span>🛵 Vehicle: <strong style="font-family: monospace; color: #1F2937;">{{ order.delivery_assignment.delivery_boy.vehicle_number }}</strong></span>
                                         {% endif %}
@@ -864,8 +864,8 @@
             iconAnchor: [16, 16]
         });
 
-        branchMarker = L.marker([bLat, bLon], { icon: hubPin, draggable: true, autoPan: false }).addTo(branchMap);
-        branchMarker.bindPopup("<b>Hotel Branch Position</b><br>Drag to reposition", { autoPan: false }).openPopup();
+        branchMarker = L.marker([bLat, bLon], { icon: hubPin, draggable: false, autoPan: false }).addTo(branchMap);
+        branchMarker.bindPopup("<b>Hotel Branch Position</b><br>Click map to set location", { autoPan: false });
 
         function syncBranchCoords(lat, lon) {
             document.getElementById('branch_lat').value = Number(lat).toFixed(6);

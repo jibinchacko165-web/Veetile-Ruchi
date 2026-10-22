@@ -455,7 +455,7 @@
         // Update external OpenStreetMap navigation link
         const navBtn = document.getElementById('external-nav-link');
         if (navBtn) {
-            navBtn.href = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${courierLatLng.lat.toFixed(6)},${courierLatLng.lng.toFixed(6)}%3B${customerLatLng.lat.toFixed(6)},${customerLatLng.lng.toFixed(6)}`;
+            navBtn.href = `https://www.openstreetmap.org/?mlat=${customerLatLng.lat.toFixed(6)}&mlon=${customerLatLng.lng.toFixed(6)}#map=16/${customerLatLng.lat.toFixed(6)}/${customerLatLng.lng.toFixed(6)}`;
         }
 
         const indicator = document.getElementById('map-gps-live-indicator');
@@ -626,11 +626,9 @@
                     const metricDistanceSub = document.getElementById('metric-distance-sub');
                     if (metricDistanceSub) {
                         if (orderStatus === 'delivered') {
-                            metricDistanceSub.innerText = 'Delivery route completed';
-                        } else if (data.is_road_distance) {
-                            metricDistanceSub.innerText = 'OSRM road route';
+                            metricDistanceSub.innerText = 'Delivery completed';
                         } else {
-                            metricDistanceSub.innerText = 'Road route estimate';
+                            metricDistanceSub.innerText = 'Straight-line distance (road routing unavailable)';
                         }
                     }
 
@@ -853,7 +851,7 @@
                     {{ road_distance_display|default:"0.0 km" }}
                 </div>
                 <span id="metric-distance-sub" style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.3rem;">
-                    {% if order.status == 'delivered' %}Delivery route completed{% elif is_road_distance %}OSRM road route{% else %}Haversine direct estimate{% endif %}
+                    {% if order.status == 'delivered' %}Delivery completed{% else %}Straight-line distance (road routing unavailable){% endif %}
                 </span>
             </div>
 
@@ -1025,7 +1023,7 @@
                     <button type="button" onclick="recenterDeliveryMap()" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; cursor: pointer;">
                         <span>🎯</span> Re-center Map
                     </button>
-                    <a id="external-nav-link" href="https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route={{ chef_lat|default:9.5564 }},{{ chef_lon|default:76.7909 }}%3B{{ cust_lat }},{{ cust_lon }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem;">
+                    <a id="external-nav-link" href="https://www.openstreetmap.org/?mlat={{ cust_lat }}&mlon={{ cust_lon }}#map=15/{{ cust_lat }}/{{ cust_lon }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem;">
                         <span>🧭</span> OpenStreetMap Navigation &rarr;
                     </a>
                 </div>
@@ -1053,7 +1051,7 @@
                 <div style="display: flex; flex-direction: column; gap: 0.65rem; font-size: 0.95rem; margin-bottom: 1.25rem;">
                     <div style="display: flex; justify-content: space-between;">
                         <span style="color: var(--text-muted);">Customer Name:</span>
-                        <strong style="color: var(--text-heading);">{{ order.user.get_full_name|default:order.user.username }}</strong>
+                        <strong style="color: var(--text-heading);">{% if order.user %}{{ order.user.get_full_name|default:order.user.username }}{% else %}Customer{% endif %}</strong>
                     </div>
                     <div style="display: flex; justify-content: space-between;">
                         <span style="color: var(--text-muted);">Customer Phone:</span>
@@ -1141,44 +1139,195 @@
             </div>
         </div>
 
-        <!-- Post Delivery Rating & Review Box -->
-        <div id="delivery-feedback-section" class="mt-4" style="{% if order.status != 'delivered' %}display: none;{% endif %} background: var(--bg-surface); padding: 1.5rem; border-radius: var(--radius-md); border: 1.5px solid var(--border-warm); text-align: center;">
-            <h3 style="color: var(--primary-brown); font-weight: 600; font-size: 1.25rem; margin-bottom: 0.4rem;">
-                ⭐ How was your meal & delivery experience?
-            </h3>
-            <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.25rem; font-weight: 400;">
-                Your feedback helps our local home chefs maintain authentic Kanjirappally standards.
-            </p>
+        <!-- Post Delivery Dual Rating & Review Box -->
+        <div id="delivery-feedback-section" class="mt-4" style="{% if order.status != 'delivered' %}display: none;{% endif %} background: var(--bg-surface); padding: 1.75rem; border-radius: var(--radius-md); border: 1.5px solid var(--border-warm);">
+            <div style="text-align: center; margin-bottom: 1.5rem;">
+                <h3 style="color: var(--primary-brown); font-weight: 700; font-size: 1.35rem; margin-bottom: 0.3rem;">
+                    ⭐ Rate Your Meal & Delivery Service
+                </h3>
+                <p style="color: var(--text-muted); font-size: 0.95rem; margin: 0; font-weight: 400;">
+                    Your authentic reviews help our home chefs maintain high culinary standards and empower our local courier team.
+                </p>
+            </div>
 
-            {% if order.delivery_feedback %}
-                <div style="display: inline-block; background: #FFFFFF; padding: 0.75rem 1.75rem; border-radius: 50px; border: 1.5px solid var(--border-warm);">
-                    <span style="color: var(--gold-accent); font-size: 1.15rem; font-weight: 600;">
-                        ★ {{ order.delivery_feedback.rating }} / 5 Stars
-                    </span>
-                    <p style="margin: 0.25rem 0 0 0; font-size: 0.9rem; color: var(--text-main); font-style: italic; font-weight: 400;">
-                        "{{ order.delivery_feedback.comment }}"
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;">
+                <!-- 1. Home Chef & Food Review Card -->
+                <div style="background: var(--bg-cream); border: 1.5px solid var(--border-warm); border-radius: 12px; padding: 1.25rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                        <h4 style="margin: 0; color: var(--primary-green); font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
+                            <span>🍲</span> Food & Home Chef Review
+                        </h4>
+                        {% if order.chef_feedback %}
+                            <span class="badge badge-success" style="font-size: 0.78rem;">✓ Submitted</span>
+                        {% else %}
+                            <span class="badge badge-warning" style="font-size: 0.78rem;">Pending Review</span>
+                        {% endif %}
+                    </div>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                        Prepared by <strong>{% if order.responsible_chef %}{{ order.responsible_chef.get_full_name|default:order.responsible_chef.username }}{% else %}Home Chef / Kitchen Partner{% endif %}</strong>
                     </p>
+
+                    {% if order.chef_feedback %}
+                        <div style="background: #ffffff; border-radius: 10px; padding: 1rem; border: 1px solid var(--border-warm); text-align: center;">
+                            <div style="font-size: 1.3rem; color: #D97736; font-weight: 700; margin-bottom: 0.3rem;">
+                                {{ order.chef_feedback.rating }} ★ / 5 Stars
+                            </div>
+                            <div style="display: flex; justify-content: center; gap: 0.75rem; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; flex-wrap: wrap;">
+                                <span>Taste: <strong>{{ order.chef_feedback.taste_rating }}★</strong></span>
+                                <span>Freshness: <strong>{{ order.chef_feedback.freshness_rating }}★</strong></span>
+                                <span>Packaging: <strong>{{ order.chef_feedback.packaging_rating }}★</strong></span>
+                            </div>
+                            {% if order.chef_feedback.comment %}
+                                <p style="font-size: 0.88rem; color: var(--text-main); font-style: italic; margin: 0.4rem 0 0 0;">
+                                    "{{ order.chef_feedback.comment }}"
+                                </p>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <form method="POST" action="{% url 'submit_chef_feedback' order.order_id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{% url 'order_tracking' order.order_id %}">
+                            <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 0.75rem;">
+                                <div>
+                                    <label style="display: flex; justify-content: space-between; font-size: 0.84rem; font-weight: 600; color: var(--primary-brown);">
+                                        <span>Overall Rating:</span>
+                                        <span id="trackChefOverallVal" style="color: #D97736; font-weight: 700;">5 ★</span>
+                                    </label>
+                                    <input type="range" name="rating" min="1" max="5" value="5" step="1" style="width: 100%; accent-color: #D97736;" oninput="document.getElementById('trackChefOverallVal').innerText = this.value + ' ★'">
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                    <div>
+                                        <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted);">Taste & Quality:</label>
+                                        <select name="taste_rating" class="form-control" style="font-size: 0.82rem; padding: 0.3rem 0.5rem;">
+                                            <option value="5">5 ★ Delicious</option>
+                                            <option value="4">4 ★ Very Good</option>
+                                            <option value="3">3 ★ Good</option>
+                                            <option value="2">2 ★ Fair</option>
+                                            <option value="1">1 ★ Poor</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted);">Freshness:</label>
+                                        <select name="freshness_rating" class="form-control" style="font-size: 0.82rem; padding: 0.3rem 0.5rem;">
+                                            <option value="5">5 ★ Piping Hot</option>
+                                            <option value="4">4 ★ Fresh</option>
+                                            <option value="3">3 ★ Moderate</option>
+                                            <option value="2">2 ★ Lukewarm</option>
+                                            <option value="1">1 ★ Cold</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted);">Packaging:</label>
+                                    <select name="packaging_rating" class="form-control" style="font-size: 0.82rem; padding: 0.3rem 0.5rem;">
+                                        <option value="5">5 ★ Perfect & Eco</option>
+                                        <option value="4">4 ★ Well Packed</option>
+                                        <option value="3">3 ★ Average</option>
+                                        <option value="2">2 ★ Leaking</option>
+                                        <option value="1">1 ★ Damaged</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <input type="text" name="comment" maxlength="1000" class="form-control" placeholder="Optional comments on food taste & aroma..." style="font-size: 0.85rem;">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-sm" style="width: 100%; background: var(--primary-green); color: white; padding: 0.5rem;">
+                                Submit Food Review
+                            </button>
+                        </form>
+                    {% endif %}
                 </div>
-            {% else %}
-                <form method="POST" action="{% url 'submit_delivery_feedback' order.order_id %}" style="max-width: 480px; margin: 0 auto;">
-                    {% csrf_token %}
-                    <div class="form-group mb-2">
-                        <select name="rating" class="form-control" style="font-weight: 500;" required>
-                            <option value="5">⭐⭐⭐⭐⭐ Excellent</option>
-                            <option value="4">⭐⭐⭐⭐ Very Good</option>
-                            <option value="3">⭐⭐⭐ Average</option>
-                            <option value="2">⭐⭐ Needs Improvement</option>
-                            <option value="1">⭐ Poor</option>
-                        </select>
+
+                <!-- 2. Courier & Delivery Review Card -->
+                <div style="background: var(--bg-cream); border: 1.5px solid var(--border-warm); border-radius: 12px; padding: 1.25rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                        <h4 style="margin: 0; color: var(--primary-orange); font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
+                            <span>🚚</span> Delivery & Courier Review
+                        </h4>
+                        {% if order.delivery_feedback %}
+                            <span class="badge badge-success" style="font-size: 0.78rem;">✓ Submitted</span>
+                        {% else %}
+                            <span class="badge badge-warning" style="font-size: 0.78rem;">Pending Review</span>
+                        {% endif %}
                     </div>
-                    <div class="form-group mb-3">
-                        <input type="text" name="comment" class="form-control" placeholder="Optional comments (e.g. delicious, delivered hot and fresh)...">
-                    </div>
-                    <button type="submit" class="btn btn-secondary btn-sm" style="padding: 0.65rem 2rem;">
-                        Submit Feedback
-                    </button>
-                </form>
-            {% endif %}
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
+                        Delivered by <strong>{{ order.assigned_courier.courier_name|default:'Assigned Courier' }}</strong>
+                        {% if order.assigned_courier.vehicle_number %}<span style="font-family: monospace;">[{{ order.assigned_courier.vehicle_number }}]</span>{% endif %}
+                    </p>
+
+                    {% if order.delivery_feedback %}
+                        <div style="background: #ffffff; border-radius: 10px; padding: 1rem; border: 1px solid var(--border-warm); text-align: center;">
+                            <div style="font-size: 1.3rem; color: #D97736; font-weight: 700; margin-bottom: 0.3rem;">
+                                {{ order.delivery_feedback.rating }} ★ / 5 Stars
+                            </div>
+                            <div style="display: flex; justify-content: center; gap: 0.75rem; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; flex-wrap: wrap;">
+                                <span>Timeliness: <strong>{{ order.delivery_feedback.timeliness_rating }}★</strong></span>
+                                <span>Behavior: <strong>{{ order.delivery_feedback.behavior_rating }}★</strong></span>
+                                <span>Handling: <strong>{{ order.delivery_feedback.food_handling_rating }}★</strong></span>
+                            </div>
+                            {% if order.delivery_feedback.comment %}
+                                <p style="font-size: 0.88rem; color: var(--text-main); font-style: italic; margin: 0.4rem 0 0 0;">
+                                    "{{ order.delivery_feedback.comment }}"
+                                </p>
+                            {% endif %}
+                        </div>
+                    {% elif order.delivery_assignment and order.delivery_assignment.delivery_boy %}
+                        <form method="POST" action="{% url 'submit_delivery_feedback' order.order_id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{% url 'order_tracking' order.order_id %}">
+                            <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 0.75rem;">
+                                <div>
+                                    <label style="display: flex; justify-content: space-between; font-size: 0.84rem; font-weight: 600; color: var(--primary-brown);">
+                                        <span>Overall Delivery:</span>
+                                        <span id="trackCourierOverallVal" style="color: #D97736; font-weight: 700;">5 ★</span>
+                                    </label>
+                                    <input type="range" name="rating" min="1" max="5" value="5" step="1" style="width: 100%; accent-color: #D97736;" oninput="document.getElementById('trackCourierOverallVal').innerText = this.value + ' ★'">
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                    <div>
+                                        <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted);">Punctuality:</label>
+                                        <select name="timeliness_rating" class="form-control" style="font-size: 0.82rem; padding: 0.3rem 0.5rem;">
+                                            <option value="5">5 ★ On Time</option>
+                                            <option value="4">4 ★ Quick</option>
+                                            <option value="3">3 ★ Moderate</option>
+                                            <option value="2">2 ★ Delayed</option>
+                                            <option value="1">1 ★ Very Late</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted);">Behavior:</label>
+                                        <select name="behavior_rating" class="form-control" style="font-size: 0.82rem; padding: 0.3rem 0.5rem;">
+                                            <option value="5">5 ★ Polite & Courteous</option>
+                                            <option value="4">4 ★ Friendly</option>
+                                            <option value="3">3 ★ Standard</option>
+                                            <option value="2">2 ★ Brusque</option>
+                                            <option value="1">1 ★ Rude</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.78rem; font-weight: 600; color: var(--text-muted);">Food Handling:</label>
+                                    <select name="food_handling_rating" class="form-control" style="font-size: 0.82rem; padding: 0.3rem 0.5rem;">
+                                        <option value="5">5 ★ Pristine Condition</option>
+                                        <option value="4">4 ★ Carefully Handled</option>
+                                        <option value="3">3 ★ Acceptable</option>
+                                        <option value="2">2 ★ Spilled</option>
+                                        <option value="1">1 ★ Damaged</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <input type="text" name="comment" maxlength="1000" class="form-control" placeholder="Optional comments on courier service..." style="font-size: 0.85rem;">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-sm" style="width: 100%; background: var(--primary-orange); color: white; padding: 0.5rem;">
+                                Submit Courier Review
+                            </button>
+                        </form>
+                    {% else %}
+                        <p style="color: var(--text-muted); font-size: 0.85rem; font-style: italic; padding: 1.5rem 0; text-align: center;">No courier record assigned to this order.</p>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 </div>

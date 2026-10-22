@@ -176,7 +176,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Map Configuration (Leaflet + OpenStreetMap + OSRM Road Routing)
+# Map Configuration (Leaflet + OpenStreetMap)
 # Standard OpenStreetMap tile endpoint
 MAP_TILE_URL = os.getenv(
     'MAP_TILE_URL',
@@ -196,12 +196,6 @@ MAP_TILE_FALLBACK_URL = os.getenv(
 MAP_TILE_FALLBACK_ATTRIBUTION = os.getenv(
     'MAP_TILE_FALLBACK_ATTRIBUTION',
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-)
-
-# OSRM Road Routing Endpoint
-OSRM_ROUTING_URL = os.getenv(
-    'OSRM_ROUTING_URL',
-    'https://router.project-osrm.org/route/v1/driving/{coords}?overview=simplified&geometries=geojson'
 )
 
 # Email Configuration (Console backend for development)

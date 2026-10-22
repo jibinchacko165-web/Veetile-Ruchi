@@ -9,7 +9,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 from django.contrib import messages
 from django.utils import timezone
-from .models import CartItem, Coupon, Order, OrderItem, Payment, Wishlist, Notification
+from .models import CartItem, Coupon, Order, OrderItem, Payment, Wishlist, Notification, ChefFeedback
 from food.models import FoodItem
 from accounts.models import User, DeliveryBoyProfile, ChefProfile, SavedLocation
 from accounts.decorators import role_required
@@ -530,8 +530,128 @@ def api_order_status(request, order_id):
 @never_cache
 @login_required
 def order_history(request):
-    orders = Order.objects.filter(user=request.user).select_related('payment', 'delivery_assignment__delivery_boy__user', 'delivery_feedback').prefetch_related('items__food_item').order_by('-created_at')
+    orders = Order.objects.filter(user=request.user).select_related(
+        'payment', 
+        'delivery_assignment__delivery_boy__user', 
+        'delivery_feedback',
+        'chef_feedback'
+    ).prefetch_related('items__food_item').order_by('-created_at')
     return render(request, 'orders/history.html', {'orders': orders})
+
+
+@login_required
+def submit_chef_feedback(request, order_id):
+    """Customer chef and food quality review submission handler."""
+    order = get_object_or_404(Order, order_id=order_id)
+
+    if request.user != order.user:
+        messages.error(request, "You can only review food for your own orders.")
+        return redirect('order_history')
+
+    if order.status != 'delivered':
+        messages.error(request, "Chef and food reviews can only be submitted after the order has been Delivered.")
+        return redirect('order_history')
+
+    chef = order.responsible_chef
+    if not chef:
+        messages.error(request, "No chef or kitchen partner profile is associated with this order.")
+        return redirect('order_history')
+
+    if request.method == 'POST':
+        try:
+            rating = int(request.POST.get('rating', 5))
+            rating = max(1, min(5, rating))
+        except (ValueError, TypeError):
+            rating = 5
+
+        try:
+            taste_rating = int(request.POST.get('taste_rating', rating))
+            taste_rating = max(1, min(5, taste_rating))
+        except (ValueError, TypeError):
+            taste_rating = rating
+
+        try:
+            freshness_rating = int(request.POST.get('freshness_rating', rating))
+            freshness_rating = max(1, min(5, freshness_rating))
+        except (ValueError, TypeError):
+            freshness_rating = rating
+
+        try:
+            packaging_rating = int(request.POST.get('packaging_rating', rating))
+            packaging_rating = max(1, min(5, packaging_rating))
+        except (ValueError, TypeError):
+            packaging_rating = rating
+
+        comment = request.POST.get('comment', '').strip()[:1000]
+        problem_reported = request.POST.get('problem_reported', '').strip()[:1000]
+
+        with transaction.atomic():
+            feedback, created = ChefFeedback.objects.update_or_create(
+                order=order,
+                defaults={
+                    'chef': chef,
+                    'customer': request.user,
+                    'branch': order.branch,
+                    'rating': rating,
+                    'taste_rating': taste_rating,
+                    'freshness_rating': freshness_rating,
+                    'packaging_rating': packaging_rating,
+                    'comment': comment,
+                    'problem_reported': problem_reported,
+                }
+            )
+
+            # Recompute chef average rating from genuine unmoderated reviews
+            avg_rating = ChefFeedback.objects.filter(
+                chef=chef,
+                is_hidden_by_admin=False
+            ).aggregate(models.Avg('rating'))['rating__avg']
+            if avg_rating is not None and hasattr(chef, 'chef_profile'):
+                chef.chef_profile.rating = round(float(avg_rating), 1)
+                chef.chef_profile.save(update_fields=['rating'])
+
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+            return JsonResponse({
+                'status': 'success',
+                'message': "Thank you! Your food and chef review has been submitted successfully.",
+                'rating': rating,
+                'taste_rating': taste_rating,
+                'freshness_rating': freshness_rating,
+                'packaging_rating': packaging_rating,
+                'comment': comment,
+                'problem_reported': problem_reported
+            })
+
+        messages.success(request, "Thank you! Your food and chef review has been recorded successfully.")
+        next_url = request.POST.get('next') or request.META.get('HTTP_REFERER') or 'order_history'
+        return redirect(next_url)
+
+    # GET request - return existing saved feedback if any
+    existing = ChefFeedback.objects.filter(order=order).first()
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+        if existing:
+            return JsonResponse({
+                'status': 'success',
+                'has_feedback': True,
+                'rating': existing.rating,
+                'taste_rating': existing.taste_rating,
+                'freshness_rating': existing.freshness_rating,
+                'packaging_rating': existing.packaging_rating,
+                'comment': existing.comment,
+                'problem_reported': existing.problem_reported,
+                'created_at': existing.created_at.strftime("%b %d, %Y • %I:%M %p")
+            })
+        else:
+            chef_name = chef.get_full_name() or chef.username
+            if hasattr(chef, 'chef_profile') and chef.chef_profile.kitchen_name:
+                chef_name = f"{chef.chef_profile.kitchen_name} ({chef_name})"
+            return JsonResponse({
+                'status': 'success',
+                'has_feedback': False,
+                'chef_name': chef_name
+            })
+
+    return redirect('order_history')
 
 @never_cache
 @login_required

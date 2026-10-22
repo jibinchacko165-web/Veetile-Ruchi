@@ -183,6 +183,22 @@ class Order(models.Model):
             
         return addr
 
+    @property
+    def responsible_chef(self):
+        """Returns the chef responsible for preparing this order's food items."""
+        first_item = self.items.select_related('food_item__chef').first()
+        if first_item and first_item.food_item and first_item.food_item.chef:
+            return first_item.food_item.chef
+        from accounts.models import User
+        return User.objects.filter(role='chef').first()
+
+    @property
+    def assigned_courier(self):
+        """Returns the assigned DeliveryBoyProfile for this order if present."""
+        if hasattr(self, 'delivery_assignment') and self.delivery_assignment:
+            return self.delivery_assignment.delivery_boy
+        return None
+
     def __str__(self):
         return f"Order {self.order_id} ({self.status})"
 
@@ -238,3 +254,33 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"[{self.notification_type}] {self.title} → {self.user.username}"
+
+
+class ChefFeedback(models.Model):
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='chef_feedback')
+    chef = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='received_chef_feedbacks')
+    customer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='submitted_chef_feedbacks')
+    branch = models.ForeignKey('delivery.HotelBranch', on_delete=models.SET_NULL, null=True, blank=True, related_name='chef_feedbacks')
+    
+    # 1-5 Star Ratings
+    rating = models.PositiveIntegerField(default=5, help_text="Overall food/chef rating (1-5)")
+    taste_rating = models.PositiveIntegerField(default=5, help_text="Food taste and quality rating (1-5)")
+    freshness_rating = models.PositiveIntegerField(default=5, help_text="Freshness and preparation rating (1-5)")
+    packaging_rating = models.PositiveIntegerField(default=5, help_text="Packaging and presentation rating (1-5)")
+    
+    comment = models.TextField(blank=True, null=True, max_length=1000)
+    problem_reported = models.TextField(blank=True, null=True, max_length=1000, help_text="Optional food-quality or service-problem report")
+    
+    # Moderation & Audit History
+    is_moderated = models.BooleanField(default=False)
+    moderation_notes = models.TextField(blank=True, null=True)
+    is_hidden_by_admin = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Chef Feedback for Order #{self.order.order_id} - {self.rating}★ by {self.customer.username}"
