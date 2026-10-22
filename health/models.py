@@ -18,6 +18,9 @@ class HealthProfile(models.Model):
     diabetes_conscious = models.BooleanField(default=False)
     lower_saturated_fat = models.BooleanField(default=False)
     calorie_awareness = models.BooleanField(default=False)
+    blood_pressure_conscious = models.BooleanField(default=False)
+    reduced_sodium = models.BooleanField(default=False)
+    reduced_sugar = models.BooleanField(default=False)
     
     # Specific Health Markers
     allergies = models.TextField(blank=True, null=True, help_text="Comma-separated values, e.g. peanuts, dairy")

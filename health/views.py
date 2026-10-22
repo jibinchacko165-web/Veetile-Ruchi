@@ -16,12 +16,18 @@ def health_profile_view(request):
         profile.diabetes_conscious = request.POST.get('diabetes_conscious') == 'on'
         profile.cholesterol_conscious = request.POST.get('cholesterol_conscious') == 'on'
         profile.sugar_conscious = request.POST.get('sugar_conscious') == 'on'
+        profile.reduced_sugar = (request.POST.get('reduced_sugar') == 'on') or profile.sugar_conscious
         profile.lower_saturated_fat = request.POST.get('lower_saturated_fat') == 'on'
-        profile.calorie_awareness = request.POST.get('calorie_awareness') == 'on'
+        
+        bp_val = (request.POST.get('blood_pressure_conscious') == 'on') or (request.POST.get('calorie_awareness') == 'on')
+        profile.blood_pressure_conscious = bp_val
+        profile.calorie_awareness = bp_val
+        profile.reduced_sodium = (request.POST.get('reduced_sodium') == 'on') or bp_val
+        
         profile.enable_recommendations = request.POST.get('enable_recommendations') == 'on'
         
-        profile.allergies = request.POST.get('allergies', '')
-        profile.dislikes = request.POST.get('dislikes', '')
+        profile.allergies = request.POST.get('allergies', '').strip()
+        profile.dislikes = request.POST.get('dislikes', '').strip()
         profile.dietary_preference = request.POST.get('dietary_preference', 'any')
         
         try:

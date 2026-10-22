@@ -173,6 +173,40 @@ def classify_health_profile_risk(diabetes_conscious, cholesterol_conscious, calo
     return pred
 
 
+def is_food_excluded_by_allergens(food, excluded_keywords):
+    """
+    Checks if a food item contains any user-specified allergens or disliked ingredients.
+    Inspects name, description, nutrition ingredients, allergens, and dietary flags.
+    """
+    if not excluded_keywords or not food:
+        return False
+        
+    text_parts = [food.name or '', food.description or '']
+    has_nutr = hasattr(food, 'nutrition') and food.nutrition is not None
+    if has_nutr:
+        if food.nutrition.ingredients:
+            text_parts.append(food.nutrition.ingredients)
+        if food.nutrition.allergens:
+            text_parts.append(food.nutrition.allergens)
+            
+    full_text = " ".join(text_parts).lower()
+    
+    for kw in excluded_keywords:
+        kw = kw.strip().lower()
+        if not kw:
+            continue
+        # Specific allergen shortcuts
+        if kw in ['egg', 'eggs'] and getattr(food, 'contains_egg', False):
+            return True
+        if kw in ['non-veg', 'meat', 'chicken', 'fish', 'seafood', 'beef', 'mutton', 'pork'] and not getattr(food, 'is_vegetarian', False):
+            if re.search(r'\b' + re.escape(kw) + r'\b', full_text):
+                return True
+        if re.search(r'\b' + re.escape(kw) + r'\b', full_text):
+            return True
+            
+    return False
+
+
 def recommend_health_and_time_aware_foods(all_foods, health_profile, active_session_name='Lunch', limit=4):
     """
     Kerala Food Health Recommendation & AI Meal-Time Filter.
@@ -190,16 +224,29 @@ def recommend_health_and_time_aware_foods(all_foods, health_profile, active_sess
 
     diabetes_conscious = getattr(health_profile, 'diabetes_conscious', False)
     cholesterol_conscious = getattr(health_profile, 'cholesterol_conscious', False)
-    calorie_awareness = getattr(health_profile, 'calorie_awareness', False)
+    bp_conscious = getattr(health_profile, 'blood_pressure_conscious', False) or getattr(health_profile, 'calorie_awareness', False)
+    reduced_sugar = getattr(health_profile, 'reduced_sugar', False) or getattr(health_profile, 'sugar_conscious', False)
+    reduced_sat_fat = getattr(health_profile, 'lower_saturated_fat', False)
+    reduced_sodium = getattr(health_profile, 'reduced_sodium', False) or bp_conscious
+
+    # Allergies and disliked ingredients
+    raw_allergies = (getattr(health_profile, 'allergies', '') or '') + ',' + (getattr(health_profile, 'dislikes', '') or '')
+    excluded_keywords = [k.strip().lower() for k in raw_allergies.split(',') if k.strip()]
 
     # Selected condition labels
     selected_conditions = []
     if diabetes_conscious: selected_conditions.append("Diabetes")
     if cholesterol_conscious: selected_conditions.append("High Cholesterol")
-    if calorie_awareness: selected_conditions.append("High Blood Pressure")
+    if bp_conscious: selected_conditions.append("High Blood Pressure")
+    if reduced_sugar and not diabetes_conscious: selected_conditions.append("Reduced Sugar")
+    if reduced_sat_fat and not cholesterol_conscious: selected_conditions.append("Reduced Saturated Fat")
+    if reduced_sodium and not bp_conscious: selected_conditions.append("Reduced Sodium")
 
     if not selected_conditions:
-        return [], "No medical conditions selected. Select Diabetes, High Cholesterol, or High BP to see AI recommended foods."
+        if excluded_keywords or (getattr(health_profile, 'dietary_preference', 'any') or 'any') != 'any':
+            selected_conditions.append("Dietary Preferences")
+        else:
+            return [], "No medical conditions selected. Select Diabetes, High Cholesterol, or High BP to see AI recommended foods."
 
     cond_str = " + ".join(selected_conditions)
     sess_label = active_session_name or 'Current Meal'
@@ -235,14 +282,20 @@ def recommend_health_and_time_aware_foods(all_foods, health_profile, active_sess
             if getattr(food, 'is_available', True) and getattr(food, 'stock_quantity', 1) > 0:
                 session_eligible_foods.append(food)
 
-    # Step 2: Filter by dietary preference & health conditions
+    # Step 2: Filter by allergens, dietary preference & health conditions
     pref = (getattr(health_profile, 'dietary_preference', 'any') or 'any').lower()
     
     scored_candidates = []
     for food in session_eligible_foods:
+        # Allergen / ingredient exclusions
+        if is_food_excluded_by_allergens(food, excluded_keywords):
+            continue
+
         cat_name = (food.category.name if food.category else '').lower()
         is_veg = getattr(food, 'is_vegetarian', False) or (cat_name and 'non-veg' not in cat_name and 'veg' in cat_name)
         if pref == 'veg' and not is_veg:
+            continue
+        if pref == 'non_veg' and is_veg:
             continue
         if pref == 'vegan' and not (getattr(food, 'is_vegan', False) or ('vegan' in cat_name)):
             continue
@@ -272,19 +325,23 @@ def recommend_health_and_time_aware_foods(all_foods, health_profile, active_sess
         is_chol_ok = True
         is_bp_ok = True
 
-        if diabetes_conscious:
-            if total_sugars > 5.0 or is_sweet or is_refined or (calories > 600 and total_sugars > 3.5):
+        if diabetes_conscious or reduced_sugar:
+            added_sugars = food.nutrition.added_sugars if has_nutr else 0.0
+            if total_sugars > 5.0 or added_sugars > 2.0 or is_sweet or is_refined or (calories > 600 and total_sugars > 3.5):
                 is_diab_ok = False
 
-        if cholesterol_conscious:
-            if cholesterol > 35.0 or is_fried or is_refined or total_fat > 18.0:
+        if cholesterol_conscious or reduced_sat_fat:
+            sat_fat = food.nutrition.saturated_fat if has_nutr else 2.0
+            if cholesterol > 35.0 or sat_fat > 4.0 or is_fried or is_refined or total_fat > 18.0:
                 is_chol_ok = False
 
-        if calorie_awareness: # High Blood Pressure / Sodium Awareness
+        if bp_conscious or reduced_sodium:
             if sodium > 480.0:
                 is_bp_ok = False
 
-        if (diabetes_conscious and not is_diab_ok) or (cholesterol_conscious and not is_chol_ok) or (calorie_awareness and not is_bp_ok):
+        if ((diabetes_conscious or reduced_sugar) and not is_diab_ok) or \
+           ((cholesterol_conscious or reduced_sat_fat) and not is_chol_ok) or \
+           ((bp_conscious or reduced_sodium) and not is_bp_ok):
             continue
 
         # Score calculation for ranking
@@ -306,17 +363,18 @@ def recommend_health_and_time_aware_foods(all_foods, health_profile, active_sess
 
     if recommended_foods:
         reasons_list = []
-        if diabetes_conscious:
+        if diabetes_conscious or reduced_sugar:
             reasons_list.append("limits added total_sugars & high glycemic impact")
-        if cholesterol_conscious:
+        if cholesterol_conscious or reduced_sat_fat:
             reasons_list.append("avoids deep-fried preparations & saturated fats")
-        if calorie_awareness:
+        if bp_conscious or reduced_sodium:
             reasons_list.append("maintains controlled sodium metrics")
 
-        reason_clause = ", ".join(reasons_list)
+        reason_clause = ", ".join(reasons_list) if reasons_list else "balanced nutritional composition"
+        disclaimer = " (General dietary guidance based on nutritional parameters, not personalized medical advice.)"
         combined_reason = (
             f"Recommended for {sess_label} based on your selected {cond_str} filters. "
-            f"These authentic Kerala options focus on fresh/steamed preparation and {reason_clause} with balanced portion sizes."
+            f"These authentic Kerala options focus on fresh/steamed preparation and {reason_clause} with balanced portion sizes.{disclaimer}"
         )
     else:
         combined_reason = (
@@ -360,6 +418,9 @@ def plan_meals(food_items, health_profile):
     used_food_ids = set()
     used_food_names = set()
     
+    raw_allergies = (getattr(health_profile, 'allergies', '') or '') + ',' + (getattr(health_profile, 'dislikes', '') or '') if health_profile else ''
+    excluded_keywords = [k.strip().lower() for k in raw_allergies.split(',') if k.strip()]
+
     def _matches_session(session_obj, target_session):
         if not session_obj or not session_obj.name:
             return False
@@ -385,11 +446,16 @@ def plan_meals(food_items, health_profile):
 
             # Filter by meal session
             if _matches_session(food.meal_session, session):
-                # Filter by dietary preference
+                # Filter by dietary preference and health conditions
                 if health_profile:
+                    if is_food_excluded_by_allergens(food, excluded_keywords):
+                        continue
                     pref = (health_profile.dietary_preference or '').lower()
                     cat_name = (food.category.name.lower() if food.category else '')
-                    if pref == 'veg' and 'non-veg' in cat_name:
+                    is_veg = getattr(food, 'is_vegetarian', False) or (cat_name and 'non-veg' not in cat_name and 'veg' in cat_name)
+                    if pref == 'veg' and not is_veg:
+                        continue
+                    if pref == 'non_veg' and is_veg:
                         continue
                     if pref == 'vegan' and not ('vegan' in cat_name or 'veg' in cat_name):
                         continue
@@ -402,11 +468,12 @@ def plan_meals(food_items, health_profile):
                             food.nutrition.cholesterol, 
                             food.nutrition.sodium
                         )
-                        if health_profile.diabetes_conscious and not suitability['diabetes']:
+                        if (health_profile.diabetes_conscious or getattr(health_profile, 'reduced_sugar', False)) and not suitability['diabetes']:
                             continue
-                        if health_profile.cholesterol_conscious and not suitability['cholesterol']:
+                        if (health_profile.cholesterol_conscious or getattr(health_profile, 'lower_saturated_fat', False)) and not suitability['cholesterol']:
                             continue
-                        if health_profile.calorie_awareness and not suitability['bp']:
+                        bp_check = getattr(health_profile, 'blood_pressure_conscious', False) or getattr(health_profile, 'calorie_awareness', False) or getattr(health_profile, 'reduced_sodium', False)
+                        if bp_check and not suitability['bp']:
                             continue
                             
                 candidates.append(food)

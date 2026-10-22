@@ -1,44 +1,68 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="card" style="max-width: 600px; margin: 2rem auto; border-top: 4px solid var(--accent);">
+<div class="card" style="max-width: 640px; margin: 2rem auto; border-top: 4px solid var(--accent);">
     <h2 class="mb-1" style="color: var(--accent);">Health & Nutrition Profile</h2>
-    <p class="mb-3" style="color: var(--text-muted);">Configure your optional health settings. The system filters suitable homemade food recommendations based on these parameters.</p>
+    <p class="mb-3" style="color: var(--text-muted);">Configure your dietary parameters and health preferences. The system tailors homemade food recommendations based on these settings.</p>
 
     <form method="POST">
         {% csrf_token %}
         
-        <!-- Health Conditions -->
-        <h3 class="mb-2" style="font-size: 1.15rem; color: var(--text-light);">Chronic Health Metrics</h3>
-        <div style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 2rem; background-color: var(--dark-bg); padding: 1rem; border-radius: 8px; border: 1px solid var(--dark-border);">
+        <!-- Health Conditions & Goals -->
+        <h3 class="mb-2" style="font-size: 1.15rem; color: var(--text-light);">Health & Nutritional Goals</h3>
+        <div style="display: flex; flex-direction: column; gap: 0.85rem; margin-bottom: 1.75rem; background-color: var(--dark-bg); padding: 1.25rem; border-radius: 8px; border: 1px solid var(--dark-border);">
             <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
                 <div>
-                    <strong>Diabetes (High Blood Sugar)</strong>
-                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted);">Avoid foods high in processed sugars.</span>
+                    <strong>Diabetes (Blood Sugar Conscious)</strong>
+                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted);">Prioritize low-glycemic foods, whole grains, and minimal total sugars.</span>
                 </div>
                 <input type="checkbox" name="diabetes_conscious" {% if profile.diabetes_conscious %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--primary);">
             </label>
             
             <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
                 <div>
-                    <strong>High Cholesterol</strong>
-                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted);">Avoid foods rich in saturated trans-fats.</span>
+                    <strong>Cholesterol Conscious</strong>
+                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted);">Avoid foods high in saturated fat, trans-fat, and deep frying.</span>
                 </div>
                 <input type="checkbox" name="cholesterol_conscious" {% if profile.cholesterol_conscious %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--primary);">
             </label>
 
             <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
                 <div>
-                    <strong>High Blood Pressure (BP)</strong>
-                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted);">Avoid foods with elevated sodium metrics.</span>
+                    <strong>High Blood Pressure (BP Conscious)</strong>
+                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted);">Focus on dishes prepared with controlled, lower sodium levels.</span>
                 </div>
-                <input type="checkbox" name="calorie_awareness" {% if profile.calorie_awareness %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--primary);">
+                <input type="checkbox" name="blood_pressure_conscious" {% if profile.blood_pressure_conscious or profile.calorie_awareness %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--primary);">
+            </label>
+
+            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                <div>
+                    <strong>Reduced Added Sugar</strong>
+                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted);">Strictly limit or exclude refined sugars and jaggery syrups.</span>
+                </div>
+                <input type="checkbox" name="reduced_sugar" {% if profile.reduced_sugar or profile.sugar_conscious %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--primary);">
+            </label>
+
+            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                <div>
+                    <strong>Reduced Saturated Fat</strong>
+                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted);">Favor steamed preparations and lower coconut/ghee oil concentrations.</span>
+                </div>
+                <input type="checkbox" name="lower_saturated_fat" {% if profile.lower_saturated_fat %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--primary);">
+            </label>
+
+            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                <div>
+                    <strong>Reduced Sodium</strong>
+                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted);">Exclude highly salted curries and salted snacks.</span>
+                </div>
+                <input type="checkbox" name="reduced_sodium" {% if profile.reduced_sodium %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--primary);">
             </label>
         </div>
 
         <!-- Dietary Preferences -->
-        <h3 class="mb-2" style="font-size: 1.15rem; color: var(--text-light);">Dietary Preference</h3>
-        <div class="form-group">
+        <h3 class="mb-2" style="font-size: 1.15rem; color: var(--text-light);">Dietary Classification</h3>
+        <div class="form-group mb-3">
             <select name="dietary_preference" id="dietary_preference" class="form-control">
                 <option value="any" {% if profile.dietary_preference == 'any' %}selected{% endif %}>No Preference (Any Food)</option>
                 <option value="veg" {% if profile.dietary_preference == 'veg' %}selected{% endif %}>Strict Vegetarian</option>
@@ -48,19 +72,41 @@
             </select>
         </div>
 
-        <!-- Allergies -->
-        <h3 class="mb-2" style="font-size: 1.15rem; color: var(--text-light);">Food Allergies</h3>
-        <div class="form-group">
-            <input type="text" name="allergies" id="allergies" class="form-control" value="{{ profile.allergies|default:'' }}" placeholder="e.g. peanuts, seafood, dairy (comma-separated)">
+        <!-- Food Allergies -->
+        <h3 class="mb-2" style="font-size: 1.15rem; color: var(--text-light);">Food Allergies & Exclusions</h3>
+        <div class="form-group mb-2">
+            <label for="allergies" style="font-size: 0.85rem; color: var(--text-muted);">Specific Allergens to Exclude:</label>
+            <input type="text" name="allergies" id="allergies" class="form-control" value="{{ profile.allergies|default:'' }}" placeholder="e.g. peanuts, dairy, egg, fish, gluten (comma-separated)">
+        </div>
+
+        <div class="form-group mb-3">
+            <label for="dislikes" style="font-size: 0.85rem; color: var(--text-muted);">Disliked / Excluded Ingredients:</label>
+            <input type="text" name="dislikes" id="dislikes" class="form-control" value="{{ profile.dislikes|default:'' }}" placeholder="e.g. coconut oil, bitter gourd, mustard (comma-separated)">
         </div>
 
         <!-- Daily Target Calories -->
         <h3 class="mb-2" style="font-size: 1.15rem; color: var(--text-light);">Daily Calorie Intake Target (kcal)</h3>
-        <div class="form-group">
+        <div class="form-group mb-3">
             <input type="number" name="daily_calorie_target" id="daily_calorie_target" class="form-control" value="{{ profile.daily_calorie_target|default:2000 }}" required>
         </div>
 
-        <button type="submit" class="btn" style="width: 100%; padding: 0.8rem; font-size: 1.1rem; border-radius: 8px; margin-top: 1rem;">
+        <!-- Enable Recommendations Toggle -->
+        <div class="form-group mb-4" style="background-color: var(--dark-bg); padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid var(--dark-border);">
+            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; margin: 0;">
+                <div>
+                    <strong>Enable AI Meal Recommendations</strong>
+                    <span style="display: block; font-size: 0.75rem; color: var(--text-muted);">Show personalized recommendations across catalog and meal planners.</span>
+                </div>
+                <input type="checkbox" name="enable_recommendations" {% if profile.enable_recommendations %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--primary);">
+            </label>
+        </div>
+
+        <!-- Dietary Guidance Notice -->
+        <div style="background-color: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 8px; padding: 0.85rem 1rem; margin-bottom: 1.5rem; font-size: 0.82rem; color: var(--text-muted); line-height: 1.5;">
+            <strong style="color: #EAB308;">Notice:</strong> Recommendations provided by Veetile-Ruchi are general dietary guidance based on estimated macronutrients, portion sizes, and preparation styles. They are not medical advice and do not replace personalized consultation with a healthcare professional.
+        </div>
+
+        <button type="submit" class="btn" style="width: 100%; padding: 0.8rem; font-size: 1.1rem; border-radius: 8px;">
             Save Health Settings
         </button>
     </form>

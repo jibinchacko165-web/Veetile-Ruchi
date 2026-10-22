@@ -146,8 +146,12 @@ def food_catalog(request):
         if request.method == 'POST' and 'update_health_filters' in request.POST:
             profile.diabetes_conscious = (request.POST.get('diabetes_conscious') == 'on')
             profile.cholesterol_conscious = (request.POST.get('cholesterol_conscious') == 'on')
-            profile.calorie_awareness = (request.POST.get('calorie_awareness') == 'on')
+            bp_val = (request.POST.get('calorie_awareness') == 'on') or (request.POST.get('blood_pressure_conscious') == 'on')
+            profile.calorie_awareness = bp_val
+            profile.blood_pressure_conscious = bp_val
+            profile.reduced_sodium = bp_val
             profile.save()
+            HealthRecommendation.objects.filter(user=request.user).delete()
             messages.success(request, "AI Health Condition filters updated!")
             return redirect('food_catalog')
 

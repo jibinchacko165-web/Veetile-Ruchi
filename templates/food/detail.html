@@ -96,7 +96,7 @@
                     {% endif %}
                 </div>
 
-                <!-- AI Health Suitability Breakdown -->
+                <!-- AI Dietary & Health Suitability -->
                 <div style="margin-bottom: 1.5rem;">
                     <h3 style="font-size: 1.15rem; font-weight: 600; color: var(--text-heading); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
                         <span>🛡️</span> AI Dietary & Health Suitability
@@ -104,29 +104,29 @@
 
                     <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.92rem; font-weight: 400;">
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px dashed var(--border-warm);">
-                            <span>Diabetic Friendly:</span>
+                            <span>Blood-Sugar Profile:</span>
                             {% if suitability.diabetes %}
-                                <span class="badge badge-success">✓ SAFE (Low Glycemic)</span>
+                                <span class="badge badge-success">✓ Suitable (Controlled Glycemic Impact)</span>
                             {% else %}
-                                <span class="badge badge-danger">✗ Moderate Carbohydrate</span>
+                                <span class="badge badge-warning">Moderate Carbohydrate Density</span>
                             {% endif %}
                         </div>
 
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px dashed var(--border-warm);">
-                            <span>Cholesterol Friendly:</span>
+                            <span>Cholesterol / Fat Profile:</span>
                             {% if suitability.cholesterol %}
-                                <span class="badge badge-success">✓ SAFE (Low Oil/Fat)</span>
+                                <span class="badge badge-success">✓ Suitable (Low Saturated Fat)</span>
                             {% else %}
-                                <span class="badge badge-danger">✗ Rich in Coconut/Oil</span>
+                                <span class="badge badge-warning">Contains Natural Oils / Fats</span>
                             {% endif %}
                         </div>
 
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0;">
-                            <span>Blood Pressure Friendly:</span>
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px dashed var(--border-warm);">
+                            <span>Blood Pressure Profile:</span>
                             {% if suitability.bp %}
-                                <span class="badge badge-success">✓ SAFE (Low Sodium)</span>
+                                <span class="badge badge-success">✓ Suitable (Controlled Sodium)</span>
                             {% else %}
-                                <span class="badge badge-danger">✗ Moderate Salt</span>
+                                <span class="badge badge-warning">Moderate Salt Profile</span>
                             {% endif %}
                         </div>
                     </div>
@@ -135,10 +135,18 @@
                 <!-- Nutritional Breakdown -->
                 {% if food.nutrition %}
                     <div style="border-top: 1.5px solid var(--border-warm); padding-top: 1.25rem;">
-                        <h4 style="font-size: 1.05rem; font-weight: 600; color: var(--primary-brown); margin-bottom: 0.75rem;">
-                            📊 Nutritional Facts & Information
-                        </h4>
-                        <div class="grid-4" style="text-align: center; gap: 0.75rem;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                            <h4 style="font-size: 1.05rem; font-weight: 600; color: var(--primary-brown); margin: 0;">
+                                📊 Nutritional Facts & Information
+                            </h4>
+                            {% if food.nutrition.serving_size %}
+                                <span style="font-size: 0.82rem; color: var(--text-muted); background: var(--bg-cream); padding: 0.2rem 0.6rem; border-radius: 6px; border: 1px solid var(--border-warm);">
+                                    Portion: {{ food.nutrition.serving_size }}
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <div class="grid-4" style="text-align: center; gap: 0.75rem; margin-bottom: 1rem;">
                             <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
                                 <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Calories</span>
                                 <span style="color: var(--primary-brown); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.calories }} kcal</span>
@@ -160,16 +168,43 @@
                                 <span style="color: var(--primary-green); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.fiber }} g</span>
                             </div>
                             <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
-                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Sugar</span>
+                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Total Sugars</span>
                                 <span style="color: var(--primary-brown); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.total_sugars }} g</span>
                             </div>
                             <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
-                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Cholesterol</span>
-                                <span style="color: var(--primary-orange); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.cholesterol }} mg</span>
+                                <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Added Sugars</span>
+                                <span style="color: var(--primary-brown); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.added_sugars|default:0.0 }} g</span>
                             </div>
                             <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
                                 <span style="font-size: 0.78rem; color: var(--text-muted); display: block; font-weight: 400;">Sodium</span>
                                 <span style="color: var(--primary-green); font-size: 1.05rem; font-weight: 600;">{{ food.nutrition.sodium }} mg</span>
+                            </div>
+                        </div>
+
+                        <!-- Ingredients & Preparation Details -->
+                        {% if food.nutrition.ingredients %}
+                            <div style="margin-bottom: 0.75rem; font-size: 0.88rem; color: var(--text-main); line-height: 1.5;">
+                                <strong>Ingredients:</strong> {{ food.nutrition.ingredients }}
+                            </div>
+                        {% endif %}
+                        {% if food.nutrition.cooking_method %}
+                            <div style="margin-bottom: 0.75rem; font-size: 0.88rem; color: var(--text-main);">
+                                <strong>Cooking Method:</strong> {{ food.nutrition.cooking_method }}
+                            </div>
+                        {% endif %}
+                        {% if food.nutrition.allergens %}
+                            <div style="margin-bottom: 0.75rem; font-size: 0.88rem; color: #DC2626;">
+                                <strong>Allergen Notice:</strong> Contains {{ food.nutrition.allergens }}
+                            </div>
+                        {% endif %}
+
+                        <!-- Nutrition Source & Disclaimer -->
+                        <div style="background: var(--bg-cream); border: 1px solid var(--border-warm); border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.78rem; color: var(--text-muted); line-height: 1.45; margin-top: 0.85rem;">
+                            <div style="margin-bottom: 0.35rem;">
+                                <strong>Nutrition Source:</strong> Documented estimates calculated from standard home culinary portions and ICMR-NIN nutritional databases.
+                            </div>
+                            <div>
+                                <strong>Dietary Guidance:</strong> Values and suitability notes represent general nutritional guidance and should not be considered personalized medical advice.
                             </div>
                         </div>
                     </div>
