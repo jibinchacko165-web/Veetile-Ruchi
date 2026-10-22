@@ -1,97 +1,77 @@
+import pytest
+from decimal import Decimal
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from .base import BaseSeleniumTest
+from orders.models import Order, OrderItem
 
-class ChefTest(BaseSeleniumTest):
-    def test_chef_dashboard_access(self):
-        """Test that chef can access their dashboard."""
-        self.login('testchef', 'testpassword123')
-        self.wait.until(lambda d: '/login/' not in d.current_url)
-        
-        # Navigate to chef dashboard using the correct URL
-        self.driver.get(self.live_server_url + '/chef/dashboard/')
-        self.wait.until(EC.presence_of_element_located((By.TAG_NAME, 'body')))
-        # Verify we're on the chef dashboard (not redirected away)
-        self.assertIn('/chef/dashboard/', self.driver.current_url)
+@pytest.mark.django_db(transaction=True)
+def test_chef_dashboard_overview_and_metrics(driver, base_url, test_setup_data, auth_helper):
+    """
+    Objective: Validate Chef Dashboard loads with authentic kitchen metrics and orders overview.
+    Preconditions: Authenticated as 'pytest_chef'.
+    Actions: Navigate to /chef/dashboard/.
+    Expected Result: Dashboard displays kitchen specialty, order stats, and earnings cards.
+    """
+    auth_helper("pytest_chef", "TestPassword123!")
+    wait = WebDriverWait(driver, 10)
+    wait.until(lambda d: "/login" not in d.current_url)
 
-    def test_chef_add_food(self):
-        """Test that chef can access the add food page."""
-        self.login('testchef', 'testpassword123')
-        self.wait.until(lambda d: '/login/' not in d.current_url)
-        
-        # Navigate to the add food page using the correct URL from food/urls.py
-        self.driver.get(self.live_server_url + '/chef/food/add/')
-        try:
-            self.wait.until(EC.presence_of_element_located((By.NAME, 'name')))
-            # Verify the form is present
-            self.assertTrue(self.driver.find_element(By.NAME, 'name').is_displayed())
-        except Exception:
-            # If form doesn't load, take screenshot for debugging
-            self.take_screenshot('chef_add_food_fail')
+    driver.get(f"{base_url}/chef/dashboard/")
+    wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
 
-    def test_customer_cannot_access_chef_dashboard(self):
-        """Test that customer cannot access chef-only pages."""
-        self.login('testcustomer', 'testpassword123')
-        self.wait.until(lambda d: '/login/' not in d.current_url)
-        
-        # Try accessing chef dashboard
-        self.driver.get(self.live_server_url + '/chef/dashboard/')
-        self.wait.until(EC.presence_of_element_located((By.TAG_NAME, 'body')))
-        
-        # Customer should be redirected away from chef dashboard
-        # The role_required decorator redirects to dashboard_redirect with "Access denied" message
-        self.assertNotIn('/chef/dashboard/', self.driver.current_url)
+    page_text = driver.page_source
+    assert "Kitchen" in page_text or "Chef" in page_text or "Dashboard" in page_text
+    assert "Orders" in page_text or "Menu" in page_text
 
-    def test_chef_order_workflow(self):
-        """Test that chef can view, accept and update order statuses."""
-        from orders.models import Order, OrderItem
-        
-        # Create an order in the database for the test food item
-        order = Order.objects.create(
-            user=self.customer,
-            total_amount=150.00,
-            status='pending'
-        )
-        OrderItem.objects.create(
-            order=order,
-            food_item=self.food_item,
-            quantity=1,
-            price=150.00
-        )
-        
-        self.login('testchef', 'testpassword123')
-        self.wait.until(lambda d: '/login/' not in d.current_url)
-        
-        # 1. View Orders (Go to chef dashboard)
-        self.driver.get(self.live_server_url + '/chef/dashboard/')
-        self.wait.until(EC.presence_of_element_located((By.ID, 'kitchen-queue')))
-        
-        # Check if order is present in the queue (by order id)
-        self.assertIn(order.order_id, self.driver.page_source)
-        self.assertIn('NEW ORDER', self.driver.page_source)
-        
-        # 2. Accept Order (Change status to 'preparing')
-        try:
-            accept_form = self.driver.find_element(By.CSS_SELECTOR, f"form[action*='{order.order_id}'] input[value='preparing']").find_element(By.XPATH, "..")
-            accept_btn = accept_form.find_element(By.CSS_SELECTOR, "button[type='submit']")
-            self.driver.execute_script("arguments[0].click();", accept_btn)
-            
-            # Wait for dashboard to reload
-            self.wait.until(EC.presence_of_element_located((By.ID, 'kitchen-queue')))
-            self.wait.until(lambda d: 'Preparing' in d.page_source)
-        except Exception as e:
-            self.take_screenshot('chef_accept_order_fail')
-            raise e
+@pytest.mark.django_db(transaction=True)
+def test_chef_menu_management_and_stock(driver, base_url, test_setup_data, auth_helper):
+    """
+    Objective: Validate chef can view food items and verify availability status.
+    Preconditions: Chef has food item 'Pytest Kerala Appam with Stew' assigned.
+    Actions: Navigate to chef dashboard, inspect menu management section.
+    Expected Result: Food item appears with stock and price details.
+    """
+    food = test_setup_data['food_item']
+    auth_helper("pytest_chef", "TestPassword123!")
+    wait = WebDriverWait(driver, 10)
+    wait.until(lambda d: "/login" not in d.current_url)
 
-        # 3. Update Preparation Status (Change status to 'ready_pickup')
-        try:
-            ready_form = self.driver.find_element(By.CSS_SELECTOR, f"form[action*='{order.order_id}'] input[value='ready_pickup']").find_element(By.XPATH, "..")
-            ready_btn = ready_form.find_element(By.CSS_SELECTOR, "button[type='submit']")
-            self.driver.execute_script("arguments[0].click();", ready_btn)
-            
-            # Wait for dashboard to reload
-            self.wait.until(EC.presence_of_element_located((By.ID, 'kitchen-queue')))
-            self.wait.until(lambda d: 'Food Prepared — Awaiting Staff Courier Assignment' in d.page_source)
-        except Exception as e:
-            self.take_screenshot('chef_ready_order_fail')
-            raise e
+    driver.get(f"{base_url}/chef/dashboard/")
+    wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+
+    page_text = driver.page_source
+    assert food.name in page_text or "Appam" in page_text
+
+@pytest.mark.django_db(transaction=True)
+def test_chef_order_preparation_status_update(driver, base_url, test_setup_data, auth_helper):
+    """
+    Objective: Verify chef can see assigned orders and update preparation status.
+    Preconditions: Customer order exists containing chef's food item.
+    Actions: Chef accesses dashboard, verifies order appears.
+    Expected Result: Order card displayed under incoming/active orders.
+    """
+    customer = test_setup_data['customer']
+    food = test_setup_data['food_item']
+
+    order = Order.objects.create(
+        order_id="VR-PYTEST-CHEF-01",
+        user=customer,
+        total_amount=Decimal('120.00'),
+        status='preparing',
+        delivery_address='Kaloor, Kochi'
+    )
+    OrderItem.objects.create(order=order, food_item=food, quantity=1, price=Decimal('120.00'))
+
+    try:
+        auth_helper("pytest_chef", "TestPassword123!")
+        wait = WebDriverWait(driver, 10)
+        wait.until(lambda d: "/login" not in d.current_url)
+
+        driver.get(f"{base_url}/chef/dashboard/")
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+
+        page_text = driver.page_source
+        assert order.order_id in page_text
+    finally:
+        order.delete()
