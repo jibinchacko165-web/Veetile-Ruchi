@@ -68,13 +68,18 @@ class BaseSeleniumTest(StaticLiveServerTestCase):
 
     def tearDown(self):
         try:
+            self.driver.delete_all_cookies()
+        except Exception:
+            pass
+        try:
             from food.models import Category, MealSession, FoodItem
             from orders.models import Order
-            Order.objects.filter(user__username__in=['testcustomer', 'testchef', 'teststaff', 'testcourier']).delete()
+            test_usernames = ['testcustomer', 'testchef', 'teststaff', 'testcourier', 'validuser', 'newuser']
+            Order.objects.filter(user__username__in=test_usernames).delete()
             FoodItem.objects.filter(name='Test Food Item').delete()
             Category.objects.filter(name='Test Category').delete()
             MealSession.objects.filter(name='Test Session').delete()
-            User.objects.filter(username__in=['testcustomer', 'testchef', 'teststaff', 'testcourier']).delete()
+            User.objects.filter(username__in=test_usernames).delete()
         except Exception:
             pass
         super().tearDown()
@@ -85,11 +90,12 @@ class BaseSeleniumTest(StaticLiveServerTestCase):
         from orders.models import Order
 
         try:
-            Order.objects.filter(user__username__in=['testcustomer', 'testchef', 'teststaff', 'testcourier']).delete()
+            test_usernames = ['testcustomer', 'testchef', 'teststaff', 'testcourier', 'validuser', 'newuser']
+            Order.objects.filter(user__username__in=test_usernames).delete()
             FoodItem.objects.filter(name='Test Food Item').delete()
             Category.objects.filter(name='Test Category').delete()
             MealSession.objects.filter(name='Test Session').delete()
-            User.objects.filter(username__in=['testcustomer', 'testchef', 'teststaff', 'testcourier']).delete()
+            User.objects.filter(username__in=test_usernames).delete()
         except Exception:
             pass
 
@@ -164,6 +170,10 @@ class BaseSeleniumTest(StaticLiveServerTestCase):
         )
 
     def login(self, username, password):
+        try:
+            self.driver.delete_all_cookies()
+        except Exception:
+            pass
         self.driver.get(self.live_server_url + '/login/')
         username_input = self.wait.until(EC.presence_of_element_located((By.NAME, 'username')))
         password_input = self.driver.find_element(By.NAME, 'password')
