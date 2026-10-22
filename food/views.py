@@ -635,6 +635,12 @@ def chef_order_status_update(request, order_id):
         
     order = get_object_or_404(Order, order_id=order_id)
 
+    if request.user.role == 'chef':
+        is_chef_order = order.items.filter(food_item__chef=request.user).exists() or (order.responsible_chef == request.user)
+        if not is_chef_order:
+            messages.error(request, "Access Denied. You are not authorized to update orders for other kitchens.")
+            return redirect('chef_dashboard')
+
     new_status = request.POST.get('status')
     if new_status in ['preparing', 'ready_pickup']:
         now = timezone.now()

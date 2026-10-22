@@ -66,7 +66,33 @@ class BaseSeleniumTest(StaticLiveServerTestCase):
         # Create some base test users
         self.create_test_users()
 
+    def tearDown(self):
+        try:
+            from food.models import Category, MealSession, FoodItem
+            from orders.models import Order
+            Order.objects.filter(user__username__in=['testcustomer', 'testchef', 'teststaff', 'testcourier']).delete()
+            FoodItem.objects.filter(name='Test Food Item').delete()
+            Category.objects.filter(name='Test Category').delete()
+            MealSession.objects.filter(name='Test Session').delete()
+            User.objects.filter(username__in=['testcustomer', 'testchef', 'teststaff', 'testcourier']).delete()
+        except Exception:
+            pass
+        super().tearDown()
+
     def create_test_users(self):
+        from accounts.models import ChefProfile, DeliveryBoyProfile
+        from food.models import Category, MealSession, FoodItem
+        from orders.models import Order
+
+        try:
+            Order.objects.filter(user__username__in=['testcustomer', 'testchef', 'teststaff', 'testcourier']).delete()
+            FoodItem.objects.filter(name='Test Food Item').delete()
+            Category.objects.filter(name='Test Category').delete()
+            MealSession.objects.filter(name='Test Session').delete()
+            User.objects.filter(username__in=['testcustomer', 'testchef', 'teststaff', 'testcourier']).delete()
+        except Exception:
+            pass
+
         # Create Customer
         self.customer = User.objects.create_user(
             username='testcustomer',

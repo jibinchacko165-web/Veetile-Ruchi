@@ -916,7 +916,7 @@
                 </h1>
             </div>
 
-            <div>
+            <div style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap;">
                 <span id="live-order-status-badge" class="badge {% if order.status == 'delivered' %}badge-success{% elif order.status == 'cancelled' %}badge-danger{% elif order.status == 'in_transit' %}badge-warning{% else %}badge-green{% endif %}" style="font-size: 0.95rem; padding: 0.5rem 1.25rem; font-weight: 600;">
                     {% if order.status == 'ready_pickup' or order.status == 'assigned' %}
                         Ready for Pickup (Courier Assigned)
@@ -924,6 +924,14 @@
                         {{ order.get_status_display }}
                     {% endif %}
                 </span>
+                {% if order.status == 'pending' %}
+                    <form method="POST" action="{% url 'cancel_order' order.order_id %}" style="display: inline;" onsubmit="return confirm('Are you sure you want to cancel this order?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline btn-sm" style="padding: 0.45rem 0.9rem; font-size: 0.85rem; color: #dc2626; border-color: #fca5a5; background: #fff;">
+                            ✕ Cancel Order
+                        </button>
+                    </form>
+                {% endif %}
             </div>
         </div>
 

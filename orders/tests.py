@@ -847,9 +847,14 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.status, 'ready_pickup')
 
-        # 3. Staff sees Ready for Pickup order & assigns to Courier 5 (courier / 7510672355)
-        staff_u = User.objects.filter(role='staff').first() or User.objects.create_user(username='staff_test', password='password123', role='staff', is_staff=True)
-        self.client.login(username=staff_u.username, password='password123')
+        staff_u = User.objects.filter(role='staff').first()
+        if not staff_u:
+            staff_u = User.objects.create_user(username='staff_test', password='Password123!', role='staff', is_staff=True)
+        else:
+            staff_u.set_password('Password123!')
+            staff_u.is_staff = True
+            staff_u.save()
+        self.client.login(username=staff_u.username, password='Password123!')
         staff_dash = self.client.get(reverse('staff_dashboard'))
         self.assertEqual(staff_dash.status_code, 200)
         self.assertIn(order.order_id, staff_dash.content.decode('utf-8'))
@@ -1284,6 +1289,89 @@ class IndependentDualFeedbackAndCourierTests(TestCase):
         # Order status must remain delivered
         self.order_delivered.refresh_from_db()
         self.assertEqual(self.order_delivered.status, 'delivered')
+
+    def test_customer_cancel_pending_order_and_restock(self):
+        """Customer can cancel their pending order and ordered items are restocked."""
+        order = Order.objects.create(
+            order_id='VR-TEST-CANCEL-01',
+            user=self.customer,
+            total_amount=Decimal('180.00'),
+            status='pending'
+        )
+        OrderItem.objects.create(order=order, food_item=self.food, quantity=2, price=Decimal('90.00'))
+        initial_stock = self.food.stock_quantity
+        self.client.login(username='test_customer', password='Password123!')
+        
+        cancel_url = reverse('cancel_order', kwargs={'order_id': order.order_id})
+        resp = self.client.post(cancel_url)
+        self.assertEqual(resp.status_code, 302)
+        
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'cancelled')
+        
+        self.food.refresh_from_db()
+        self.assertEqual(self.food.stock_quantity, initial_stock + 2)
+
+    def test_customer_cannot_cancel_in_transit_order(self):
+        """Customer cannot cancel an order that is already in transit or delivered."""
+        self.client.login(username='test_customer', password='Password123!')
+        
+        cancel_url = reverse('cancel_order', kwargs={'order_id': self.order_delivered.order_id})
+        resp = self.client.post(cancel_url)
+        self.assertEqual(resp.status_code, 302)
+        
+        self.order_delivered.refresh_from_db()
+        self.assertEqual(self.order_delivered.status, 'delivered')
+
+    def test_customer_cannot_cancel_other_customer_order(self):
+        """Customer cannot cancel another customer's order."""
+        order = Order.objects.create(
+            order_id='VR-TEST-CANCEL-02',
+            user=self.customer,
+            total_amount=Decimal('180.00'),
+            status='pending'
+        )
+        other_customer = User.objects.create_user(
+            username='other_cust',
+            email='other@test.com',
+            password='Password123!',
+            role='customer'
+        )
+        self.client.login(username='other_cust', password='Password123!')
+        
+        cancel_url = reverse('cancel_order', kwargs={'order_id': order.order_id})
+        resp = self.client.post(cancel_url)
+        self.assertEqual(resp.status_code, 302)
+        
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'pending')
+
+    def test_chef_kitchen_isolation(self):
+        """Chef cannot update status of orders that do not belong to their kitchen."""
+        order = Order.objects.create(
+            order_id='VR-TEST-CHEF-01',
+            user=self.customer,
+            total_amount=Decimal('180.00'),
+            status='pending'
+        )
+        OrderItem.objects.create(order=order, food_item=self.food, quantity=1, price=Decimal('180.00'))
+        
+        other_chef_user = User.objects.create_user(
+            username='other_chef',
+            email='otherchef@test.com',
+            password='Password123!',
+            role='chef'
+        )
+        ChefProfile.objects.create(user=other_chef_user, specialty='Snacks', is_approved=True)
+        self.client.login(username='other_chef', password='Password123!')
+        
+        update_url = reverse('chef_order_status_update', kwargs={'order_id': order.order_id})
+        resp = self.client.post(update_url, {'status': 'preparing'})
+        self.assertEqual(resp.status_code, 302)
+        
+        order.refresh_from_db()
+        self.assertEqual(order.status, 'pending')
+
 
 
 

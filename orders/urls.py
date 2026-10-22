@@ -10,6 +10,7 @@ urlpatterns = [
     path('checkout/', views.checkout_view, name='checkout_view'),
     path('checkout/place/', views.place_order, name='place_order'),
     path('track/<str:order_id>/', views.order_tracking, name='order_tracking'),
+    path('cancel/<str:order_id>/', views.cancel_order, name='cancel_order'),
     path('history/', views.order_history, name='order_history'),
     path('wishlist/', views.wishlist_view, name='wishlist_view'),
     path('wishlist/toggle/<int:pk>/', wishlist_toggle, name='orders_wishlist_toggle'),

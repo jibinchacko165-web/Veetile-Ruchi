@@ -527,6 +527,49 @@ def api_order_status(request, order_id):
     })
 
 
+@login_required
+def cancel_order(request, order_id):
+    """
+    Allows the customer who placed an order to cancel it while still in 'pending' status
+    (before kitchen accepts/prepares or staff assigns courier).
+    Restocks ordered items, updates payment/notification state, and provides clear feedback.
+    """
+    order = get_object_or_404(Order, order_id=order_id)
+    if order.user != request.user and not request.user.is_staff and request.user.role != 'admin':
+        messages.error(request, "Access denied. You can only cancel your own orders.")
+        return redirect('order_history')
+
+    if order.status == 'pending':
+        with transaction.atomic():
+            order.status = 'cancelled'
+            order.save()
+            for item in order.items.select_related('food_item'):
+                food = item.food_item
+                food.stock_quantity += item.quantity
+                food.save()
+            payment = getattr(order, 'payment', None)
+            if payment and payment.status in ['pending', 'unpaid']:
+                payment.status = 'cancelled'
+                payment.save()
+            Notification.objects.create(
+                user=order.user,
+                order=order,
+                title="Order Cancelled",
+                message=f"Your order #{order.order_id} has been cancelled successfully. Ordered items have been returned to stock.",
+                notification_type='general'
+            )
+            messages.success(request, f"Order #{order.order_id} has been cancelled successfully.")
+    elif order.status == 'cancelled':
+        messages.info(request, f"Order #{order.order_id} is already cancelled.")
+    else:
+        messages.error(request, f"Order #{order.order_id} cannot be cancelled because it is already {order.get_status_display().lower()}.")
+
+    next_url = request.POST.get('next') or request.GET.get('next')
+    if next_url:
+        return redirect(next_url)
+    return redirect('order_tracking', order_id=order.order_id)
+
+
 @never_cache
 @login_required
 def order_history(request):
