@@ -213,17 +213,21 @@
                             <span class="badge badge-warning" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; background-color: #3b82f6; color: #fff;">
                                 🛵 In Transit
                             </span>
-                        {% elif order.delivery_assignment %}
+                        {% elif order.status == 'picked_up' %}
+                            <span class="badge badge-success" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; background-color: #10b981; color: #fff;">
+                                📦 Food Picked Up
+                            </span>
+                        {% elif order.status == 'assigned' or order.delivery_assignment %}
                             <span class="badge badge-warning" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; background-color: #d97736; color: #fff;">
-                                📡 Transmitted
+                                🚚 Courier Assigned
                             </span>
                         {% elif order.status == 'ready_pickup' %}
                             <span class="badge badge-warning" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; background-color: #f59e0b; color: #fff;">
-                                📦 Ready for Pickup
+                                🍲 Ready for Courier Assignment
                             </span>
                         {% elif order.status == 'preparing' %}
                             <span class="badge badge-primary" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; background-color: #8b5cf6; color: #fff;">
-                                🍳 Preparing
+                                🍳 Food Preparing
                             </span>
                         {% else %}
                             <span class="badge badge-primary" style="padding: 0.4rem 0.9rem; font-size: 0.82rem;">
@@ -305,13 +309,15 @@
                                     </div>
                                 </div>
                                 <div>
-                                    <span class="badge" style="font-size: 0.82rem; background-color: {% if order.status == 'delivered' %}var(--success){% elif order.status == 'in_transit' %}#3b82f6{% else %}#d97736{% endif %}; color: #ffffff; padding: 0.4rem 0.85rem;">
+                                    <span class="badge" style="font-size: 0.82rem; background-color: {% if order.status == 'delivered' %}var(--success){% elif order.status == 'in_transit' %}#3b82f6{% elif order.status == 'picked_up' %}#10b981{% else %}#d97736{% endif %}; color: #ffffff; padding: 0.4rem 0.85rem;">
                                         {% if order.status == 'delivered' %}
                                             ✅ Delivered
                                         {% elif order.status == 'in_transit' %}
                                             🛵 In Transit
+                                        {% elif order.status == 'picked_up' %}
+                                            📦 Food Picked Up
                                         {% else %}
-                                            📡 Transmitted to Courier
+                                            🚚 Courier Assigned — Awaiting Pickup
                                         {% endif %}
                                     </span>
                                 </div>
@@ -323,10 +329,18 @@
                             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
                                 <div>
                                     <strong style="color: #8B4513; font-size: 1rem; display: flex; align-items: center; gap: 0.4rem;">
-                                        <span>📦</span> Assign Delivery Personnel
+                                        {% if order.status == 'ready_pickup' %}
+                                            <span>🍲</span> Ready for Courier Assignment
+                                        {% else %}
+                                            <span>📦</span> Assign Delivery Personnel
+                                        {% endif %}
                                     </strong>
                                     <span style="font-size: 0.82rem; color: #666; display: block; margin-top: 0.2rem;">
-                                        Select a specific delivery boy / vehicle number and click "Assign Delivery Boy".
+                                        {% if order.status == 'ready_pickup' %}
+                                            Chef marked food as prepared. Select an eligible courier to assign delivery.
+                                        {% else %}
+                                            Select an eligible courier / vehicle number and click "Assign Delivery Boy".
+                                        {% endif %}
                                     </span>
                                 </div>
 

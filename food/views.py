@@ -10,6 +10,7 @@ from .models import FoodItem, Category, MealSession, NutritionInfo, ReviewSentim
 from accounts.models import User, ChefProfile, DeliveryBoyProfile
 from accounts.decorators import role_required
 from orders.models import Wishlist, Order, OrderItem, Coupon, Payment
+from orders.utils import to_kolkata_datetime
 from delivery.models import DeliveryAssignment, GPSLocationTracking, District, HotelBranch
 from health.models import HealthProfile, HealthRecommendation
 from ai_models.models import FoodDemandForecast, FoodWastePrediction, StockPrediction, CustomerBehavior
@@ -404,19 +405,35 @@ def api_chef_orders(request):
     if request.user.role not in ['chef', 'admin']:
         return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
 
+    active_statuses = ['pending', 'preparing', 'ready_pickup', 'assigned', 'picked_up', 'in_transit']
     if request.user.role == 'admin':
         order_items = OrderItem.objects.filter(
-            order__status__in=['pending', 'preparing', 'ready_pickup']
+            order__status__in=active_statuses
         ).select_related('order', 'food_item', 'food_item__meal_session', 'food_item__category').order_by('-order__created_at')
     else:
         chef_foods = FoodItem.objects.filter(Q(chef=request.user) | Q(chef__isnull=True))
         order_items = OrderItem.objects.filter(
-            order__status__in=['pending', 'preparing', 'ready_pickup'],
+            order__status__in=active_statuses,
             food_item__in=chef_foods
         ).select_related('order', 'food_item', 'food_item__meal_session', 'food_item__category').order_by('-order__created_at')
 
     data = []
     for item in order_items:
+        st = item.order.status
+        if st == 'ready_pickup':
+            status_message = "Food Prepared — Awaiting Staff Courier Assignment"
+        elif st == 'assigned':
+            status_message = "Courier Assigned — Awaiting Pickup"
+        elif st in ['picked_up', 'in_transit']:
+            status_message = "Picked Up — In Transit"
+        elif st == 'delivered':
+            status_message = "Delivered"
+        else:
+            status_message = item.order.get_status_display()
+
+        created_dt = to_kolkata_datetime(item.order.created_at)
+        created_str = created_dt.strftime("%b %d, %Y • %I:%M %p") if created_dt else ""
+
         data.append({
             'order_id': item.order.order_id,
             'food_id': f"FOOD{item.food_item.id:04d}",
@@ -426,7 +443,8 @@ def api_chef_orders(request):
             'session': item.food_item.meal_session.name if item.food_item.meal_session else 'All Day',
             'status': item.order.status,
             'status_display': item.order.get_status_display(),
-            'created_at': item.order.created_at.strftime("%b %d, %Y • %I:%M %p"),
+            'status_message': status_message,
+            'created_at': created_str,
         })
 
     return JsonResponse({
@@ -586,9 +604,17 @@ def chef_order_status_update(request, order_id):
 
     new_status = request.POST.get('status')
     if new_status in ['preparing', 'ready_pickup']:
+        now = timezone.now()
         order.status = new_status
+        if new_status == 'preparing' and not order.preparing_started_at:
+            order.preparing_started_at = now
+        elif new_status == 'ready_pickup':
+            order.food_prepared_at = now
         order.save()
-        messages.success(request, f"Order status updated to {order.get_status_display()}.")
+        if new_status == 'ready_pickup':
+            messages.success(request, f"Order #{order.order_id} marked as Food Prepared. Staff notified for courier assignment.")
+        else:
+            messages.success(request, f"Order #{order.order_id} accepted. Kitchen preparation started.")
     return redirect('chef_dashboard')
 
 @never_cache

@@ -651,6 +651,15 @@ def staff_assign_delivery(request, order_id):
                 messages.error(request, f"Courier {db_profile.courier_name} is currently not available for assignment.")
                 return redirect('staff_dashboard')
 
+            active_deliv = DeliveryAssignment.objects.filter(
+                delivery_boy=db_profile,
+                status__in=['assigned', 'picked_up', 'in_transit'],
+                is_active=True
+            ).exclude(order=order).exists()
+            if active_deliv:
+                messages.error(request, f"Courier {db_profile.courier_name} already has an active delivery in progress.")
+                return redirect('staff_dashboard')
+
             # Clean up old assignment if reassignment
             old_profile = None
             if hasattr(order, 'delivery_assignment'):
@@ -659,6 +668,7 @@ def staff_assign_delivery(request, order_id):
                     old_profile = old_assignment.delivery_boy
                     Notification.objects.filter(user=old_profile.user, order=order).delete()
 
+            now = timezone.now()
             assignment, created = DeliveryAssignment.objects.get_or_create(
                 order=order,
                 defaults={
@@ -671,6 +681,7 @@ def staff_assign_delivery(request, order_id):
             if not created:
                 assignment.delivery_boy = db_profile
                 assignment.status = 'assigned'
+                assignment.assigned_at = now
                 assignment.is_active = True
                 assignment.picked_up_at = None
                 assignment.out_for_delivery_at = None
@@ -682,7 +693,8 @@ def staff_assign_delivery(request, order_id):
             if old_profile:
                 other_busy = DeliveryAssignment.objects.filter(
                     delivery_boy=old_profile,
-                    status__in=['assigned', 'picked_up', 'in_transit']
+                    status__in=['assigned', 'picked_up', 'in_transit'],
+                    is_active=True
                 ).exclude(order=order).exists()
                 if not other_busy:
                     old_profile.status = 'available'
@@ -694,7 +706,8 @@ def staff_assign_delivery(request, order_id):
             
             # Advance order status to 'assigned' (Courier Assigned stage)
             order.status = 'assigned'
-            now = timezone.now()
+            order.courier_assigned_at = now
+            order.picked_up_at = None
             if not order.food_prepared_at:
                 order.food_prepared_at = now
             if not order.preparing_started_at:

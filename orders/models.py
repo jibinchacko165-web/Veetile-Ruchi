@@ -64,6 +64,8 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     preparing_started_at = models.DateTimeField(null=True, blank=True)
     food_prepared_at = models.DateTimeField(null=True, blank=True)
+    courier_assigned_at = models.DateTimeField(null=True, blank=True)
+    picked_up_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -76,10 +78,23 @@ class Order(models.Model):
             except Order.DoesNotExist:
                 pass
 
+        if old_status and old_status != self.status:
+            from django.utils import timezone
+            now_ts = timezone.now()
+            if self.status == 'preparing' and not self.preparing_started_at:
+                self.preparing_started_at = now_ts
+            elif self.status == 'ready_pickup' and not self.food_prepared_at:
+                self.food_prepared_at = now_ts
+            elif self.status == 'assigned' and not self.courier_assigned_at:
+                self.courier_assigned_at = now_ts
+            elif self.status == 'picked_up' and not self.picked_up_at:
+                self.picked_up_at = now_ts
+
         if not self.order_id:
             # Generate a unique Order ID: VR-YYYYMMDD-XXXX where XXXX is random letters/numbers
-            from django.utils.timezone import now
-            date_str = now().strftime('%Y%m%d')
+            from django.utils import timezone
+            now_ts = timezone.now()
+            date_str = now_ts.strftime('%Y%m%d')
             random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
             self.order_id = f"VR-{date_str}-{random_str}"
         super().save(*args, **kwargs)
@@ -96,6 +111,15 @@ class Order(models.Model):
         if self.status == 'preparing':
             subject = f"Order #{self.order_id} - Food Preparation Started"
             message = f"Hello {self.user.username},\n\nYour order #{self.order_id} has been accepted and is now being prepared by the kitchen!"
+        elif self.status == 'ready_pickup':
+            subject = f"Order #{self.order_id} - Food Prepared"
+            message = f"Hello {self.user.username},\n\nYour food for order #{self.order_id} has been freshly prepared and is awaiting courier assignment."
+        elif self.status == 'assigned':
+            subject = f"Order #{self.order_id} - Courier Assigned"
+            message = f"Hello {self.user.username},\n\nYour order #{self.order_id} has been assigned to a courier and is awaiting pickup from the kitchen."
+        elif self.status == 'picked_up':
+            subject = f"Order #{self.order_id} - Food Picked Up"
+            message = f"Hello {self.user.username},\n\nYour order #{self.order_id} has been collected by the courier from the kitchen."
         elif self.status == 'in_transit':
             subject = f"Order #{self.order_id} - Order Dispatched"
             message = f"Hello {self.user.username},\n\nGood news! Your order #{self.order_id} has been dispatched and is out for delivery."

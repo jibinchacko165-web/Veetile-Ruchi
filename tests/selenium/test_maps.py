@@ -41,11 +41,11 @@ class MapTest(BaseSeleniumTest):
 
         # Reveal custom map container if hidden
         custom_card = self.driver.find_elements(By.ID, 'loc_card_custom')
-        if custom_card and custom_card[0].is_displayed():
-            custom_card[0].click()
+        if custom_card:
+            self.driver.execute_script("arguments[0].scrollIntoView(true); arguments[0].click();", custom_card[0])
 
         map_container = self.wait.until(EC.presence_of_element_located((By.ID, 'checkout-map-picker')))
-        self.assertIn('leaflet-container', map_container.get_attribute('class'))
+        self.wait.until(lambda d: 'leaflet-container' in d.find_element(By.ID, 'checkout-map-picker').get_attribute('class'))
 
         # Pin and perimeter status badge
         badge = self.driver.find_element(By.ID, 'perimeter-status-badge')

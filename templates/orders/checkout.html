@@ -438,11 +438,15 @@
     }
 
     function initLeafletMap() {
+        const mapContainer = document.getElementById('checkout-map-picker');
+        if (!mapContainer || typeof L === 'undefined') return;
 
         // Prevent duplicate initialization
         if (leafletMap) {
-            leafletMap.off();
-            leafletMap.remove();
+            try {
+                leafletMap.off();
+                leafletMap.remove();
+            } catch(e) {}
             leafletMap = null;
         }
         if (mapContainer._leaflet_id) {

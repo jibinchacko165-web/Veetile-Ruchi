@@ -466,27 +466,23 @@ def calculate_accurate_order_eta(order, chef_lat, chef_lon, cust_lat, cust_lon,
         prepared_time = _format_time(prep_done_dt)
 
     assigned_time = None
-    if assignment and order.status in ['assigned', 'picked_up', 'in_transit', 'delivered']:
-        assigned_dt = getattr(assignment, 'assigned_at', None)
+    if order.status in ['assigned', 'picked_up', 'in_transit', 'delivered']:
+        assigned_dt = getattr(order, 'courier_assigned_at', None) or (getattr(assignment, 'assigned_at', None) if assignment else None)
         assigned_time = _format_time(assigned_dt)
 
     picked_up_time = None
-    if assignment and order.status in ['picked_up', 'in_transit', 'delivered']:
-        pickup_dt = getattr(assignment, 'picked_up_at', None)
+    if order.status in ['picked_up', 'in_transit', 'delivered']:
+        pickup_dt = getattr(order, 'picked_up_at', None) or (getattr(assignment, 'picked_up_at', None) if assignment else None)
         picked_up_time = _format_time(pickup_dt)
 
     out_for_delivery_time = None
-    if assignment and order.status in ['in_transit', 'delivered']:
-        transit_dt = getattr(assignment, 'out_for_delivery_at', None)
+    if order.status in ['in_transit', 'delivered']:
+        transit_dt = getattr(assignment, 'out_for_delivery_at', None) if assignment else None
         out_for_delivery_time = _format_time(transit_dt)
 
     delivered_time = None
     if order.status == 'delivered':
-        deliv_dt = None
-        if assignment and assignment.delivered_at:
-            deliv_dt = assignment.delivered_at
-        elif getattr(order, 'delivered_at', None):
-            deliv_dt = order.delivered_at
+        deliv_dt = getattr(order, 'delivered_at', None) or (getattr(assignment, 'delivered_at', None) if assignment else None)
         delivered_time = _format_time(deliv_dt)
 
     timestamps = {

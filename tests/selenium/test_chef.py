@@ -91,7 +91,7 @@ class ChefTest(BaseSeleniumTest):
             
             # Wait for dashboard to reload
             self.wait.until(EC.presence_of_element_located((By.ID, 'kitchen-queue')))
-            self.wait.until(lambda d: 'Ready and awaiting courier pickup' in d.page_source)
+            self.wait.until(lambda d: 'Food Prepared — Awaiting Staff Courier Assignment' in d.page_source)
         except Exception as e:
             self.take_screenshot('chef_ready_order_fail')
             raise e

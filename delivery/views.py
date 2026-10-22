@@ -10,6 +10,7 @@ from orders.models import Order, Notification
 from accounts.models import User, DeliveryBoyProfile
 from accounts.decorators import role_required
 from ai_models.ml_engine import optimize_delivery_route
+from orders.utils import to_kolkata_datetime
 
 @never_cache
 @login_required
@@ -187,7 +188,11 @@ def delivery_boy_track(request, assignment_id):
             return redirect('dashboard_redirect')
             
     # Security Rule: Courier can track ONLY assigned orders (or staff/admin/customer owner)
-    if request.user.role != 'delivery_boy' and request.user.role != 'staff' and request.user.role != 'admin' and request.user != assignment.order.user:
+    if request.user.role == 'delivery_boy' and assignment.delivery_boy.user != request.user:
+        messages.error(request, "Access restricted: You are not assigned to this delivery.")
+        return redirect('delivery_boy_dashboard')
+
+    if request.user.role not in ['delivery_boy', 'staff', 'admin'] and request.user != assignment.order.user:
         messages.error(request, "Access restricted.")
         return redirect('dashboard_redirect')
 
@@ -307,20 +312,34 @@ def pickup_order(request, assignment_id):
         messages.error(request, "Access Denied: You are not authorized.")
         return redirect('delivery_boy_dashboard')
 
-    profile = assignment.delivery_boy
+    if request.user.role == 'delivery_boy' and assignment.delivery_boy.user != request.user:
+        messages.error(request, "Access Denied: You cannot pick up an order assigned to another courier.")
+        return redirect('delivery_boy_dashboard')
 
+    profile = assignment.delivery_boy
     order = assignment.order
+
     if order.status in ['cancelled', 'delivered']:
         messages.error(request, f"Order #{order.order_id} cannot be picked up (current status: {order.get_status_display()}).")
         return redirect('delivery_boy_dashboard')
 
+    if assignment.status in ['picked_up', 'in_transit'] or order.status in ['picked_up', 'in_transit']:
+        messages.warning(request, f"Order #{order.order_id} has already been marked as picked up.")
+        return redirect('delivery_boy_dashboard')
+
+    if order.status not in ['assigned', 'ready_pickup'] and assignment.status != 'assigned':
+        messages.error(request, f"Order #{order.order_id} is not ready for pickup (current status: {order.get_status_display()}).")
+        return redirect('delivery_boy_dashboard')
+
     with transaction.atomic():
+        now = timezone.now()
         assignment.status = 'picked_up'
-        assignment.picked_up_at = timezone.now()
+        assignment.picked_up_at = now
         assignment.save(update_fields=['status', 'picked_up_at'])
 
         order.status = 'picked_up'
-        order.save(update_fields=['status'])
+        order.picked_up_at = now
+        order.save(update_fields=['status', 'picked_up_at', 'updated_at'])
 
         # Notify customer
         Notification.objects.create(
@@ -351,12 +370,22 @@ def start_delivery(request, assignment_id):
         messages.error(request, "Access Denied: You are not authorized.")
         return redirect('delivery_boy_dashboard')
 
-    profile = assignment.delivery_boy
+    if request.user.role == 'delivery_boy' and assignment.delivery_boy.user != request.user:
+        messages.error(request, "Access Denied: You cannot start delivery for an order assigned to another courier.")
+        return redirect('delivery_boy_dashboard')
 
+    profile = assignment.delivery_boy
     order = assignment.order
+
     if order.status in ['cancelled', 'delivered']:
         messages.error(request, f"Order #{order.order_id} cannot be delivered (current status: {order.get_status_display()}).")
         return redirect('delivery_boy_dashboard')
+
+    if assignment.status == 'in_transit' or order.status == 'in_transit':
+        messages.info(request, f"Order #{order.order_id} is already Out for Delivery.")
+        return redirect('delivery_boy_track', assignment_id=assignment.id)
+
+
 
     with transaction.atomic():
         now = timezone.now()
@@ -367,7 +396,9 @@ def start_delivery(request, assignment_id):
         assignment.save(update_fields=['status', 'picked_up_at', 'out_for_delivery_at'])
 
         order.status = 'in_transit'
-        order.save(update_fields=['status'])
+        if not order.picked_up_at:
+            order.picked_up_at = now
+        order.save(update_fields=['status', 'picked_up_at', 'updated_at'])
 
         profile.status = 'on_delivery'
         profile.save(update_fields=['status'])
@@ -401,11 +432,19 @@ def complete_delivery(request, assignment_id):
         messages.error(request, "Access Denied: You are not authorized.")
         return redirect('delivery_boy_dashboard')
 
-    profile = assignment.delivery_boy
+    if request.user.role == 'delivery_boy' and assignment.delivery_boy.user != request.user:
+        messages.error(request, "Access Denied: You cannot complete a delivery assigned to another courier.")
+        return redirect('delivery_boy_dashboard')
 
+    profile = assignment.delivery_boy
     order = assignment.order
+
     if order.status == 'delivered':
         messages.info(request, f"Order #{order.order_id} is already marked as Delivered.")
+        return redirect('delivery_boy_dashboard')
+
+    if order.status in ['pending', 'preparing', 'ready_pickup', 'assigned'] and assignment.status not in ['in_transit', 'picked_up']:
+        messages.error(request, f"Cannot mark Order #{order.order_id} as delivered before food has been picked up and dispatched.")
         return redirect('delivery_boy_dashboard')
 
     with transaction.atomic():
@@ -420,7 +459,6 @@ def complete_delivery(request, assignment_id):
 
         order.status = 'delivered'
         order.delivered_at = now
-        order.updated_at = now
         order.save(update_fields=['status', 'delivered_at', 'updated_at'])
 
         # Check if courier has other active tasks
@@ -510,7 +548,7 @@ def update_profile_gps(request):
         'status': 'success',
         'latitude': c_lat,
         'longitude': c_lon,
-        'timestamp': timezone.now().strftime("%H:%M:%S")
+        'timestamp': timezone.localtime().strftime("%H:%M:%S")
     })
 
 
@@ -785,7 +823,8 @@ def get_courier_notifications(request):
             lat = notif.order.latitude
             lon = notif.order.longitude
             delivery_address = f"Lat {lat}, Lon {lon}"
-            order_date = notif.order.created_at.strftime("%b %d, %Y, %I:%M %p")
+            order_dt = to_kolkata_datetime(notif.order.created_at)
+            order_date = order_dt.strftime("%b %d, %Y • %I:%M %p") if order_dt else ""
             
             first_item = notif.order.items.first()
             if first_item:
@@ -808,6 +847,7 @@ def get_courier_notifications(request):
         track_url = f"/orders/notifications/mark-read/{notif.id}/" if notif.id else '#'
         nav_url = f"https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=%3B{lat},{lon}" if lat and lon else '#'
             
+        notif_dt = to_kolkata_datetime(notif.created_at)
         data.append({
             'id': notif.id,
             'title': notif.title,
@@ -824,7 +864,7 @@ def get_courier_notifications(request):
             'assignment_id': assignment_id,
             'track_url': track_url,
             'nav_url': nav_url,
-            'created_at': notif.created_at.strftime("%I:%M %p"),
+            'created_at': notif_dt.strftime("%I:%M %p") if notif_dt else "",
         })
         
         

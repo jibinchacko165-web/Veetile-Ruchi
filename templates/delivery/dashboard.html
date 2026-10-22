@@ -323,9 +323,13 @@
                                         <span class="badge badge-warning" style="padding: 0.4rem 0.9rem; font-size: 0.85rem; background-color: #3b82f6; color: #fff;">
                                             🛵 Status: In Transit
                                         </span>
+                                    {% elif assign.status == 'picked_up' or assign.order.status == 'picked_up' %}
+                                        <span class="badge badge-success" style="padding: 0.4rem 0.9rem; font-size: 0.85rem; background-color: #10b981; color: #fff;">
+                                            📦 Status: Picked Up
+                                        </span>
                                     {% else %}
                                         <span class="badge badge-primary" style="padding: 0.4rem 0.9rem; font-size: 0.85rem; background-color: #f59e0b; color: #fff;">
-                                            📦 Status: Ready for Pickup
+                                            🚚 Status: Assigned — Awaiting Pickup
                                         </span>
                                     {% endif %}
                                 </div>
@@ -445,7 +449,7 @@
                                 </div>
 
                                 <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                    {% if assign.status == 'assigned' or assign.order.status == 'assigned' %}
+                                    {% if assign.status == 'assigned' and assign.order.status != 'picked_up' and assign.order.status != 'in_transit' and assign.order.status != 'delivered' %}
                                         <form method="POST" action="{% url 'pickup_order' assign.id %}">
                                             {% csrf_token %}
                                             <button type="submit" class="btn" style="padding: 0.55rem 1.4rem; font-weight: 700; background: #10b981; color: #ffffff;">
