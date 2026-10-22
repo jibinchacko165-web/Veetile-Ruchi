@@ -618,7 +618,7 @@ class StartNavigationCoordinateTests(TestCase):
     """
     Test suite verifying Start Navigation button and coordinate consistency:
     1. Displayed latitude and longitude match saved customer destination (e.g. 9.614967, 76.741563).
-    2. Start Navigation URL uses exact destination (destination=9.614967,76.741563&travelmode=driving).
+    2. Start Navigation URL uses exact destination (OpenStreetMap directions with 9.614967, 76.741563).
     3. Start Navigation onclick handler passes exact saved coordinates into startNavigation.
     4. Start Navigation does NOT inject stale origin or kitchen coordinates.
     5. Track Delivery Route button links to correct assignment tracking page.
@@ -685,8 +685,9 @@ class StartNavigationCoordinateTests(TestCase):
         self.assertIn("Elikulam Junction, Elikulam, Kottayam", content)
 
         # 2. Verify Start Navigation button uses destination without stale profile origin
-        self.assertIn('destination=9.614967,76.741563&travelmode=driving', content)
-        self.assertNotIn('origin=9.5564,76.7909&destination=9.614967,76.741563', content)
+        self.assertIn('openstreetmap.org/directions', content)
+        self.assertIn('9.614967,76.741563', content)
+        self.assertNotIn('origin=9.5564,76.7909', content)
 
         # 3. Verify data attributes and onclick handler
         self.assertIn('data-dest-lat="9.614967"', content)
@@ -698,7 +699,7 @@ class StartNavigationCoordinateTests(TestCase):
         self.assertIn(track_url, content)
 
     def test_start_navigation_courier_track_exact_coordinates(self):
-        """Courier track page renders Google Maps navigation with exact customer destination."""
+        """Courier track page renders OpenStreetMap navigation with exact customer destination."""
         self.client.force_login(self.courier_user)
         response = self.client.get(reverse('delivery_boy_track', kwargs={'assignment_id': self.assignment.id}))
         self.assertEqual(response.status_code, 200)
@@ -708,8 +709,10 @@ class StartNavigationCoordinateTests(TestCase):
         self.assertEqual(response.context['cust_lat'], 9.614967)
         self.assertEqual(response.context['cust_lon'], 76.741563)
 
-        # Verify Google Maps navigation button points to customer destination
-        self.assertIn('destination=9.614967,76.741563', content)
+        # Verify OpenStreetMap navigation button points to customer destination
+        self.assertIn('openstreetmap.org/directions', content)
+        self.assertIn('9.614967', content)
+        self.assertIn('76.741563', content)
         self.assertIn("startNavigation('9.614967', '76.741563', event);", content)
 
     def test_notification_api_clean_nav_url(self):
@@ -731,7 +734,9 @@ class StartNavigationCoordinateTests(TestCase):
         notif_item = data['notifications'][0]
         self.assertEqual(notif_item['latitude'], 9.614967)
         self.assertEqual(notif_item['longitude'], 76.741563)
-        self.assertIn('destination=9.614967,76.741563&travelmode=driving', notif_item['nav_url'])
+        self.assertIn('openstreetmap.org/directions', notif_item['nav_url'])
+        self.assertIn('9.614967', notif_item['nav_url'])
+        self.assertIn('76.741563', notif_item['nav_url'])
         self.assertNotIn('origin=', notif_item['nav_url'])
 
 
@@ -1228,7 +1233,7 @@ class LiveDeliveryMapVisibilityTests(TestCase):
         self.assertIn('Live Order Delivery Map & GPS Tracking', content)
         self.assertIn('Locate Me', content)
         self.assertIn('Re-center Map', content)
-        self.assertIn('Google Maps Navigation', content)
+        self.assertIn('OpenStreetMap Navigation', content)
 
         # Context flags
         self.assertTrue(response.context.get('show_map'))
@@ -1256,7 +1261,7 @@ class LiveDeliveryMapVisibilityTests(TestCase):
         self.assertNotIn('id="external-nav-link"', content)
         self.assertNotIn('Re-center Map', content)
         self.assertNotIn('Locate Me', content)
-        self.assertNotIn('Google Maps Navigation', content)
+        self.assertNotIn('OpenStreetMap Navigation', content)
 
         # Context flags
         self.assertFalse(response.context.get('show_map'))

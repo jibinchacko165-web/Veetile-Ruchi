@@ -452,10 +452,10 @@
             window.recenterDeliveryMap();
         }
 
-        // Update external Google Maps navigation link
+        // Update external OpenStreetMap navigation link
         const navBtn = document.getElementById('external-nav-link');
         if (navBtn) {
-            navBtn.href = `https://www.google.com/maps/dir/?api=1&origin=${courierLatLng.lat.toFixed(6)},${courierLatLng.lng.toFixed(6)}&destination=${customerLatLng.lat.toFixed(6)},${customerLatLng.lng.toFixed(6)}`;
+            navBtn.href = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${courierLatLng.lat.toFixed(6)},${courierLatLng.lng.toFixed(6)}%3B${customerLatLng.lat.toFixed(6)},${customerLatLng.lng.toFixed(6)}`;
         }
 
         const indicator = document.getElementById('map-gps-live-indicator');
@@ -628,7 +628,7 @@
                         if (orderStatus === 'delivered') {
                             metricDistanceSub.innerText = 'Delivery route completed';
                         } else if (data.is_road_distance) {
-                            metricDistanceSub.innerText = 'OSRM/Google road route';
+                            metricDistanceSub.innerText = 'OSRM road route';
                         } else {
                             metricDistanceSub.innerText = 'Road route estimate';
                         }
@@ -853,7 +853,7 @@
                     {{ road_distance_display|default:"0.0 km" }}
                 </div>
                 <span id="metric-distance-sub" style="font-size: 0.78rem; color: var(--text-muted); display: block; margin-top: 0.3rem;">
-                    {% if order.status == 'delivered' %}Delivery route completed{% elif is_road_distance %}OSRM/Google road route{% else %}Haversine direct estimate{% endif %}
+                    {% if order.status == 'delivered' %}Delivery route completed{% elif is_road_distance %}OSRM road route{% else %}Haversine direct estimate{% endif %}
                 </span>
             </div>
 
@@ -1025,8 +1025,8 @@
                     <button type="button" onclick="recenterDeliveryMap()" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; cursor: pointer;">
                         <span>🎯</span> Re-center Map
                     </button>
-                    <a id="external-nav-link" href="https://www.google.com/maps/dir/?api=1&origin={{ chef_lat|default:9.5564 }},{{ chef_lon|default:76.7909 }}&destination={{ cust_lat }},{{ cust_lon }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem;">
-                        <span>🧭</span> Google Maps Navigation &rarr;
+                    <a id="external-nav-link" href="https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route={{ chef_lat|default:9.5564 }},{{ chef_lon|default:76.7909 }}%3B{{ cust_lat }},{{ cust_lon }}" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.82rem;">
+                        <span>🧭</span> OpenStreetMap Navigation &rarr;
                     </a>
                 </div>
             </div>

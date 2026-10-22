@@ -115,8 +115,6 @@ def seed_database():
         ("Kallappam with Egg Curry", 95.00, non_veg, breakfast, "/media/food_photos/kallappam_with_egg_curry.jpg", "Thick traditional coconut rice pancakes infused with cumin, served with rich onion egg curry.", 350.0, 2.5, 185.0, 290.0, 12.5, 11.0, 49.0, 2.5),
         ("Upma with Banana", 55.00, veg, breakfast, "/media/food_photos/upma_with_banana.jpg", "Roasted semolina cooked with mustard seeds, ginger, curry leaves, and fresh coconut, served with a ripe small banana.", 240.0, 10.0, 0.0, 110.0, 5.0, 4.5, 44.0, 3.5),
         ("Pazham Pori with Tea", 50.00, veg, breakfast, "/media/food_photos/pazham_pori_with_tea.jpg", "Crispy golden fried ripe banana fritters served with piping hot Kerala cardamom tea.", 230.0, 15.0, 0.0, 40.0, 3.0, 6.5, 40.0, 3.0),
-        ("Neyyappam", 55.00, dessert, breakfast, "/media/food_photos/neyyappam_snack.jpg", "Traditional deep-fried sweet rice flour & jaggery fritters cooked in pure ghee.", 260.0, 18.0, 12.0, 35.0, 3.5, 8.0, 43.0, 2.0),
-        ("Unniyappam", 50.00, dessert, breakfast, "/media/food_photos/unniyappam_snack.jpg", "Small round sweet rice fritters made with jaggery, banana, and roasted coconut bits.", 250.0, 18.0, 0.0, 30.0, 3.0, 7.0, 44.0, 2.0),
         ("Mutta Appam", 95.00, non_veg, breakfast, "/media/food_photos/mutta_appam.jpg", "Soft white lacy appam with a whole cooked egg poached in the fluffy center.", 320.0, 1.5, 185.0, 250.0, 14.0, 9.0, 42.0, 1.8),
         ("Kanji and Payar", 75.00, veg, breakfast, "/media/food_photos/Nadan Matta Rice Kanji & Payar.png", "Soothing warm Matta rice porridge served with green gram thoran, papad, and pickle.", 250.0, 0.5, 0.0, 120.0, 7.5, 1.5, 52.0, 5.0),
         ("Ragi Dosa with Coconut Chutney", 70.00, veg, breakfast, "/media/food_photos/Crispy Thattu Dosa & Coconut Chutney.png", "Nutritious finger millet (Ragi) steamed dosa served with mild coconut chutney.", 210.0, 0.8, 0.0, 90.0, 6.0, 2.5, 42.0, 6.5),
@@ -157,17 +155,13 @@ def seed_database():
         ("Ulli Vada", 40.00, veg, snack, "/media/food_photos/ulli_vada.jpg", "Crispy fried thin-sliced onion fritters with green chillies and curry leaves.", 195.0, 2.0, 0.0, 120.0, 3.0, 9.0, 26.0, 2.2),
         ("Boiled Green Gram (Cherupayar Sundal)", 45.00, veg, snack, "/media/food_photos/Nadan Matta Rice Kanji & Payar.png", "Healthy boiled green gram tossed with grated coconut, mustard seeds, and curry leaves.", 160.0, 0.5, 0.0, 60.0, 9.0, 1.5, 28.0, 6.0),
 
-        # DINNER (16 items)
+        # DINNER (12 items)
         ("Kerala Parotta with Chicken Curry", 150.00, non_veg, dinner, "/media/food_photos/kerala_parotta_with_chicken_curry.jpg", "Soft multi-layered Kerala porotta served with rich spiced Nadan chicken curry.", 490.0, 2.0, 60.0, 370.0, 28.0, 18.0, 54.0, 5.0),
         ("Kerala Parotta with Beef Curry", 160.00, non_veg, dinner, "/media/food_photos/Kerala Porotta & Beef Roast.png", "Flaky Kerala porotta served with spicy slow-roasted coconut beef curry.", 540.0, 1.5, 68.0, 410.0, 30.0, 22.0, 52.0, 4.0),
-        ("Appam with Vegetable Stew", 90.00, veg, dinner, "/media/food_photos/appam_with_vegetable_stew.jpg", "Lacy soft coconut rice appams served with mild coconut milk vegetable stew.", 270.0, 2.0, 0.0, 95.0, 4.5, 6.5, 48.0, 3.5),
         ("Appam with Mutton Stew", 195.00, non_veg, dinner, "/media/food_photos/appam_with_mutton_stew.jpg", "Lacy soft appams paired with tender mutton chunks cooked in aromatic coconut milk stew.", 480.0, 2.0, 70.0, 380.0, 26.0, 19.0, 46.0, 2.5),
-        ("Idiyappam with Egg Curry", 95.00, non_veg, dinner, "/media/food_photos/idiyappam_with_egg_curry.jpg", "Steamed string hoppers served with delicious egg curry.", 340.0, 3.0, 185.0, 280.0, 12.0, 10.0, 50.0, 2.5),
         ("Idiyappam with Vegetable Curry", 85.00, veg, dinner, "/media/food_photos/idiyappam_with_egg_curry.jpg", "Steamed rice string hoppers served with mixed vegetable coconut kurma.", 260.0, 1.5, 0.0, 110.0, 5.0, 4.0, 48.0, 4.0),
         ("Appam with Egg Curry", 90.00, non_veg, dinner, "/media/food_photos/appam_egg_curry.png", "Soft fluffy coconut appams served with spicy Kerala egg roast curry.", 330.0, 2.5, 185.0, 270.0, 12.0, 9.5, 46.0, 2.5),
         ("Kappa with Beef Curry", 175.00, non_veg, dinner, "/media/food_photos/kappa_biriyani.png", "Boiled seasoned tapioca (Kappa) served with spicy roasted Kerala coconut beef curry.", 530.0, 1.5, 65.0, 420.0, 28.0, 20.0, 62.0, 4.5),
-        ("Kappa with Fish Curry", 170.00, non_veg, dinner, "/media/food_photos/Kudampuli Mathi Fish Curry & Tapioca (Kappa).png", "Boiled mashed tapioca served with spicy red Malabar kokum fish curry.", 470.0, 1.0, 45.0, 350.0, 25.0, 13.0, 60.0, 5.5),
-        ("Porotta with Egg Curry", 95.00, non_veg, dinner, "/media/food_photos/kerala_parotta_with_egg_curry.jpg", "Hot flaky Kerala parotta served with spicy egg roast curry.", 380.0, 2.0, 185.0, 310.0, 13.0, 15.0, 48.0, 2.0),
         ("Vellayappam with Beef Curry", 155.00, non_veg, dinner, "/media/food_photos/vellayappam_with_beef_curry.jpg", "Soft fluffy white fermented rice appams served with spicy slow-roasted Kerala beef curry.", 460.0, 2.0, 65.0, 370.0, 27.0, 17.0, 48.0, 2.5),
         ("Pathiri with Chicken Curry", 150.00, non_veg, dinner, "/media/food_photos/pathiri_with_chicken_curry.jpg", "Thin soft Malabar rice rotis (Pathiri) served with rich roasted coconut chicken curry.", 450.0, 2.0, 58.0, 350.0, 25.0, 15.0, 54.0, 3.0),
         ("Chapati with Dal Curry", 80.00, veg, dinner, "/media/food_photos/3pcs chapathi chicken.jpg", "Whole wheat soft chapatis served with comforting yellow lentil (dal) curry.", 290.0, 1.0, 0.0, 160.0, 9.0, 5.0, 50.0, 6.0),
@@ -177,7 +171,16 @@ def seed_database():
     ]
 
     foods_list = []
+    seen_foods = set()
     for idx, (name, price, cat, session, img, desc, cal, sug, chol, sod, prot, fat, carb, fib) in enumerate(foods_data, start=1):
+        clean_name = " ".join(name.strip().split())
+        norm_key = clean_name.lower()
+        if norm_key in seen_foods:
+            continue
+        seen_foods.add(norm_key)
+
+        if FoodItem.objects.filter(name__iexact=clean_name, meal_session=session).exists():
+            continue
         f = FoodItem.objects.create(
             chef=chef_user,
             name=name,

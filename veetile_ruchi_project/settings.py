@@ -176,29 +176,32 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Map Configuration & Credentials
-GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY', '').strip()
-CARTO_API_KEY = os.getenv('CARTO_API_KEY', '').strip()
-
-# Authorized, policy-compliant default tile providers (Esri World Street Map)
+# Map Configuration (Leaflet + OpenStreetMap + OSRM Road Routing)
+# Standard OpenStreetMap tile endpoint
 MAP_TILE_URL = os.getenv(
     'MAP_TILE_URL',
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'
+    'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 )
 MAP_TILE_ATTRIBUTION = os.getenv(
     'MAP_TILE_ATTRIBUTION',
-    'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom'
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 )
 MAP_TILE_SUBDOMAINS = os.getenv('MAP_TILE_SUBDOMAINS', 'abc')
 
-# Reliable secondary fallback tile provider (Esri World Topo Map)
+# Reliable secondary fallback tile provider
 MAP_TILE_FALLBACK_URL = os.getenv(
     'MAP_TILE_FALLBACK_URL',
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 )
 MAP_TILE_FALLBACK_ATTRIBUTION = os.getenv(
     'MAP_TILE_FALLBACK_ATTRIBUTION',
-    'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, TomTom'
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+)
+
+# OSRM Road Routing Endpoint
+OSRM_ROUTING_URL = os.getenv(
+    'OSRM_ROUTING_URL',
+    'https://router.project-osrm.org/route/v1/driving/{coords}?overview=simplified&geometries=geojson'
 )
 
 # Email Configuration (Console backend for development)

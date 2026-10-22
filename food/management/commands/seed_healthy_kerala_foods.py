@@ -2144,8 +2144,9 @@ class Command(BaseCommand):
             self.stdout.write(f"\nProcessing {len(dishes)} candidate dishes for session [{session_name}]...")
 
             for item in dishes:
-                # Duplicate check: check name in session
-                existing_item = FoodItem.objects.filter(name=item['name'], meal_session=session_obj).first()
+                # Duplicate check: check name in session (case-insensitive & whitespace-trimmed)
+                clean_name = " ".join(item['name'].strip().split())
+                existing_item = FoodItem.objects.filter(name__iexact=clean_name, meal_session=session_obj).first()
                 if existing_item:
                     skipped_counts[session_name] += 1
                     continue

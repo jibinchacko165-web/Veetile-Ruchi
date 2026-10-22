@@ -36,13 +36,6 @@
     let leafletMarker = null;
     let customerMarker = null;
     let kitchenCircle = null;
-    let kitchenHubMarker = null;
-    let googleMap = null;
-    let googleMarker = null;
-    let googleHubMarker = null;
-    let googleCircle = null;
-    let currentMapProvider = 'leaflet';
-    let googleMapsScriptLoaded = false;
     let revGeocodeTimer = null;
 
     const KITCHEN_HUB_LAT = 9.5564;
@@ -139,10 +132,6 @@
         } else if (leafletMap) {
             leafletMap.setView(customerLatLng, 14);
         }
-        if (googleMap) {
-            googleMap.setCenter({ lat: lat, lng: lon });
-            googleMap.setZoom(14);
-        }
     }
 
     function getDeviceLiveGPS() {
@@ -186,10 +175,6 @@
                 } else if (leafletMap) {
                     leafletMap.setView(customerLatLng, 15);
                 }
-                if (googleMap) {
-                    googleMap.setCenter({ lat: lat, lng: lon });
-                    googleMap.setZoom(15);
-                }
             },
             function(error) {
                 let msg = "Geolocation failed.";
@@ -218,141 +203,6 @@
             notice.innerHTML = msg;
             notice.style.display = 'block';
             setTimeout(() => { if (notice) notice.style.display = 'none'; }, 9000);
-        }
-    }
-
-    // Official Google Maps Authentication Failure callback
-    window.gm_authFailure = function() {
-        console.warn("Google Maps JavaScript API authentication failed. Falling back to policy-compliant Leaflet.");
-        showMapProviderNotice("<strong>Google Maps Notice:</strong> Google Maps authentication failed (billing or API key configuration issue). Switched back to policy-compliant Leaflet (Esri Basemap).");
-        setMapProvider('leaflet');
-    };
-
-    function initGoogleMap() {
-        const gContainer = document.getElementById('profile-location-map-google');
-        if (!gContainer) return;
-
-        const rawLat = parseFloat(document.getElementById('loc_lat').value);
-        const rawLng = parseFloat(document.getElementById('loc_lon').value);
-        const lat = (!isNaN(rawLat) && rawLat >= -90 && rawLat <= 90) ? rawLat : KITCHEN_HUB_LAT;
-        const lng = (!isNaN(rawLng) && rawLng >= -180 && rawLng <= 180) ? rawLng : KITCHEN_HUB_LON;
-
-        if (googleMap) {
-            google.maps.event.trigger(googleMap, 'resize');
-            googleMap.setCenter({ lat, lng });
-            return;
-        }
-
-        if (typeof google === 'undefined' || !google.maps) {
-            const googleKey = "{{ GOOGLE_MAPS_API_KEY|escapejs }}".trim();
-            if (!googleKey) {
-                showMapProviderNotice("Google Maps API key is not configured. Falling back to Leaflet.");
-                setMapProvider('leaflet');
-                return;
-            }
-            if (!googleMapsScriptLoaded) {
-                googleMapsScriptLoaded = true;
-                const script = document.createElement('script');
-                script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(googleKey)}&libraries=geometry&callback=onGoogleMapsLoaded`;
-                script.async = true;
-                script.defer = true;
-                script.onerror = function() {
-                    showMapProviderNotice("Failed to load Google Maps script. Check network or API key. Falling back to Leaflet.");
-                    setMapProvider('leaflet');
-                };
-                document.head.appendChild(script);
-            }
-            return;
-        }
-
-        onGoogleMapsLoaded();
-    }
-
-    window.onGoogleMapsLoaded = function() {
-        const gContainer = document.getElementById('profile-location-map-google');
-        if (!gContainer || typeof google === 'undefined' || !google.maps) return;
-
-        const rawLat = parseFloat(document.getElementById('loc_lat').value);
-        const rawLng = parseFloat(document.getElementById('loc_lon').value);
-        const lat = (!isNaN(rawLat) && rawLat >= -90 && rawLat <= 90) ? rawLat : KITCHEN_HUB_LAT;
-        const lng = (!isNaN(rawLng) && rawLng >= -180 && rawLng <= 180) ? rawLng : KITCHEN_HUB_LON;
-
-        googleMap = new google.maps.Map(gContainer, {
-            center: { lat, lng },
-            zoom: 13,
-            mapTypeControl: true,
-            streetViewControl: false,
-            fullscreenControl: true
-        });
-
-        // Hub Marker
-        googleHubMarker = new google.maps.Marker({
-            position: { lat: KITCHEN_HUB_LAT, lng: KITCHEN_HUB_LON },
-            map: googleMap,
-            title: "Central Kitchen Hub (Kanjirappally)"
-        });
-
-        // 30 km circle
-        googleCircle = new google.maps.Circle({
-            strokeColor: '#10B981',
-            strokeOpacity: 0.8,
-            strokeWeight: 2,
-            fillColor: '#10B981',
-            fillOpacity: 0.08,
-            map: googleMap,
-            center: { lat: KITCHEN_HUB_LAT, lng: KITCHEN_HUB_LON },
-            radius: MAX_SERVICE_RADIUS_METERS,
-            clickable: false
-        });
-
-        // Fixed-Center Pin: Coordinates are calculated from map center on idle (movement end)
-        googleMap.addListener('idle', function() {
-            const center = googleMap.getCenter();
-            if (center) {
-                syncProfileCoordinates(center.lat(), center.lng());
-            }
-        });
-
-        // Clicking on the map smoothly centers the clicked location under the fixed pin
-        googleMap.addListener('click', function(e) {
-            if (e.latLng) {
-                googleMap.panTo(e.latLng);
-            }
-        });
-    };
-
-    function setMapProvider(provider) {
-        currentMapProvider = provider;
-        const googleKey = "{{ GOOGLE_MAPS_API_KEY|escapejs }}".trim();
-        const lBtn = document.getElementById('btn-provider-leaflet');
-        const gBtn = document.getElementById('btn-provider-google');
-        const badge = document.getElementById('provider-badge');
-        const lContainer = document.getElementById('profile-location-map');
-        const gContainer = document.getElementById('profile-location-map-google');
-
-        if (provider === 'google') {
-            if (!googleKey) {
-                showMapProviderNotice("<strong>Google Maps API is not configured:</strong> <code>GOOGLE_MAPS_API_KEY</code> is empty in your local <code>.env</code> file. To enable Google Maps, add a valid key with Maps JavaScript API & billing enabled. Currently using policy-compliant Leaflet (Esri World Street) by default.");
-                setMapProvider('leaflet');
-                return;
-            }
-            if (lBtn) { lBtn.classList.remove('btn-primary'); lBtn.classList.add('btn-outline'); }
-            if (gBtn) { gBtn.classList.remove('btn-outline'); gBtn.classList.add('btn-primary'); }
-            if (lContainer) lContainer.style.display = 'none';
-            if (gContainer) gContainer.style.display = 'block';
-            if (badge) badge.innerHTML = 'Provider: <strong>Google Maps JavaScript API</strong>';
-            initGoogleMap();
-        } else {
-            if (lBtn) { lBtn.classList.remove('btn-outline'); lBtn.classList.add('btn-primary'); }
-            if (gBtn) { gBtn.classList.remove('btn-primary'); gBtn.classList.add('btn-outline'); }
-            if (gContainer) gContainer.style.display = 'none';
-            if (lContainer) lContainer.style.display = 'block';
-            if (badge) badge.innerHTML = 'Provider: <strong>Leaflet / Esri World Street (Compliant)</strong>';
-            if (!leafletMap) {
-                initLeafletMap();
-            } else {
-                setTimeout(() => { if (leafletMap) leafletMap.invalidateSize(); }, 60);
-            }
         }
     }
 
@@ -823,7 +673,6 @@
             <!-- Map Containers -->
             <div class="profile-map-wrapper" style="position: relative; width: 100%;">
                 <div id="profile-location-map" style="min-height: 380px; height: 380px; width: 100%; border-radius: var(--radius-sm); border: 1.5px solid var(--border-warm); margin-bottom: 0.5rem; z-index: 1; background: #e2e8f0;"></div>
-                <div id="profile-location-map-google" style="display: none; min-height: 380px; height: 380px; width: 100%; border-radius: var(--radius-sm); border: 1.5px solid var(--border-warm); margin-bottom: 0.5rem; z-index: 1; background: #e2e8f0;"></div>
             </div>
 
             <!-- Reverse Geocode Detected Area Badge -->

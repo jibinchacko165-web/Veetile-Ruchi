@@ -627,6 +627,7 @@ def get_live_gps_location(request, order_id):
             from orders.utils import to_kolkata_datetime
             local_crumb_dt = to_kolkata_datetime(latest_crumb.timestamp)
             formatted_crumb_time = local_crumb_dt.strftime("%I:%M:%S %p")
+            age_sec = (timezone.now() - latest_crumb.timestamp).total_seconds()
             if age_sec <= 300: # 5 minutes threshold for live freshness
                 has_courier_gps = True
                 is_stale = False
@@ -805,7 +806,7 @@ def get_courier_notifications(request):
                     status_display = notif.order.delivery_assignment.get_status_display()
                 
         track_url = f"/orders/notifications/mark-read/{notif.id}/" if notif.id else '#'
-        nav_url = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}&travelmode=driving" if lat and lon else '#'
+        nav_url = f"https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=%3B{lat},{lon}" if lat and lon else '#'
             
         data.append({
             'id': notif.id,

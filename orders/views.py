@@ -907,8 +907,7 @@ def staff_toggle_branch_status(request, branch_id):
 def api_reverse_geocode(request):
     """
     Reverse-geocode latitude and longitude into a readable address string.
-    Supports Google Maps Geocoding API if configured; falls back gracefully
-    to Nominatim OSM or closest Kerala Landmark presets.
+    Uses OpenStreetMap Nominatim with local Kerala Landmark presets fallback.
     """
     lat_str = request.GET.get('lat')
     lon_str = request.GET.get('lon')
@@ -921,23 +920,13 @@ def api_reverse_geocode(request):
     if not (-90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0):
         return JsonResponse({'success': False, 'error': 'Coordinates out of geographical range.'}, status=400)
 
-    # 1. Try Google Maps Geocoding API if GOOGLE_MAPS_API_KEY is configured
-    google_key = getattr(settings, 'GOOGLE_MAPS_API_KEY', os.environ.get('GOOGLE_MAPS_API_KEY', '')).strip()
-    if google_key:
-        try:
-            import requests
-            url = f"https://maps.googleapis.com/maps/api/geocode/json?latlng={lat},{lon}&key={google_key}"
-            resp = requests.get(url, timeout=3)
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get('status') == 'OK' and data.get('results'):
-                    address = data['results'][0].get('formatted_address', '')
-                    if address:
-                        return JsonResponse({'success': True, 'address': address, 'source': 'google'})
-        except Exception:
-            pass
+    from django.core.cache import cache
+    cache_key = f"orders_rev_geo_{round(lat, 4)}_{round(lon, 4)}"
+    cached = cache.get(cache_key)
+    if cached:
+        return JsonResponse(cached)
 
-    # 2. Try Nominatim (compliant User-Agent identification per OSM Nominatim Usage Policy)
+    # 1. Try OpenStreetMap Nominatim (compliant User-Agent identification per OSM Usage Policy)
     try:
         import requests
         headers = {'User-Agent': 'VeetileRuchiApp/1.0 (delivery-contact@veetileruchi.com)'}
@@ -947,7 +936,9 @@ def api_reverse_geocode(request):
             data = resp.json()
             display_name = data.get('display_name')
             if display_name:
-                return JsonResponse({'success': True, 'address': display_name, 'source': 'nominatim'})
+                res = {'success': True, 'address': display_name, 'source': 'nominatim'}
+                cache.set(cache_key, res, timeout=86400)
+                return JsonResponse(res)
     except Exception:
         pass
 

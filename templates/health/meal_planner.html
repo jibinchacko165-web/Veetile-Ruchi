@@ -66,26 +66,22 @@
         <!-- Evening Snack -->
         <div class="card" style="border-top: 4px solid var(--warning); padding: 1.5rem;">
             <span class="badge badge-warning mb-3" style="font-size: 0.82rem;">☕ Evening Snack</span>
-            {% if plan.Breakfast %}
-                {% if plan.Evening_Snack or plan.Breakfast %}
-                    {% with snack=plan.Evening_Snack|default:plan.Breakfast %}
-                    <div style="display: flex; gap: 1rem; align-items: center;">
-                        <div style="width: 90px; height: 90px; border-radius: 10px; overflow: hidden; background: #F4EBE1; flex-shrink: 0; border: 1.5px solid var(--border-warm);">
-                            <img src="{{ snack.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ snack.name }}" style="width: 100%; height: 100%; object-fit: cover;">
-                        </div>
-                        <div style="flex: 1;">
-                            <h4 style="color: var(--primary-brown); font-weight: 600; font-size: 1.1rem; margin: 0 0 0.25rem 0;">{{ snack.name }}</h4>
-                            <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0 0 0.35rem 0; font-weight: 400;">{{ snack.description }}</p>
-                            <p style="color: var(--warning); font-size: 0.95rem; margin: 0; font-weight: 600;">
-                                {{ snack.nutrition.calories|default:'200' }} kcal • Sugar: {{ snack.nutrition.sugar }}g
-                            </p>
-                        </div>
+            {% if plan.Evening_Snack %}
+                <div style="display: flex; gap: 1rem; align-items: center;">
+                    <div style="width: 90px; height: 90px; border-radius: 10px; overflow: hidden; background: #F4EBE1; flex-shrink: 0; border: 1.5px solid var(--border-warm);">
+                        <img src="{{ plan.Evening_Snack.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ plan.Evening_Snack.name }}" style="width: 100%; height: 100%; object-fit: cover;">
                     </div>
-                    <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem; border-top: 1px solid var(--border-warm); padding-top: 0.75rem;">
-                        <a href="{% url 'food_detail' snack.id %}" class="btn btn-outline btn-sm">View Recipe & Order</a>
+                    <div style="flex: 1;">
+                        <h4 style="color: var(--primary-brown); font-weight: 600; font-size: 1.1rem; margin: 0 0 0.25rem 0;">{{ plan.Evening_Snack.name }}</h4>
+                        <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0 0 0.35rem 0; font-weight: 400;">{{ plan.Evening_Snack.description }}</p>
+                        <p style="color: var(--warning); font-size: 0.95rem; margin: 0; font-weight: 600;">
+                            {{ plan.Evening_Snack.nutrition.calories|default:'200' }} kcal • Sugar: {{ plan.Evening_Snack.nutrition.total_sugars|default:'0' }}g
+                        </p>
                     </div>
-                    {% endwith %}
-                {% endif %}
+                </div>
+                <div style="display: flex; justify-content: flex-end; margin-top: 1.25rem; border-top: 1px solid var(--border-warm); padding-top: 0.75rem;">
+                    <a href="{% url 'food_detail' plan.Evening_Snack.id %}" class="btn btn-outline btn-sm">View Recipe & Order</a>
+                </div>
             {% else %}
                 <p style="color: var(--text-muted); font-size: 0.95rem; font-weight: 400;">No evening snack courses match preferences.</p>
             {% endif %}

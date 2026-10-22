@@ -48,6 +48,11 @@ class FoodItem(models.Model):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        if self.name:
+            self.name = ' '.join(str(self.name).strip().split())
+        super().save(*args, **kwargs)
+
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['name', 'meal_session'], name='unique_food_item_name_per_session')

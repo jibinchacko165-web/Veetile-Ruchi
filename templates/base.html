@@ -25,35 +25,16 @@
             L.Icon.Default.imagePath = '/static/leaflet/images/';
         }
 
-        // Global Map Provider Tokens (Authorized, policy-compliant tile providers with zero 403 blocks)
-        window.MAP_TILE_URL = "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
-        window.MAP_TILE_ATTRIBUTION = '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom"|safe }}';
+        // Global Map Provider Tokens (Standard OpenStreetMap tile provider)
+        window.MAP_TILE_URL = "{{ MAP_TILE_URL|default:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'|escapejs }}";
+        window.MAP_TILE_ATTRIBUTION = '{{ MAP_TILE_ATTRIBUTION|default:"&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"|safe }}';
         window.MAP_TILE_SUBDOMAINS = "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
-        window.MAP_TILE_FALLBACK_URL = "{{ MAP_TILE_FALLBACK_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
-        window.MAP_TILE_FALLBACK_ATTRIBUTION = '{{ MAP_TILE_FALLBACK_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, TomTom"|safe }}';
-        window.GOOGLE_MAPS_API_KEY = "{{ GOOGLE_MAPS_API_KEY|default:''|escapejs }}";
-        window._googleMapsAvailable = false;
-        window._googleMapsAuthFailed = false;
+        window.MAP_TILE_FALLBACK_URL = "{{ MAP_TILE_FALLBACK_URL|default:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'|escapejs }}";
+        window.MAP_TILE_FALLBACK_ATTRIBUTION = '{{ MAP_TILE_FALLBACK_ATTRIBUTION|default:"&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"|safe }}';
 
-        // Global Reverse Geocoding Utility
+        // Global Reverse Geocoding Utility (Powered by Backend OpenStreetMap Nominatim + Local Presets)
         window.veetileReverseGeocode = function(lat, lon, callback) {
             if (!callback) return;
-            // 1. If Google Maps geocoder is active and key is authenticated
-            if (window.google && window.google.maps && window.google.maps.Geocoder && !window._googleMapsAuthFailed) {
-                try {
-                    const geocoder = new google.maps.Geocoder();
-                    geocoder.geocode({ location: { lat: parseFloat(lat), lng: parseFloat(lon) } }, function(results, status) {
-                        if (status === 'OK' && results && results[0]) {
-                            callback(results[0].formatted_address, 'google');
-                            return;
-                        }
-                        callBackendGeocode(lat, lon, callback);
-                    });
-                    return;
-                } catch(e) {
-                    console.warn("Google Geocoder error:", e);
-                }
-            }
             callBackendGeocode(lat, lon, callback);
         };
 
@@ -73,32 +54,6 @@
                 });
         }
     </script>
-
-    <!-- Google Maps JavaScript API (Graceful optional loading if configured) -->
-    {% if GOOGLE_MAPS_API_KEY %}
-    <script>
-        window.gm_authFailure = function() {
-            console.warn("Google Maps API authentication or billing check failed. Gracefully falling back to Leaflet.");
-            window._googleMapsAuthFailed = true;
-            window._googleMapsAvailable = false;
-            document.querySelectorAll('.gmap-config-banner').forEach(el => {
-                el.style.display = 'block';
-                el.innerHTML = '⚠️ <strong>Google Maps Notice:</strong> API key authorization or billing required. Seamlessly using Leaflet map provider.';
-            });
-            if (typeof window.onGoogleMapsAuthFailed === 'function') {
-                window.onGoogleMapsAuthFailed();
-            }
-        };
-        window.initGoogleMapsGlobalCallback = function() {
-            window._googleMapsAvailable = true;
-            console.log("Google Maps API loaded successfully.");
-            if (typeof window.onGoogleMapsLoaded === 'function') {
-                window.onGoogleMapsLoaded();
-            }
-        };
-    </script>
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ GOOGLE_MAPS_API_KEY }}&libraries=places,geometry&callback=initGoogleMapsGlobalCallback" async defer></script>
-    {% endif %}
 
     <!-- Master Kerala Design System -->
     <link rel="stylesheet" href="/static/css/style.css">

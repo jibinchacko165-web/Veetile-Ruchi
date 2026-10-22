@@ -723,8 +723,7 @@ from django.core.cache import cache
 def reverse_geocode_api(request):
     """
     Reverse-geocodes latitude and longitude into human-readable place name/address.
-    Supports Google Maps Geocoding API when GOOGLE_MAPS_API_KEY is configured.
-    Falls back to Nominatim with policy-compliant User-Agent and caching.
+    Uses OpenStreetMap Nominatim with policy-compliant User-Agent and caching.
     """
     try:
         lat_val = float(request.GET.get('lat', ''))
@@ -740,39 +739,7 @@ def reverse_geocode_api(request):
     if cached_data:
         return JsonResponse(cached_data)
 
-    google_key = getattr(settings, 'GOOGLE_MAPS_API_KEY', '') or os.environ.get('GOOGLE_MAPS_API_KEY', '').strip()
-
-    # 1. Try Google Maps Geocoding if API key is present
-    if google_key:
-        try:
-            url = f"https://maps.googleapis.com/maps/api/geocode/json?latlng={lat_val},{lon_val}&key={google_key}"
-            req = urllib.request.Request(url, headers={'User-Agent': 'Veetile-Ruchi/1.0'})
-            with urllib.request.urlopen(req, timeout=4) as response:
-                if response.status == 200:
-                    payload = json.loads(response.read().decode('utf-8'))
-                    if payload.get('status') == 'OK' and payload.get('results'):
-                        best = payload['results'][0]
-                        formatted = best.get('formatted_address', '')
-                        landmark = ''
-                        for comp in best.get('address_components', []):
-                            types = comp.get('types', [])
-                            if any(t in types for t in ['point_of_interest', 'premise', 'sublocality', 'neighborhood']):
-                                landmark = comp.get('long_name', '')
-                                break
-                        data = {
-                            'status': 'success',
-                            'provider': 'google',
-                            'address': formatted,
-                            'landmark': landmark or formatted.split(',')[0].strip(),
-                            'lat': lat_val,
-                            'lon': lon_val,
-                        }
-                        cache.set(cache_key, data, timeout=86400)
-                        return JsonResponse(data)
-        except Exception:
-            pass
-
-    # 2. Policy-compliant Nominatim reverse geocoding fallback
+    # 1. Policy-compliant Nominatim reverse geocoding
     try:
         url = f"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={lat_val}&lon={lon_val}&addressdetails=1"
         req = urllib.request.Request(url, headers={

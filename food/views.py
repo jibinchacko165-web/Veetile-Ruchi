@@ -487,6 +487,20 @@ def chef_food_manage(request, pk=None):
         category = Category.objects.get(id=cat_id) if cat_id else None
         session = MealSession.objects.get(id=sess_id) if sess_id else None
         
+        name = " ".join(str(name or "").strip().split())
+        if not name:
+            messages.error(request, "Food item name is required.")
+            return render(request, 'food/food_form.html', {'food': food, 'categories': categories, 'sessions': sessions})
+
+        # Prevent duplicate entries with same name (case-insensitive / whitespace-normalized) in session
+        dup_query = FoodItem.objects.filter(name__iexact=name, meal_session=session)
+        if food:
+            dup_query = dup_query.exclude(pk=food.pk)
+        if dup_query.exists():
+            sess_name = session.name if session else "this session"
+            messages.error(request, f"A food item named '{name}' already exists in {sess_name}. Duplicate foods are not allowed.")
+            return render(request, 'food/food_form.html', {'food': food, 'categories': categories, 'sessions': sessions})
+
         if food:
             food.name = name
             food.description = description

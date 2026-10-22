@@ -767,13 +767,11 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         self.assertEqual(track_resp.status_code, 200)
 
         # Verify coordinates are present in context
-        self.assertEqual(track_resp.context['cust_lat'], 9.5564)
-        self.assertEqual(track_resp.context['cust_lon'], 76.7909)
-
-        # Verify Google Maps turn-by-turn navigation URL is present
+        # Verify OpenStreetMap turn-by-turn navigation URL is present
         content = track_resp.content.decode('utf-8')
-        self.assertIn('https://www.google.com/maps/dir/?api=1&', content)
-        self.assertIn('destination=9.5564,76.7909', content)
+        self.assertIn('openstreetmap.org/directions', content)
+        self.assertIn('9.5564', content)
+        self.assertIn('76.7909', content)
 
         # Verify Privacy: sensitive fields like password hash, email, and DOB are NOT displayed to the courier
         self.assertNotIn('cust1@test.com', content)

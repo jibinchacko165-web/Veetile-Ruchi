@@ -207,12 +207,7 @@
             return;
         }
 
-        if (currentMapEngine === 'google' && googleMapInstance) {
-            const pos = { lat: customerLatLng.lat, lng: customerLatLng.lng };
-            if (googleMarkerInstance) googleMarkerInstance.setPosition(pos);
-            googleMapInstance.panTo(pos);
-            if (zoom) googleMapInstance.setZoom(zoom);
-        } else if (leafletMap) {
+        if (leafletMap) {
             if (leafletMarker) {
                 leafletMarker.setLatLng(customerLatLng);
             }
@@ -251,12 +246,7 @@
             const currentLat = parseFloat(document.getElementById('latitude').value) || currentBranchLat || CENTRAL_HUB_LAT;
             const currentLng = parseFloat(document.getElementById('longitude').value) || currentBranchLon || CENTRAL_HUB_LON;
 
-            if (currentMapEngine === 'google' && googleMapInstance) {
-                if (window.google && google.maps.event) {
-                    google.maps.event.trigger(googleMapInstance, 'resize');
-                    googleMapInstance.setCenter({ lat: currentLat, lng: currentLng });
-                }
-            } else if (leafletMap) {
+            if (leafletMap) {
                 leafletMap.invalidateSize();
                 leafletMap.setView([currentLat, currentLng], 15);
             } else {
@@ -265,12 +255,7 @@
 
             [50, 150, 350, 600].forEach(delay => {
                 setTimeout(() => {
-                    if (currentMapEngine === 'google' && googleMapInstance) {
-                        if (window.google && google.maps.event) {
-                            google.maps.event.trigger(googleMapInstance, 'resize');
-                            googleMapInstance.setCenter({ lat: currentLat, lng: currentLng });
-                        }
-                    } else if (leafletMap) {
+                    if (leafletMap) {
                         leafletMap.invalidateSize();
                     }
                 }, delay);
@@ -413,11 +398,6 @@
         }
     }
 
-    let currentMapEngine = 'leaflet';
-    let googleMapInstance = null;
-    let googleMarkerInstance = null;
-    let googleCircleInstance = null;
-    let googleHubMarkerInstance = null;
 
     function syncDestinationCoordinates(lat, lng, accuracy, source) {
         if (lat === undefined || lng === undefined || isNaN(lat) || isNaN(lng)) return;
@@ -457,123 +437,7 @@
         }
     }
 
-    function switchMapEngine(engine) {
-        if (engine === 'google') {
-            if (!window.GOOGLE_MAPS_API_KEY) {
-                alert("Google Maps API key is not configured in local environment (.env). Leaflet remains active with policy-compliant Esri street tiles.");
-                return;
-            }
-            if (window._googleMapsAuthFailed) {
-                alert("Google Maps API authorization check failed (check API key, billing, or referrer restrictions). Staying on Leaflet.");
-                return;
-            }
-            if (!window.google || !window.google.maps) {
-                alert("Google Maps JavaScript API is still loading. Please try again shortly.");
-                return;
-            }
-            currentMapEngine = 'google';
-            const btnG = document.getElementById('btn-engine-google');
-            const btnL = document.getElementById('btn-engine-leaflet');
-            if (btnG) { btnG.style.background = 'white'; btnG.style.color = '#1E293B'; btnG.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)'; }
-            if (btnL) { btnL.style.background = 'transparent'; btnL.style.color = '#64748B'; btnL.style.boxShadow = 'none'; }
-            initGoogleMapEngine();
-        } else {
-            currentMapEngine = 'leaflet';
-            const btnG = document.getElementById('btn-engine-google');
-            const btnL = document.getElementById('btn-engine-leaflet');
-            if (btnL) { btnL.style.background = 'white'; btnL.style.color = '#1E293B'; btnL.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)'; }
-            if (btnG) { btnG.style.background = 'transparent'; btnG.style.color = '#64748B'; btnG.style.boxShadow = 'none'; }
-            initLeafletMap();
-        }
-    }
-
-    window.onGoogleMapsAuthFailed = function() {
-        switchMapEngine('leaflet');
-    };
-
-    function initGoogleMapEngine() {
-        const mapContainer = document.getElementById('checkout-map-picker');
-        if (!mapContainer || !window.google || !window.google.maps) return;
-
-        // Clean up previous Leaflet instance if present
-        if (leafletMap) {
-            leafletMap.off();
-            leafletMap.remove();
-            leafletMap = null;
-        }
-        if (mapContainer._leaflet_id) {
-            delete mapContainer._leaflet_id;
-        }
-        mapContainer.innerHTML = '';
-
-        const latInput = document.getElementById('latitude');
-        const lonInput = document.getElementById('longitude');
-        const initLat = (latInput && parseFloat(latInput.value)) || currentBranchLat || CENTRAL_HUB_LAT;
-        const initLng = (lonInput && parseFloat(lonInput.value)) || currentBranchLon || CENTRAL_HUB_LON;
-
-        googleMapInstance = new google.maps.Map(mapContainer, {
-            center: { lat: initLat, lng: initLng },
-            zoom: 14,
-            mapTypeControl: false,
-            streetViewControl: false,
-            fullscreenControl: true
-        });
-
-        // Destination Pin: No draggable Google marker is created.
-        // The fixed-center overlay (#checkout-center-pin-overlay) stays centered above the map.
-
-        googleHubMarkerInstance = new google.maps.Marker({
-            position: { lat: currentBranchLat, lng: currentBranchLon },
-            map: googleMapInstance,
-            title: currentBranchName,
-            icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 9,
-                fillColor: '#D97736',
-                fillOpacity: 1,
-                strokeColor: '#FFFFFF',
-                strokeWeight: 2
-            }
-        });
-
-        googleCircleInstance = new google.maps.Circle({
-            strokeColor: '#2563EB',
-            strokeOpacity: 0.8,
-            strokeWeight: 2,
-            fillColor: '#3B82F6',
-            fillOpacity: 0.12,
-            map: googleMapInstance,
-            center: { lat: currentBranchLat, lng: currentBranchLon },
-            radius: currentBranchRadiusKm * 1000,
-            clickable: false
-        });
-
-        // When Google Map panning finishes, update destination coordinates from map center (pin tip)
-        googleMapInstance.addListener('idle', function() {
-            const center = googleMapInstance.getCenter();
-            if (center) {
-                syncDestinationCoordinates(center.lat(), center.lng());
-            }
-        });
-
-        // Clicking on the map pans the clicked point smoothly to the fixed center pin
-        googleMapInstance.addListener('click', function(event) {
-            if (event.latLng) {
-                googleMapInstance.panTo(event.latLng);
-            }
-        });
-
-        syncDestinationCoordinates(initLat, initLng);
-    }
-
     function initLeafletMap() {
-        const mapContainer = document.getElementById('checkout-map-picker');
-        if (!mapContainer || typeof L === 'undefined') return;
-
-        googleMapInstance = null;
-        googleMarkerInstance = null;
-        googleCircleInstance = null;
-        googleHubMarkerInstance = null;
 
         // Prevent duplicate initialization
         if (leafletMap) {
@@ -929,20 +793,12 @@
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; flex-wrap: wrap; gap: 0.5rem;">
                                 <span style="font-weight: 600; font-size: 0.88rem; color: var(--primary-brown);">Service Area & Delivery Map</span>
                                 <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                    {% if GOOGLE_MAPS_API_KEY %}
-                                    <div class="map-engine-switch" style="display: inline-flex; background: #E2E8F0; padding: 2px; border-radius: 6px;">
-                                        <button type="button" id="btn-engine-leaflet" onclick="switchMapEngine('leaflet')" class="btn btn-sm" style="padding: 2px 8px; font-size: 0.75rem; border-radius: 4px; background: white; color: #1E293B; border: none; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">Leaflet</button>
-                                        <button type="button" id="btn-engine-google" onclick="switchMapEngine('google')" class="btn btn-sm" style="padding: 2px 8px; font-size: 0.75rem; border-radius: 4px; background: transparent; color: #64748B; border: none; font-weight: 500;">Google Maps</button>
-                                    </div>
-                                    {% else %}
-                                    <span style="font-size: 0.76rem; color: #4B5563; background: #F3F4F6; padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid #E5E7EB;" title="Google Maps API key not configured in .env. Leaflet is active as the secondary/primary map option.">
-                                        🗺️ Leaflet Map (Esri Tiles)
+                                    <span style="font-size: 0.76rem; color: #166534; background: #DCFCE7; padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid #BBF7D0; font-weight: 600;">
+                                        🗺️ Leaflet • OpenStreetMap
                                     </span>
-                                    {% endif %}
                                     <span style="font-size: 0.78rem; color: #2563EB; font-weight: 500; background: #EFF6FF; padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid #BFDBFE;">📍 Drag blue pin or click map to set location</span>
                                 </div>
                             </div>
-                            <div class="gmap-config-banner" style="display: none; margin-bottom: 0.5rem; padding: 0.5rem 0.75rem; background: #FEF3C7; border: 1px solid #F59E0B; border-radius: 6px; font-size: 0.8rem; color: #92400E;"></div>
                             <div class="map-picker-wrapper" style="position: relative; width: 100%;">
                                 <div id="checkout-map-picker" style="height: 260px; width: 100%; border-radius: 10px; border: 1.5px solid var(--border-warm); z-index: 1; background: #f3f4f6;"></div>
 

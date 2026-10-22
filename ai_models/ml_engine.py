@@ -357,22 +357,45 @@ def plan_meals(food_items, health_profile):
 
     plan = {}
     sessions = ['Breakfast', 'Lunch', 'Evening Snack', 'Dinner']
+    used_food_ids = set()
+    used_food_names = set()
     
+    def _matches_session(session_obj, target_session):
+        if not session_obj or not session_obj.name:
+            return False
+        s_name = session_obj.name.lower()
+        t_name = target_session.lower()
+        if 'breakfast' in t_name:
+            return 'breakfast' in s_name
+        elif 'lunch' in t_name:
+            return 'lunch' in s_name
+        elif 'snack' in t_name:
+            return 'snack' in s_name or 'evening' in s_name
+        elif 'dinner' in t_name:
+            return 'dinner' in s_name
+        return t_name in s_name or s_name in t_name
+
     for session in sessions:
         candidates = []
         for food in food_items:
+            # Prevent duplicate food items and duplicate food names across meal courses
+            clean_name = " ".join(food.name.strip().lower().split()) if food.name else ""
+            if food.id in used_food_ids or clean_name in used_food_names:
+                continue
+
             # Filter by meal session
-            if food.meal_session and food.meal_session.name.lower() == session.lower():
+            if _matches_session(food.meal_session, session):
                 # Filter by dietary preference
                 if health_profile:
-                    pref = health_profile.dietary_preference.lower()
-                    if pref == 'veg' and 'non-veg' in (food.category.name.lower() if food.category else ''):
+                    pref = (health_profile.dietary_preference or '').lower()
+                    cat_name = (food.category.name.lower() if food.category else '')
+                    if pref == 'veg' and 'non-veg' in cat_name:
                         continue
-                    if pref == 'vegan' and not ('vegan' in (food.category.name.lower() if food.category else '') or 'veg' in (food.category.name.lower() if food.category else '')):
+                    if pref == 'vegan' and not ('vegan' in cat_name or 'veg' in cat_name):
                         continue
                     
                     # Filter by health restrictions
-                    has_nutr = hasattr(food, 'nutrition')
+                    has_nutr = hasattr(food, 'nutrition') and food.nutrition is not None
                     if has_nutr:
                         suitability = predict_health_suitability(
                             food.nutrition.total_sugars, 
@@ -390,17 +413,34 @@ def plan_meals(food_items, health_profile):
                 
         # Pick the food item closest to (target_calories / 4) kcal
         target_session_cal = target_calories / 4.0
+        chosen_food = None
         if candidates:
             candidates = sorted(
                 candidates, 
-                key=lambda f: abs((f.nutrition.calories if hasattr(f, 'nutrition') else 400.0) - target_session_cal)
+                key=lambda f: abs((f.nutrition.calories if hasattr(f, 'nutrition') and f.nutrition else 400.0) - target_session_cal)
             )
-            plan[session] = candidates[0]
+            chosen_food = candidates[0]
         else:
-            # Fallback
-            session_foods = [f for f in food_items if f.meal_session and f.meal_session.name.lower() == session.lower()]
-            plan[session] = session_foods[0] if session_foods else None
+            # Fallback within session, still preventing duplicate food items/names
+            session_foods = [
+                f for f in food_items 
+                if _matches_session(f.meal_session, session) 
+                and f.id not in used_food_ids 
+                and (" ".join(f.name.strip().lower().split()) if f.name else "") not in used_food_names
+            ]
+            chosen_food = session_foods[0] if session_foods else None
             
+        if chosen_food:
+            used_food_ids.add(chosen_food.id)
+            if chosen_food.name:
+                used_food_names.add(" ".join(chosen_food.name.strip().lower().split()))
+
+        plan[session] = chosen_food
+
+    # Provide normalized keys for templates
+    plan['Evening_Snack'] = plan.get('Evening Snack')
+    plan['Evening_Snacks'] = plan.get('Evening Snack')
+    plan['Morning_Breakfast'] = plan.get('Breakfast')
     return plan, target_calories
 
 
@@ -642,14 +682,19 @@ class RouteResult(tuple):
             # Estimate duration based on urban Kerala road speeds (~25 km/h)
             self.duration_min = round((float(distance) / 25.0) * 60.0, 1) if distance > 0 else 0.0
 
+    @property
+    def distance_km(self):
+        return self.distance
+
 def optimize_delivery_route(chef_lat, chef_lon, cust_lat, cust_lon):
     """
-    Calls the Google Maps Directions API or OSRM to get actual road distance, route polyline, and duration.
-    Falls back to straight-line Haversine estimate if APIs fail or keys are missing.
+    Calls OSRM (Open Source Routing Machine) to get actual road distance, route polyline, and duration.
+    Falls back to straight-line Haversine estimate if the routing service is unavailable.
     Returns RouteResult(route, distance_km, is_road, duration_min).
     """
     import requests
     from django.conf import settings
+    from django.core.cache import cache
     
     try:
         c_chef_lat = float(chef_lat)
@@ -663,34 +708,27 @@ def optimize_delivery_route(chef_lat, chef_lon, cust_lat, cust_lon):
         return RouteResult([], 0.0, False, 0.0)
 
     straight_line_dist = calculate_distance(c_chef_lat, c_chef_lon, c_cust_lat, c_cust_lon)
-    api_key = getattr(settings, 'GOOGLE_MAPS_API_KEY', None)
-    
-    if api_key:
-        try:
-            url = f"https://maps.googleapis.com/maps/api/directions/json?origin={c_chef_lat},{c_chef_lon}&destination={c_cust_lat},{c_cust_lon}&key={api_key}"
-            resp = requests.get(url, timeout=4)
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get('status') == 'OK':
-                    route = []
-                    legs = data['routes'][0]['legs']
-                    distance_meters = legs[0]['distance']['value']
-                    duration_seconds = legs[0]['duration']['value']
-                    road_distance_km = distance_meters / 1000.0
-                    duration_minutes = duration_seconds / 60.0
-                    
-                    for step in legs[0]['steps']:
-                        route.append({
-                            'lat': round(step['end_location']['lat'], 6),
-                            'lng': round(step['end_location']['lng'], 6)
-                        })
-                    return RouteResult(route, round(road_distance_km, 2), True, round(duration_minutes, 1))
-        except Exception:
-            pass
-            
-    # Try OpenStreetMap / OSRM public road routing engine
+
+    # Check cache for recent route calculation between these coordinates (4 decimal precision ~11m)
+    cache_key = f"osrm_route_{round(c_chef_lat, 4)}_{round(c_chef_lon, 4)}_{round(c_cust_lat, 4)}_{round(c_cust_lon, 4)}"
+    cached_result = cache.get(cache_key)
+    if cached_result:
+        return RouteResult(
+            cached_result['route'],
+            cached_result['distance_km'],
+            cached_result['is_road'],
+            cached_result['duration_min']
+        )
+
+    # OSRM road routing engine
     try:
-        osrm_url = f"https://router.project-osrm.org/route/v1/driving/{c_chef_lon},{c_chef_lat};{c_cust_lon},{c_cust_lat}?overview=simplified&geometries=geojson"
+        raw_url = getattr(settings, 'OSRM_ROUTING_URL', 'https://router.project-osrm.org/route/v1/driving/{coords}?overview=simplified&geometries=geojson')
+        coords_str = f"{c_chef_lon},{c_chef_lat};{c_cust_lon},{c_cust_lat}"
+        if '{coords}' in raw_url:
+            osrm_url = raw_url.replace('{coords}', coords_str)
+        else:
+            base_url = raw_url.rstrip('/')
+            osrm_url = f"{base_url}/{coords_str}?overview=simplified&geometries=geojson"
         resp = requests.get(osrm_url, timeout=3, headers={'User-Agent': 'VeetileRuchiDelivery/1.0'})
         if resp.status_code == 200:
             osrm_data = resp.json()
@@ -701,7 +739,14 @@ def optimize_delivery_route(chef_lat, chef_lon, cust_lat, cust_lon):
                 duration_minutes = duration_seconds / 60.0 if duration_seconds else (road_dist_km / 25.0) * 60.0
                 coords = primary_route['geometry']['coordinates']  # [lon, lat] pairs
                 route = [{'lat': round(c[1], 6), 'lng': round(c[0], 6)} for c in coords]
-                return RouteResult(route, round(road_dist_km, 2), True, round(duration_minutes, 1))
+                res = RouteResult(route, round(road_dist_km, 2), True, round(duration_minutes, 1))
+                cache.set(cache_key, {
+                    'route': res.route,
+                    'distance_km': res.distance_km,
+                    'is_road': res.is_road,
+                    'duration_min': res.duration_min
+                }, timeout=1800)
+                return res
     except Exception:
         pass
 
