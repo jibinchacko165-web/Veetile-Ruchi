@@ -88,6 +88,7 @@ def resilient_wsgi_app(environ, start_response):
     # AppSail public gateway terminates SSL and exposes apps over HTTPS (:443)
     environ['wsgi.url_scheme'] = 'https'
     environ['HTTP_X_FORWARDED_PROTO'] = 'https'
+    environ['SERVER_PORT'] = '443'
     if environ.get('HTTP_HOST', '').endswith(':443'):
         environ['HTTP_HOST'] = environ['HTTP_HOST'][:-4]
 
