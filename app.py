@@ -75,6 +75,32 @@ try:
 except Exception as e:
     print(f"Warning: Pre-warm deferred ({e})", flush=True)
 
+import io
+
+def read_chunked_body(rfile):
+    body = bytearray()
+    while True:
+        line = rfile.readline()
+        if not line:
+            break
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            chunk_len = int(line.split(b';')[0], 16)
+        except ValueError:
+            break
+        if chunk_len == 0:
+            while True:
+                trailer = rfile.readline()
+                if not trailer or trailer in (b'\r\n', b'\n', b''):
+                    break
+            break
+        chunk = rfile.read(chunk_len)
+        body.extend(chunk)
+        rfile.readline()  # Consume trailing \r\n
+    return bytes(body)
+
 class ThreadingWSGIServer(ThreadingMixIn, WSGIServer):
     daemon_threads = True
     allow_reuse_address = True
@@ -83,6 +109,20 @@ class AppSailRequestHandler(WSGIRequestHandler):
     def log_message(self, format, *args):
         sys.stdout.write(f"[HTTP] {self.client_address[0]} - {format % args}\n")
         sys.stdout.flush()
+
+    def get_environ(self):
+        env = super().get_environ()
+        te = self.headers.get('transfer-encoding', '').lower()
+        if 'chunked' in te:
+            body = read_chunked_body(self.rfile)
+            env['CONTENT_LENGTH'] = str(len(body))
+            env['wsgi.input'] = io.BytesIO(body)
+            env.pop('HTTP_TRANSFER_ENCODING', None)
+        elif not env.get('CONTENT_LENGTH') and self.command in ('POST', 'PUT', 'PATCH'):
+            raw_cl = self.headers.get('content-length')
+            if raw_cl:
+                env['CONTENT_LENGTH'] = str(raw_cl).strip()
+        return env
 
 def resilient_wsgi_app(environ, start_response):
     path = environ.get('PATH_INFO', '')
@@ -101,11 +141,10 @@ def resilient_wsgi_app(environ, start_response):
     if 'CONTENT_LENGTH' not in environ and 'HTTP_CONTENT_LENGTH' in environ:
         environ['CONTENT_LENGTH'] = environ['HTTP_CONTENT_LENGTH']
 
-    # CRITICAL: Forward HTTPS scheme behind Zoho Catalyst reverse proxy
-    proto = environ.get('HTTP_X_FORWARDED_PROTO', '').lower()
-    ssl = environ.get('HTTP_X_FORWARDED_SSL', '').lower()
-    if proto == 'https' or ssl == 'on':
-        environ['wsgi.url_scheme'] = 'https'
+    # AppSail public gateway terminates SSL and exposes apps over HTTPS (:443)
+    # Always set wsgi.url_scheme to https and inject HTTP_X_FORWARDED_PROTO for Django
+    environ['wsgi.url_scheme'] = 'https'
+    environ['HTTP_X_FORWARDED_PROTO'] = 'https'
 
     app = get_django_app()
     if app is not None:
