@@ -97,13 +97,10 @@
 
             <!-- Modal Action Buttons -->
             <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-                <button type="button" id="modal-accept-btn" class="btn" style="flex: 2; min-width: 190px; background: #E11D48; color: white; border: none; padding: 0.8rem 1.25rem; font-weight: 700; font-size: 0.95rem; border-radius: var(--radius-sm); box-shadow: 0 4px 15px rgba(225, 29, 72, 0.35); display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer;">
+                <button type="button" id="modal-accept-btn" class="btn" style="flex: 2; min-width: 200px; background: #E11D48; color: white; border: none; padding: 0.8rem 1.25rem; font-weight: 700; font-size: 0.95rem; border-radius: var(--radius-sm); box-shadow: 0 4px 15px rgba(225, 29, 72, 0.35); display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer;">
                     🔥 Accept & Start Preparing
                 </button>
-                <button type="button" id="modal-reject-btn" class="btn btn-outline" style="flex: 1; min-width: 110px; border-color: #BE123C; color: #BE123C; padding: 0.8rem 1rem; font-weight: 700; font-size: 0.9rem; border-radius: var(--radius-sm); cursor: pointer;">
-                    ❌ Reject
-                </button>
-                <button type="button" onclick="closeNewOrderModal()" class="btn btn-secondary" style="flex: 1; min-width: 100px; padding: 0.8rem 1rem; font-size: 0.9rem; border-radius: var(--radius-sm); cursor: pointer;">
+                <button type="button" onclick="closeNewOrderModal()" class="btn btn-secondary" style="flex: 1; min-width: 120px; padding: 0.8rem 1rem; font-size: 0.9rem; border-radius: var(--radius-sm); cursor: pointer;">
                     Keep in Queue
                 </button>
             </div>
@@ -540,7 +537,6 @@
 
         // Configure Action Buttons
         const acceptBtn = document.getElementById('modal-accept-btn');
-        const rejectBtn = document.getElementById('modal-reject-btn');
 
         acceptBtn.onclick = function() {
             acceptBtn.disabled = true;
@@ -550,18 +546,6 @@
                 acceptBtn.disabled = false;
                 acceptBtn.innerHTML = '🔥 Accept & Start Preparing';
             });
-        };
-
-        rejectBtn.onclick = function() {
-            if (confirm(`Are you sure you want to REJECT Order #${order.order_id}? This will cancel the order and return stock portions.`)) {
-                rejectBtn.disabled = true;
-                rejectBtn.innerHTML = '⏳ Rejecting...';
-                updateOrderStatus(order.order_id, 'cancelled', function() {
-                    closeNewOrderModal();
-                    rejectBtn.disabled = false;
-                    rejectBtn.innerHTML = '❌ Reject';
-                });
-            }
         };
 
         backdrop.style.display = 'flex';
@@ -736,9 +720,6 @@
                                     actionControls = `
                                         <button type="button" onclick="updateOrderStatus('${item.order_id}', 'preparing')" class="btn btn-sm" style="background: #E11D48; color: white; border: none; padding: 0.45rem 1.1rem; font-size: 0.85rem; font-weight: 700; box-shadow: 0 4px 10px rgba(225, 29, 72, 0.25); cursor: pointer;">
                                             🔥 Accept & Start Preparing
-                                        </button>
-                                        <button type="button" onclick="if(confirm('Reject Order #${item.order_id}?')) updateOrderStatus('${item.order_id}', 'cancelled')" class="btn btn-outline btn-sm" style="border-color: #BE123C; color: #BE123C; padding: 0.45rem 0.85rem; font-size: 0.82rem; font-weight: 600; cursor: pointer;">
-                                            Reject
                                         </button>
                                     `;
                                 } else if (isPreparing) {
