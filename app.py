@@ -98,9 +98,9 @@ def resilient_wsgi_app(environ, start_response):
         return [b'{"status": "ok", "app": "veetile-ruchi"}']
 
     # Normalize CGI content variables for WSGI compliance
-    if 'CONTENT_TYPE' not in environ and 'HTTP_CONTENT_TYPE' in environ:
+    if not environ.get('CONTENT_TYPE') and environ.get('HTTP_CONTENT_TYPE'):
         environ['CONTENT_TYPE'] = environ['HTTP_CONTENT_TYPE']
-    if 'CONTENT_LENGTH' not in environ and 'HTTP_CONTENT_LENGTH' in environ:
+    if not environ.get('CONTENT_LENGTH') and environ.get('HTTP_CONTENT_LENGTH'):
         environ['CONTENT_LENGTH'] = environ['HTTP_CONTENT_LENGTH']
 
     app = get_django_app()
