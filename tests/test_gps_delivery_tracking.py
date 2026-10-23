@@ -694,8 +694,8 @@ class StartNavigationCoordinateTests(TestCase):
         track_url = reverse('delivery_boy_track', kwargs={'assignment_id': self.assignment.id})
         self.assertIn(track_url, content)
 
-    def test_destination_details_courier_track_exact_coordinates(self):
-        """Courier track page renders clean destination overview with exact coordinates and no OpenStreetMap or Leaflet map."""
+    def test_courier_track_leaflet_map_exact_coordinates(self):
+        """Courier track page renders Leaflet map with exact customer destination and GPS button."""
         self.client.force_login(self.courier_user)
         response = self.client.get(reverse('delivery_boy_track', kwargs={'assignment_id': self.assignment.id}))
         self.assertEqual(response.status_code, 200)
@@ -714,14 +714,12 @@ class StartNavigationCoordinateTests(TestCase):
         self.assertIn(response.context['travel_eta_display'], content)
         self.assertTrue(response.context['travel_mins'] > 0)
 
-        # Verify OpenStreetMap, Leaflet map container, and full-screen map button are completely removed
-        self.assertNotIn('initLeafletMap()', content)
-        self.assertNotIn('id="delivery-nav-map"', content)
-        self.assertNotIn('btn-toggle-fullscreen', content)
-        self.assertNotIn('Open Full-Screen Map', content)
-        self.assertNotIn('openstreetmap.org', content)
-        self.assertNotIn('Open Destination Location', content)
-        self.assertNotIn('Open Destination on Map', content)
+        # Verify Leaflet map container, initLeafletMap, GPS button, and zoom buttons are present
+        self.assertIn('id="delivery-nav-map"', content)
+        self.assertIn('initLeafletMap()', content)
+        self.assertIn('btn-zoom-customer', content)
+        self.assertIn('btn-locate-courier', content)
+        self.assertIn('btn-view-both', content)
 
     def test_notification_api_clean_nav_url(self):
         """Courier notification API returns internal tracking nav_url without OpenStreetMap."""

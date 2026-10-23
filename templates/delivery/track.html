@@ -1,5 +1,39 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+<!-- Leaflet Map CSS & JS (Local Static Assets) -->
+<link rel="stylesheet" href="/static/leaflet/leaflet.css" />
+<script src="/static/leaflet/leaflet.js"></script>
+<script>
+    if (typeof L !== 'undefined' && L.Icon && L.Icon.Default) {
+        L.Icon.Default.imagePath = '/static/leaflet/images/';
+    }
+</script>
+<style>
+.leaflet-fullscreen-active {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 999999 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #0f172a;
+}
+.leaflet-fullscreen-active #delivery-nav-map {
+    height: 100vh !important;
+    width: 100vw !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+.custom-div-icon {
+    background: transparent;
+    border: none;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="mb-3">
     <a href="{% url 'delivery_boy_dashboard' %}" class="btn btn-outline" style="padding: 0.4rem 1rem; font-size: 0.85rem;">
@@ -247,18 +281,66 @@
         </div>
     </div>
 
-    <!-- Right: Delivery Destination & Location Details -->
+    <!-- Right: Single Professional Leaflet GPS Map with Full-Screen Mode -->
     <div class="card" id="map-section-card" style="display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
             <h3 style="color: var(--primary-brown); font-weight: 700; margin: 0;">
-                📍 Delivery Destination & Location Overview
+                📍 Live GPS Route & Location Tracking Map
             </h3>
-            <span style="font-size: 0.82rem; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 0.35rem 0.75rem; border-radius: 6px;">
-                Destination: Lat {{ cust_lat }}, Lon {{ cust_lon }}
-            </span>
+            <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+                <button type="button" id="btn-zoom-customer" onclick="zoomToCustomerLocation()" class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.82rem; font-weight: 600; background: #ffffff;">
+                    🎯 Zoom Customer
+                </button>
+                <button type="button" id="btn-view-both" onclick="viewBothLocations()" class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.82rem; font-weight: 600; background: #ffffff;">
+                    🔄 View Both
+                </button>
+                <button type="button" id="btn-locate-courier" onclick="locateCourierGps()" class="btn" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 700; background: #2563eb; color: #ffffff;">
+                    📡 Get My Location
+                </button>
+                <button type="button" id="btn-toggle-fullscreen" onclick="toggleFullScreenMap()" class="btn" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 700; background: #0284c7; color: #ffffff; border: none; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 0.3rem;">
+                    <span>⛶</span> Full Screen
+                </button>
+            </div>
         </div>
 
-        <div style="background: #ffffff; padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border-light); margin-bottom: 1rem;">
+        <!-- Missing coordinates alert banner (displayed if customer coords invalid or missing) -->
+        <div id="missing-coords-alert" style="display: none; background: #fffbeb; border: 1px solid #fef3c7; color: #b45309; padding: 0.65rem 1rem; border-radius: 8px; margin-bottom: 0.75rem; font-size: 0.85rem;">
+            ⚠️ Customer delivery coordinates are not set for this order. Defaulting map center to Central Kitchen Hub.
+        </div>
+
+        <!-- Leaflet Map Container Wrapper (Supports Dedicated Full-Screen View) -->
+        <div id="delivery-nav-map-wrapper" style="position: relative; width: 100%;">
+            <!-- Floating Full-Screen Controls Bar (Visible only in Full-Screen Mode) -->
+            <div id="fs-floating-bar" style="display: none; position: absolute; top: 16px; left: 16px; right: 16px; z-index: 1000; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(8px); padding: 0.75rem 1rem; border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.25); border: 1px solid rgba(0,0,0,0.1); align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <button type="button" onclick="toggleFullScreenMap(false)" class="btn" style="padding: 0.4rem 0.85rem; font-size: 0.82rem; font-weight: 700; background: #dc2626; color: #ffffff; border: none; border-radius: 6px; cursor: pointer;">
+                        ✖ Exit Full Screen
+                    </button>
+                    <button type="button" onclick="zoomToCustomerLocation()" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; font-weight: 600; background: #ffffff;">
+                        🎯 Zoom Customer
+                    </button>
+                    <button type="button" onclick="viewBothLocations()" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; font-weight: 600; background: #ffffff;">
+                        🔄 View Both
+                    </button>
+                    <button type="button" onclick="locateCourierGps()" class="btn" style="padding: 0.4rem 0.85rem; font-size: 0.82rem; font-weight: 700; background: #2563eb; color: #ffffff; border: none; border-radius: 6px; cursor: pointer;">
+                        📡 Get My Location
+                    </button>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; font-weight: 700;">
+                    <span style="background: #fef3c7; color: #b45309; padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid #fde68a;">
+                        ⏱️ <span id="fs-travel-eta">{{ travel_eta_display|default:"Calculating..." }}</span>
+                    </span>
+                    <span style="background: #e0f2fe; color: #0369a1; padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid #bae6fd;">
+                        📍 <span id="fs-distance">{{ distance_km }} km</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Leaflet Map Container -->
+            <div id="delivery-nav-map" style="height: 480px; width: 100%; border-radius: 14px; border: 1.5px solid var(--border-light); z-index: 1; margin-bottom: 0.75rem;"></div>
+        </div>
+
+        <div style="background: #ffffff; padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border-light); margin-bottom: 0.5rem;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                 <div style="background: var(--bg-cream); padding: 1rem; border-radius: 10px; border: 1px solid var(--border-warm);">
                     <span style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.3rem;">🏨 Kitchen Hub Base</span>
@@ -281,10 +363,34 @@
 </div>
 
 <script>
+    let leafletMap = null;
+    let kitchenMarker = null;
+    let customerMarker = null;
+    let courierMarker = null;
+    let routePolyline = null;
+    let isMapFullScreen = false;
+    let isCourierDraggingMap = false;
+    let courierDragTimeout = null;
+
     const chefLat = parseFloat("{{ chef_lat|default:'9.5564' }}") || 9.5564;
     const chefLon = parseFloat("{{ chef_lon|default:'76.7909' }}") || 76.7909;
-    const custLat = parseFloat("{{ cust_lat|default:'9.5564' }}") || 9.5564;
-    const custLon = parseFloat("{{ cust_lon|default:'76.7909' }}") || 76.7909;
+    let rawCustLat = parseFloat("{{ cust_lat|default:'' }}");
+    let rawCustLon = parseFloat("{{ cust_lon|default:'' }}");
+
+    function isValidLatLng(lat, lon) {
+        return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+    }
+
+    // Auto-correct if coordinates were inadvertently reversed
+    if (rawCustLat >= 70 && rawCustLat <= 80 && rawCustLon >= 8 && rawCustLon <= 13) {
+        const tmp = rawCustLat;
+        rawCustLat = rawCustLon;
+        rawCustLon = tmp;
+    }
+
+    const hasValidCustCoords = isValidLatLng(rawCustLat, rawCustLon);
+    const custLat = hasValidCustCoords ? rawCustLat : null;
+    const custLon = hasValidCustCoords ? rawCustLon : null;
 
     let courierLat = {% if has_courier_gps and courier_lat %}parseFloat("{{ courier_lat }}"){% else %}null{% endif %};
     let courierLon = {% if has_courier_gps and courier_lon %}parseFloat("{{ courier_lon }}"){% else %}null{% endif %};
@@ -292,6 +398,287 @@
     const isOrderDelivered = ("{{ assignment.status }}" === "delivered");
     const csrfToken = "{{ csrf_token }}";
     let watchId = null;
+
+    const routeSteps = [
+        {% for step in route_steps %}
+            [{{ step.lat }}, {{ step.lng }}]{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    function createIcon(color, emoji) {
+        return L.divIcon({
+            className: 'custom-div-icon',
+            html: `<div style="background-color:${color}; width:32px; height:32px; border-radius:50%; border:2.5px solid white; box-shadow:0 3px 10px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; color:white; font-size:16px;">${emoji}</div>`,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+            popupAnchor: [0, -18]
+        });
+    }
+
+    function initLeafletMap() {
+        const container = document.getElementById('delivery-nav-map');
+        if (!container || typeof L === 'undefined') return;
+        if (leafletMap) {
+            leafletMap.invalidateSize();
+            return;
+        }
+
+        const centerLat = custLat !== null ? (chefLat + custLat) / 2 : chefLat;
+        const centerLon = custLon !== null ? (chefLon + custLon) / 2 : chefLon;
+
+        leafletMap = L.map('delivery-nav-map', {
+            center: [centerLat, centerLon],
+            zoom: custLat !== null ? 12 : 11,
+            zoomControl: true,
+            scrollWheelZoom: true,
+            dragging: true,
+            tap: false,
+            touchZoom: true
+        });
+
+        leafletMap.on('dragstart movestart', function() {
+            isCourierDraggingMap = true;
+            if (courierDragTimeout) clearTimeout(courierDragTimeout);
+        });
+
+        leafletMap.on('dragend moveend', function() {
+            if (courierDragTimeout) clearTimeout(courierDragTimeout);
+            courierDragTimeout = setTimeout(() => {
+                isCourierDraggingMap = false;
+            }, 8000);
+        });
+
+        const primaryTileUrl = window.MAP_TILE_URL || "{{ MAP_TILE_URL|default:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'|escapejs }}";
+        const primaryTileAttr = window.MAP_TILE_ATTRIBUTION || '{{ MAP_TILE_ATTRIBUTION|default:"&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"|safe }}';
+        const primaryTileSubdomains = window.MAP_TILE_SUBDOMAINS || "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
+        const fallbackTileUrl = window.MAP_TILE_FALLBACK_URL || "{{ MAP_TILE_FALLBACK_URL|default:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'|escapejs }}";
+
+        const tileLayer = L.tileLayer(primaryTileUrl, {
+            subdomains: primaryTileSubdomains,
+            maxZoom: 19,
+            attribution: primaryTileAttr
+        }).addTo(leafletMap);
+
+        let tileErrCount = 0;
+        let fallbackApplied = false;
+        tileLayer.on('tileerror', function() {
+            tileErrCount++;
+            if (tileErrCount > 3 && !fallbackApplied && fallbackTileUrl && fallbackTileUrl !== primaryTileUrl) {
+                fallbackApplied = true;
+                console.warn("Primary tile provider slow/offline. Switching to fallback:", fallbackTileUrl);
+                tileLayer.setUrl(fallbackTileUrl);
+            }
+        });
+
+        // 1. Kitchen Hub Base Marker
+        kitchenMarker = L.marker([chefLat, chefLon], {
+            icon: createIcon('#10B981', '🏠')
+        }).addTo(leafletMap).bindPopup("<b>Central Kitchen Hub</b><br>Kanjirappally, Kerala");
+
+        // 2. Customer Delivery Destination Marker
+        if (hasValidCustCoords && custLat !== null && custLon !== null) {
+            customerMarker = L.marker([custLat, custLon], {
+                icon: createIcon('#2563EB', '📍')
+            }).addTo(leafletMap).bindPopup(
+                `<b>Customer Delivery Destination</b><br>{{ assignment.order.formatted_delivery_address|escapejs }}<br><strong>Coordinates:</strong> Lat ${custLat.toFixed(6)}, Lon ${custLon.toFixed(6)}`
+            );
+        } else {
+            const warningElem = document.getElementById("missing-coords-alert");
+            if (warningElem) warningElem.style.display = "block";
+        }
+
+        // 3. Courier Live Marker (if courier GPS already present)
+        if (hasCourierGps && courierLat !== null && courierLon !== null && isValidLatLng(courierLat, courierLon)) {
+            courierMarker = L.marker([courierLat, courierLon], {
+                icon: createIcon('#D97736', '🛵')
+            }).addTo(leafletMap).bindPopup("<b>Your Current GPS Location</b><br>Lat: " + courierLat.toFixed(5) + ", Lon: " + courierLon.toFixed(5));
+        }
+
+        // 4. Road Route Polyline (if steps available)
+        if (routeSteps.length > 1) {
+            routePolyline = L.polyline(routeSteps, {
+                color: '#2563EB',
+                weight: 4,
+                opacity: 0.85
+            }).addTo(leafletMap);
+        }
+
+        // Fit bounds initially
+        viewBothLocations(true);
+
+        setTimeout(() => {
+            if (leafletMap) leafletMap.invalidateSize();
+        }, 300);
+    }
+
+    function zoomToCustomerLocation() {
+        if (!leafletMap) return;
+        if (hasValidCustCoords && custLat !== null && custLon !== null) {
+            leafletMap.setView([custLat, custLon], 16, { animate: true });
+            if (customerMarker) customerMarker.openPopup();
+        } else {
+            alert("Customer delivery coordinates are not available for this order.");
+        }
+    }
+
+    function viewBothLocations(initial = false) {
+        if (!leafletMap) return;
+        const pts = [];
+        if (hasValidCustCoords && custLat !== null && custLon !== null) {
+            pts.push([custLat, custLon]);
+        }
+        if (courierLat !== null && courierLon !== null && isValidLatLng(courierLat, courierLon)) {
+            pts.push([courierLat, courierLon]);
+        }
+        if (pts.length === 0) {
+            pts.push([chefLat, chefLon]);
+        } else if (pts.length === 1 && (pts[0][0] !== chefLat || pts[0][1] !== chefLon)) {
+            pts.push([chefLat, chefLon]);
+        }
+
+        if (pts.length > 1) {
+            leafletMap.fitBounds(L.latLngBounds(pts), { padding: [50, 50], maxZoom: 16 });
+        } else {
+            leafletMap.setView(pts[0], 14);
+        }
+    }
+
+    function locateCourierGps() {
+        const btn = document.getElementById("btn-locate-courier");
+        const originalText = btn ? btn.innerHTML : "📡 Get My Location";
+        if (btn) {
+            btn.innerHTML = `<span style="display:inline-block; width:10px; height:10px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; margin-right:4px;"></span> Acquiring...`;
+            btn.disabled = true;
+        }
+
+        if (!navigator.geolocation) {
+            alert("Browser Geolocation is not supported on this device.");
+            if (btn) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            function(pos) {
+                if (btn) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+                const accuracy = pos.coords.accuracy;
+
+                if (!isValidLatLng(lat, lon)) {
+                    alert("Received invalid GPS coordinates from device.");
+                    return;
+                }
+
+                courierLat = lat;
+                courierLon = lon;
+                hasCourierGps = true;
+
+                if (leafletMap) {
+                    if (!courierMarker) {
+                        courierMarker = L.marker([lat, lon], {
+                            icon: createIcon('#D97736', '🛵')
+                        }).addTo(leafletMap).bindPopup("<b>Your Current Location (Courier)</b><br>Lat: " + lat.toFixed(5) + ", Lon: " + lon.toFixed(5) + (accuracy ? `<br>Accuracy: &plusmn;${Math.round(accuracy)}m` : ''));
+                    } else {
+                        courierMarker.setLatLng([lat, lon]);
+                        if (courierMarker.getPopup()) {
+                            courierMarker.getPopup().setContent("<b>Your Current Location (Courier)</b><br>Lat: " + lat.toFixed(5) + ", Lon: " + lon.toFixed(5) + (accuracy ? `<br>Accuracy: &plusmn;${Math.round(accuracy)}m` : ''));
+                        }
+                    }
+                    courierMarker.openPopup();
+                }
+
+                updateCourierPositionOnMap(lat, lon, accuracy);
+                viewBothLocations();
+            },
+            function(err) {
+                if (btn) {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+                let msg = "Could not retrieve GPS location.";
+                if (err.code === 1) {
+                    msg = "Location permission denied. Please allow location access in your browser settings.";
+                } else if (err.code === 2) {
+                    msg = "Location unavailable. Please make sure your device GPS is turned on.";
+                } else if (err.code === 3) {
+                    msg = "Location request timed out. Please try again.";
+                }
+                alert(msg);
+                handleGpsError(err);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 20000,
+                maximumAge: 5000
+            }
+        );
+    }
+
+    function toggleFullScreenMap(forceState) {
+        const wrapper = document.getElementById("delivery-nav-map-wrapper");
+        const mapElem = document.getElementById("delivery-nav-map");
+        const floatingBar = document.getElementById("fs-floating-bar");
+        const toggleBtn = document.getElementById("btn-toggle-fullscreen");
+        if (!wrapper || !mapElem) return;
+
+        if (forceState !== undefined) {
+            isMapFullScreen = forceState;
+        } else {
+            isMapFullScreen = !isMapFullScreen;
+        }
+
+        if (isMapFullScreen) {
+            wrapper.classList.add("leaflet-fullscreen-active");
+            mapElem.style.height = "100vh";
+            mapElem.style.borderRadius = "0";
+            if (floatingBar) floatingBar.style.display = "flex";
+            if (toggleBtn) {
+                toggleBtn.innerHTML = "<span>✖</span> Exit Full Screen";
+                toggleBtn.style.background = "#dc2626";
+            }
+            document.body.style.overflow = "hidden";
+        } else {
+            wrapper.classList.remove("leaflet-fullscreen-active");
+            mapElem.style.height = "480px";
+            mapElem.style.borderRadius = "14px";
+            if (floatingBar) floatingBar.style.display = "none";
+            if (toggleBtn) {
+                toggleBtn.innerHTML = "<span>⛶</span> Full Screen";
+                toggleBtn.style.background = "#0284c7";
+            }
+            document.body.style.overflow = "";
+        }
+
+        if (leafletMap) {
+            leafletMap.invalidateSize();
+            setTimeout(() => {
+                leafletMap.invalidateSize();
+                viewBothLocations();
+            }, 180);
+        }
+    }
+
+    document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape" && isMapFullScreen) {
+            toggleFullScreenMap(false);
+        }
+    });
+
+    window.addEventListener("DOMContentLoaded", function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get("fullscreen") === "1" || window.location.hash === "#fullscreen") {
+            setTimeout(() => {
+                toggleFullScreenMap(true);
+            }, 300);
+        }
+    });
+
 
     // ── Live GPS State Management ──
     let isTrackingActive = false;
@@ -540,6 +927,20 @@
                 }
                 const lastUpdatedElem = document.getElementById("ui-last-updated");
                 if (lastUpdatedElem) lastUpdatedElem.textContent = data.timestamp || "Just now";
+
+                // Update real driving route polyline on Leaflet map if updated route steps provided
+                if (data.route_steps && data.route_steps.length > 1 && leafletMap) {
+                    const newRouteCoords = data.route_steps.map(s => [s.lat, s.lng]);
+                    if (routePolyline) {
+                        routePolyline.setLatLngs(newRouteCoords);
+                    } else {
+                        routePolyline = L.polyline(newRouteCoords, {
+                            color: '#2563EB',
+                            weight: 4,
+                            opacity: 0.85
+                        }).addTo(leafletMap);
+                    }
+                }
             } else if (data.status === 'stopped') {
                 stopTracking(false);
                 setGpsStatus('stopped', '✅ Tracking concluded. Order is delivered or cancelled.', false);
@@ -562,6 +963,19 @@
         courierLat = lat;
         courierLon = lon;
         hasCourierGps = true;
+
+        if (leafletMap) {
+            if (!courierMarker) {
+                courierMarker = L.marker([lat, lon], {
+                    icon: createIcon('#D97736', '🛵')
+                }).addTo(leafletMap).bindPopup("<b>Your Current Location (Courier)</b><br>Lat: " + lat.toFixed(5) + ", Lon: " + lon.toFixed(5) + (accuracy ? `<br>Accuracy: &plusmn;${Math.round(accuracy)}m` : ''));
+            } else {
+                courierMarker.setLatLng([lat, lon]);
+                if (courierMarker.getPopup()) {
+                    courierMarker.getPopup().setContent("<b>Your Current Location (Courier)</b><br>Lat: " + lat.toFixed(5) + ", Lon: " + lon.toFixed(5) + (accuracy ? `<br>Accuracy: &plusmn;${Math.round(accuracy)}m` : ''));
+                }
+            }
+        }
 
         const debugElem = document.getElementById("courier-coord-debug");
         if (debugElem) {
@@ -741,6 +1155,8 @@
     });
 
     document.addEventListener("DOMContentLoaded", function() {
+        initLeafletMap();
+
         const connectBtn = document.getElementById("connectGpsBtn");
         if (connectBtn) {
             connectBtn.addEventListener("click", function() {

@@ -766,9 +766,9 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         track_resp = self.client.get(reverse('delivery_boy_track', kwargs={'assignment_id': assign.id}))
         self.assertEqual(track_resp.status_code, 200)
 
-        # Verify coordinates and destination overview are present
+        # Verify coordinates, Leaflet map, and destination overview are present
         content = track_resp.content.decode('utf-8')
-        self.assertNotIn('delivery-nav-map', content)
+        self.assertIn('delivery-nav-map', content)
         self.assertIn('Estimated Arrival:', content)
         self.assertIn('9.5564', content)
         self.assertIn('76.7909', content)

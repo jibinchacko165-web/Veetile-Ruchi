@@ -202,4 +202,14 @@ LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/accounts/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
+# Map Tile Configuration for Leaflet
+MAP_TILE_URL = os.environ.get('MAP_TILE_URL', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png')
+MAP_TILE_ATTRIBUTION = os.environ.get(
+    'MAP_TILE_ATTRIBUTION',
+    '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+)
+MAP_TILE_SUBDOMAINS = os.environ.get('MAP_TILE_SUBDOMAINS', 'abc')
+MAP_TILE_FALLBACK_URL = os.environ.get('MAP_TILE_FALLBACK_URL', 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+MAP_TILE_FALLBACK_ATTRIBUTION = os.environ.get('MAP_TILE_FALLBACK_ATTRIBUTION', MAP_TILE_ATTRIBUTION)
+
 
