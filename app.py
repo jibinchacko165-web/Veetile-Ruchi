@@ -46,6 +46,22 @@ def get_django_app():
         from veetile_ruchi_project.wsgi import application
         django_app = application
         print("Django WSGI application initialized successfully.", flush=True)
+
+        # Ensure database schema is 100% up to date on boot
+        try:
+            from django.core.management import call_command
+            call_command('migrate', interactive=False)
+            print("Database migrations verified and up to date.", flush=True)
+            # Safeguard: if database has 0 users, restore from initial_data_backup.json
+            from accounts.models import User
+            backup_fixture = os.path.join(current_dir, 'initial_data_backup.json')
+            if not User.objects.exists() and os.path.isfile(backup_fixture):
+                print(f"Empty database detected. Restoring data from {backup_fixture}...", flush=True)
+                call_command('loaddata', backup_fixture)
+                print("Database data restoration completed successfully.", flush=True)
+        except Exception as mig_err:
+            print(f"Notice during startup database check: {mig_err}", flush=True)
+
         return django_app
     except Exception as exc:
         import traceback
@@ -73,6 +89,12 @@ def resilient_wsgi_app(environ, start_response):
     if path in ('/health', '/health/'):
         start_response('200 OK', [('Content-Type', 'application/json')])
         return [b'{"status": "ok", "app": "veetile-ruchi"}']
+
+    # CRITICAL: Forward HTTPS scheme behind Zoho Catalyst reverse proxy
+    proto = environ.get('HTTP_X_FORWARDED_PROTO', '').lower()
+    ssl = environ.get('HTTP_X_FORWARDED_SSL', '').lower()
+    if proto == 'https' or ssl == 'on':
+        environ['wsgi.url_scheme'] = 'https'
 
     app = get_django_app()
     if app is not None:

@@ -31,11 +31,11 @@ IS_PRODUCTION = (
 )
 
 # SECURITY WARNING: keep the secret key used in production secret!
+DEFAULT_PROD_SECRET = "vr-prod-kerala-authentic-secret-key-9f8a2b3c4d5e6f7g8h9i0j-zoho-catalyst"
 SECRET_KEY = os.getenv('SECRET_KEY')
 if not SECRET_KEY or (IS_PRODUCTION and SECRET_KEY.startswith('django-insecure-')):
     if IS_PRODUCTION:
-        import secrets
-        SECRET_KEY = secrets.token_urlsafe(50)
+        SECRET_KEY = os.getenv('SECRET_KEY_PROD', DEFAULT_PROD_SECRET)
     else:
         SECRET_KEY = 'django-insecure-pwx&h*jc1xuvwk-ojs3r2+2k9ljv!_x65@t)#x0-ri0!tg@y5f'
 
@@ -51,10 +51,15 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '.zohocatalystapps.com',
     '.zohocatalystapps.in',
+    '.development.zohocatalystapps.com',
+    '.development.zohocatalystapps.in',
     '.catalystserverless.com',
     '.catalystserverless.in',
     '.catalystappsail.com',
     '.catalystappsail.in',
+    '.development.catalystappsail.com',
+    '.development.catalystappsail.in',
+    'veetile-ruchi-50047116467.development.catalystappsail.in',
     '.zoho.com',
     '.zoho.in',
 ]
@@ -64,7 +69,7 @@ if extra_hosts:
         h = host.strip()
         if h and h not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(h)
-if DEBUG or '*' in ALLOWED_HOSTS:
+if DEBUG or '*' in ALLOWED_HOSTS or IS_PRODUCTION:
     ALLOWED_HOSTS = ['*']
 
 CSRF_TRUSTED_ORIGINS = [
@@ -76,14 +81,20 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
     'http://localhost:8001',
     'http://localhost:8002',
-    'https://*.zohocatalystapps.com',
+    'https://*.development.catalystappsail.in',
+    'https://*.development.catalystappsail.com',
+    'https://*.development.zohocatalystapps.in',
+    'https://*.development.zohocatalystapps.com',
+    'https://*.catalystappsail.in',
+    'https://*.catalystappsail.com',
     'https://*.zohocatalystapps.in',
+    'https://*.zohocatalystapps.com',
     'https://*.catalystserverless.com',
     'https://*.catalystserverless.in',
-    'https://*.catalystappsail.com',
-    'https://*.catalystappsail.in',
     'https://*.zoho.com',
     'https://*.zoho.in',
+    'https://veetile-ruchi-50047116467.development.catalystappsail.in',
+    'https://veetile-ruchi-50047116467.catalystappsail.in',
 ]
 extra_csrf = os.getenv('CSRF_TRUSTED_ORIGINS', '')
 if extra_csrf:
@@ -93,11 +104,14 @@ if extra_csrf:
             CSRF_TRUSTED_ORIGINS.append(o)
 
 CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_DOMAIN = None
 CSRF_FAILURE_VIEW = 'accounts.views.csrf_failure_view'
 
+# Reverse Proxy SSL Header Configuration for Zoho Catalyst
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # Production Security & SSL Configuration
-if not DEBUG:
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+if not DEBUG and IS_PRODUCTION:
     SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False').lower() in ('true', '1')
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
@@ -107,6 +121,9 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     X_FRAME_OPTIONS = 'DENY'
+else:
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
 
 # Session Configuration
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
@@ -115,7 +132,7 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 SESSION_SAVE_EVERY_REQUEST = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SAMESITE = 'Lax'
 
 
 # Application definition

@@ -1,0 +1,4536 @@
+[
+{
+  "model": "sessions.session",
+  "pk": "f9m2c843h7j1ud6gcr7hao9szwih5iy0",
+  "fields": {
+    "session_data": ".eJxVjEEOwiAQRe_C2hAKBQaX7j0DmYFBqoYmpV0Z765NutDtf-_9l4i4rTVunZc4ZXEWgxKn35EwPbjtJN-x3WaZ5rYuE8ldkQft8jpnfl4O9--gYq_fmhE1csnaO0WooWTLONrk7OgMe0UGSiGbwIRsAYLGkgYHjrwJCdiL9wcv6jit:1wpf7l:xQfRFlo1qYse2zMieDs4ntYuQ_EUUDOU_J-P8lZyMCg",
+    "expire_date": "2026-08-14T04:45:33.005Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "ip5ykf0j0sq310x7europl0a5pm2v930",
+  "fields": {
+    "session_data": ".eJxVjrsOgjAYhd-ls2l6AUvd1MQNExEGJ1L-toIQGi6NJsZ3lyYMup7v3N6oVH6uSz-ZsWw02iFKBNr8qpWC1vQB6Yfq7w6D6-exqXCw4JVOOHXadIfV-1dQq6le0lzRCpS2RNitZFwYKSlnMVjLwAiWMKK4rYACaCGUjCAmkeWWRjyJBNE8lMI02tktE-HoNcuPxc3tT963afMq8szzQQ8XoWWXnZ_o8wVY1Eij:1wvCUQ:nwDZvDmH_lwbfdxyJX0hiy3xl4pR_oE5-p_6rTTcv6Q",
+    "expire_date": "2026-08-29T11:23:50.857Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "qgwcgvm7dec2z063cv8rplfic7p4y89i",
+  "fields": {
+    "session_data": ".eJxVjDsOwyAQRO9CHSGwYWFTpvcZ0MJC7CQCyZ8qyt1jSy6SaqR5b-YtAm3rGLYlz2FicRW2F5ffMlJ65noQflC9N5laXecpykORJ13k0Di_bqf7dzDSMu5rZwiVRpN6zeSgFPLO8x65c-B0ROxAWV1K7JHAYi6eE2lgUICGjfh8AQvWOCk:1wv6pM:VZCb6KDel9q04DTLOrXeLCxGPznfNE9wDOIwej5Fu3c",
+    "expire_date": "2026-08-29T05:21:04.267Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "rq0bifo2a1spbn7zlg8774rw4vuswr3j",
+  "fields": {
+    "session_data": ".eJxVjEEOwiAQRe_C2hAoQ2Zw6d4zkIFBqRqalHbVeHdt0oVu_3vvbyryutS49jLHUdRZWatOv2Pi_CxtJ_Lgdp90ntoyj0nvij5o19dJyutyuH8HlXv91gQihDcfKGUxgWHwhizSwA44mEDEhIQhoROw4Dl7MMFZxwLOJlTvD-PJNsk:1wpfOz:jUGvmlsxqq1fKxJzOwZWPdvwXmApIUmM7soYbDYs3nw",
+    "expire_date": "2026-08-14T05:03:21.478Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "yw17b1gr487tmy6h0gplgk3470b5fvyh",
+  "fields": {
+    "session_data": ".eJxVjEEOwiAQRe_C2hDo0AFcuvcMZIYBWzVtUtqV8e7apAvd_vfef6lE2zqkrZUljaLOCpw6_Y5M-VGmncidptus8zyty8h6V_RBm77OUp6Xw_07GKgN37oYqFSEoilZfIzMvfUdul4YUKLL1lSx0gHaiiA1IBoAH1xkRxxQvT8grTgR:1wv6ZA:DR7F1nel6HgXhTlJ5__VFXIJwEQmFxCDT5NjyXNb6Rg",
+    "expire_date": "2026-08-29T05:04:20.864Z"
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$gKoA8YxVIalLXHsJBfnfWz$ps3EsOqTjn4ZPwR4YMuh1iJGu8TnFnWv42C21rF3RFg=",
+    "last_login": "2026-08-15T11:09:58.546Z",
+    "is_superuser": false,
+    "username": "admin",
+    "first_name": "",
+    "last_name": "",
+    "email": "admin@ruchi.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-15T10:22:35.938Z",
+    "role": "admin",
+    "phone": null,
+    "address": null,
+    "latitude": 10.0,
+    "longitude": 76.0,
+    "dob": null,
+    "profile_picture": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$xESYFrDEFvXIJvkfLVHkcZ$6E+8WQlJFdy0q9HBAqFdLIsCR6J75bWxPCn5Jfyee5o=",
+    "last_login": "2026-08-15T11:08:32.283Z",
+    "is_superuser": false,
+    "username": "staff",
+    "first_name": "",
+    "last_name": "",
+    "email": "staff@ruchi.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-15T10:22:36.626Z",
+    "role": "staff",
+    "phone": null,
+    "address": null,
+    "latitude": 10.0,
+    "longitude": 76.0,
+    "dob": null,
+    "profile_picture": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$c5wRzBkjqUMGAxaeGXMpHp$f1j2JO7Zs0sQY/YOiHqR5/KFtybFxKWnI9xpBZApcqA=",
+    "last_login": "2026-08-15T11:02:36.780Z",
+    "is_superuser": false,
+    "username": "chef",
+    "first_name": "",
+    "last_name": "",
+    "email": "chef@ruchi.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-15T10:22:37.184Z",
+    "role": "chef",
+    "phone": null,
+    "address": null,
+    "latitude": 10.0,
+    "longitude": 76.0,
+    "dob": null,
+    "profile_picture": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$qYdex56nbyZZxuEKw1SOBY$e/dDxqaRW12aY+cJ0HRaawPhS1UkLPFD/wNhvTDM7yI=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "courier1",
+    "first_name": "",
+    "last_name": "",
+    "email": "courier1@ruchi.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-15T10:22:37.643Z",
+    "role": "delivery_boy",
+    "phone": null,
+    "address": null,
+    "latitude": 10.0,
+    "longitude": 76.0,
+    "dob": null,
+    "profile_picture": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$DJJlbd4IVZoFWfnFF5J7VK$ko2PS6MurUYeMI8nhRAvvp4VFxgF6+IK1A1r1jYK7SM=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "courier2",
+    "first_name": "",
+    "last_name": "",
+    "email": "courier2@ruchi.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-15T10:22:38.213Z",
+    "role": "delivery_boy",
+    "phone": null,
+    "address": null,
+    "latitude": 10.0,
+    "longitude": 76.0,
+    "dob": null,
+    "profile_picture": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$zPGSore6asjhLbdLTlGyfQ$3R4T/3m1XehbAGtQ+CwqjqZyi9Nl5A9d4ljziQuEHpY=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "courier3",
+    "first_name": "",
+    "last_name": "",
+    "email": "courier3@ruchi.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-15T10:22:38.770Z",
+    "role": "delivery_boy",
+    "phone": null,
+    "address": null,
+    "latitude": 10.0,
+    "longitude": 76.0,
+    "dob": null,
+    "profile_picture": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$WHm7HchL6qAfP68GwaKnmf$vC92iFmnwzj78q6a0BcSnYgitSV0u91TTNFo9ZDaXJc=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "courier4",
+    "first_name": "",
+    "last_name": "",
+    "email": "courier4@ruchi.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-15T10:22:39.313Z",
+    "role": "delivery_boy",
+    "phone": null,
+    "address": null,
+    "latitude": 10.0,
+    "longitude": 76.0,
+    "dob": null,
+    "profile_picture": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$6OM3G8B2BZZARPSObxujCr$k1OLrXon58rke4qOSwG677AzJO6pMnt2RWJnyPZRfNQ=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "courier5",
+    "first_name": "",
+    "last_name": "",
+    "email": "courier5@ruchi.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-15T10:22:39.824Z",
+    "role": "delivery_boy",
+    "phone": null,
+    "address": null,
+    "latitude": 10.0,
+    "longitude": 76.0,
+    "dob": null,
+    "profile_picture": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$SaenQ1OTpT3PtduThAu5AG$Xheoqp7cAslr+8F/7PlwtQ44jEYFcUcYG56gHah5Myc=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "courier6",
+    "first_name": "",
+    "last_name": "",
+    "email": "courier6@ruchi.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-15T10:22:40.293Z",
+    "role": "delivery_boy",
+    "phone": null,
+    "address": null,
+    "latitude": 10.0,
+    "longitude": 76.0,
+    "dob": null,
+    "profile_picture": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$OIepllKc8vMRI7aczfn6AY$gG9976eITdqDJDBgyfiTipPKkVaHmm3i1cPUYYYN9Bc=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "courier7",
+    "first_name": "",
+    "last_name": "",
+    "email": "courier7@ruchi.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-15T10:22:40.749Z",
+    "role": "delivery_boy",
+    "phone": null,
+    "address": null,
+    "latitude": 10.0,
+    "longitude": 76.0,
+    "dob": null,
+    "profile_picture": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$VlnygfVBhtMfvjrFEIQ5hZ$95csTKscTOdGGlHT7Z02u09M2zCPyIojnyLpdMmu63I=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "courier8",
+    "first_name": "",
+    "last_name": "",
+    "email": "courier8@ruchi.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-15T10:22:41.189Z",
+    "role": "delivery_boy",
+    "phone": null,
+    "address": null,
+    "latitude": 10.0,
+    "longitude": 76.0,
+    "dob": null,
+    "profile_picture": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$w4AGaUM6VrfKUwqTjwmREL$8RGBkABLCfooVvN8TpHcTDDRNhri+E656yZr5NguQK8=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "courier9",
+    "first_name": "",
+    "last_name": "",
+    "email": "courier9@ruchi.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-15T10:22:41.777Z",
+    "role": "delivery_boy",
+    "phone": null,
+    "address": null,
+    "latitude": 10.0,
+    "longitude": 76.0,
+    "dob": null,
+    "profile_picture": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$X8JOnjzFj2unU7hipmp3Nq$oMHJ60ZuXQ27G0mJdM9gMYTOp3xiGZx9bQLorlXwbuw=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "customer",
+    "first_name": "",
+    "last_name": "",
+    "email": "customer@ruchi.com",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-15T10:22:42.209Z",
+    "role": "customer",
+    "phone": "9876543210",
+    "address": "Green Valley Apartments, Block B, Kakkanad, Kochi",
+    "latitude": 10.0,
+    "longitude": 76.0,
+    "dob": null,
+    "profile_picture": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "accounts.user",
+  "fields": {
+    "password": "pbkdf2_sha256$600000$8gC5wxMeWEzTaYgYTigTZn$RB2n3TtMlzJXUFMQg8d71DsTAQd+PYH9zdqDuOjEd4I=",
+    "last_login": "2026-08-15T10:24:59.855Z",
+    "is_superuser": false,
+    "username": "jibin",
+    "first_name": "",
+    "last_name": "",
+    "email": "jibinpchacko2027@mca.ajce.in",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-08-15T10:24:58.375Z",
+    "role": "customer",
+    "phone": "7510571724",
+    "address": "",
+    "latitude": 9.4567,
+    "longitude": 76.726381,
+    "dob": null,
+    "profile_picture": "",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "accounts.chefprofile",
+  "pk": 13,
+  "fields": {
+    "user": [
+      "chef"
+    ],
+    "specialty": "Traditional Kerala Cuisine",
+    "kitchen_name": "",
+    "kitchen_address": "",
+    "experience_years": 1,
+    "bio": "",
+    "is_approved": true,
+    "rating": 5.0
+  }
+},
+{
+  "model": "accounts.deliveryboyprofile",
+  "pk": 53,
+  "fields": {
+    "user": [
+      "courier1"
+    ],
+    "vehicle_number": "KL-07-CD-1001",
+    "status": "available",
+    "rating": 5.0,
+    "current_latitude": 10.0,
+    "current_longitude": 76.0
+  }
+},
+{
+  "model": "accounts.deliveryboyprofile",
+  "pk": 54,
+  "fields": {
+    "user": [
+      "courier2"
+    ],
+    "vehicle_number": "KL-07-CD-1002",
+    "status": "available",
+    "rating": 5.0,
+    "current_latitude": 10.0,
+    "current_longitude": 76.0
+  }
+},
+{
+  "model": "accounts.deliveryboyprofile",
+  "pk": 55,
+  "fields": {
+    "user": [
+      "courier3"
+    ],
+    "vehicle_number": "KL-07-CD-1003",
+    "status": "available",
+    "rating": 5.0,
+    "current_latitude": 10.0,
+    "current_longitude": 76.0
+  }
+},
+{
+  "model": "accounts.deliveryboyprofile",
+  "pk": 56,
+  "fields": {
+    "user": [
+      "courier4"
+    ],
+    "vehicle_number": "KL-07-CD-1004",
+    "status": "available",
+    "rating": 5.0,
+    "current_latitude": 10.0,
+    "current_longitude": 76.0
+  }
+},
+{
+  "model": "accounts.deliveryboyprofile",
+  "pk": 57,
+  "fields": {
+    "user": [
+      "courier5"
+    ],
+    "vehicle_number": "KL-07-CD-1005",
+    "status": "available",
+    "rating": 5.0,
+    "current_latitude": 10.0,
+    "current_longitude": 76.0
+  }
+},
+{
+  "model": "accounts.deliveryboyprofile",
+  "pk": 58,
+  "fields": {
+    "user": [
+      "courier6"
+    ],
+    "vehicle_number": "KL-07-CD-1006",
+    "status": "available",
+    "rating": 5.0,
+    "current_latitude": 10.0,
+    "current_longitude": 76.0
+  }
+},
+{
+  "model": "accounts.deliveryboyprofile",
+  "pk": 59,
+  "fields": {
+    "user": [
+      "courier7"
+    ],
+    "vehicle_number": "KL-07-CD-1007",
+    "status": "available",
+    "rating": 5.0,
+    "current_latitude": 10.0,
+    "current_longitude": 76.0
+  }
+},
+{
+  "model": "accounts.deliveryboyprofile",
+  "pk": 60,
+  "fields": {
+    "user": [
+      "courier8"
+    ],
+    "vehicle_number": "KL-07-CD-1008",
+    "status": "available",
+    "rating": 5.0,
+    "current_latitude": 10.0,
+    "current_longitude": 76.0
+  }
+},
+{
+  "model": "accounts.deliveryboyprofile",
+  "pk": 61,
+  "fields": {
+    "user": [
+      "courier9"
+    ],
+    "vehicle_number": "KL-07-CD-1009",
+    "status": "available",
+    "rating": 5.0,
+    "current_latitude": 10.0,
+    "current_longitude": 76.0
+  }
+},
+{
+  "model": "food.category",
+  "pk": 37,
+  "fields": {
+    "name": "Vegetarian",
+    "description": "Fresh vegetarian homemade dishes",
+    "image": "/static/images/veg.jpg"
+  }
+},
+{
+  "model": "food.category",
+  "pk": 38,
+  "fields": {
+    "name": "Non-Vegetarian",
+    "description": "Delicious home-cooked meat and fish recipes",
+    "image": "/static/images/nonveg.jpg"
+  }
+},
+{
+  "model": "food.category",
+  "pk": 39,
+  "fields": {
+    "name": "Desserts",
+    "description": "Healthy sweets and traditional puddings",
+    "image": "/static/images/desserts.jpg"
+  }
+},
+{
+  "model": "food.mealsession",
+  "pk": 49,
+  "fields": {
+    "name": "Morning Breakfast",
+    "start_time": "06:00:00",
+    "end_time": "12:00:00"
+  }
+},
+{
+  "model": "food.mealsession",
+  "pk": 50,
+  "fields": {
+    "name": "Lunch",
+    "start_time": "12:00:00",
+    "end_time": "16:00:00"
+  }
+},
+{
+  "model": "food.mealsession",
+  "pk": 51,
+  "fields": {
+    "name": "Evening Snacks",
+    "start_time": "16:00:00",
+    "end_time": "19:00:00"
+  }
+},
+{
+  "model": "food.mealsession",
+  "pk": 52,
+  "fields": {
+    "name": "Dinner",
+    "start_time": "19:00:00",
+    "end_time": "23:59:59"
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 235,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Puttu and Kadala Curry",
+    "malayalam_name": null,
+    "description": "Steamed rice flour puttu cylinders layered with coconut, served with spicy black chickpea curry.",
+    "malayalam_description": null,
+    "price": "70.00",
+    "category": 37,
+    "meal_session": 49,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/kerala puttu kadala curry.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 236,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Appam and Vegetable Stew",
+    "malayalam_name": null,
+    "description": "Lacy soft coconut rice pancakes served with mild creamy coconut milk vegetable stew.",
+    "malayalam_description": null,
+    "price": "85.00",
+    "category": 37,
+    "meal_session": 49,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Palappam & Vegetable Stew.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 237,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Palappam and Chicken Stew",
+    "malayalam_name": null,
+    "description": "Soft fermented rice hoppers served with tender chicken cooked in coconut milk stew.",
+    "malayalam_description": null,
+    "price": "140.00",
+    "category": 38,
+    "meal_session": 49,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Palapam chicken.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 238,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Idiyappam and Egg Curry",
+    "malayalam_name": null,
+    "description": "Soft steamed string hoppers accompanied by caramelised onion spiced egg roast.",
+    "malayalam_description": null,
+    "price": "90.00",
+    "category": 38,
+    "meal_session": 49,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Kerala Idiyappam & Egg Roast.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 239,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Idiyappam and Vegetable Kurma",
+    "malayalam_name": null,
+    "description": "Steamed string hoppers served with aromatic coconut vegetable kurma.",
+    "malayalam_description": null,
+    "price": "80.00",
+    "category": 37,
+    "meal_session": 49,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Soft Malabar Pathiri & Veg Kurma.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 240,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Dosa and Sambar",
+    "malayalam_name": null,
+    "description": "Golden crispy rice-lentil crepe served with authentic Kerala vegetable sambar and chutney.",
+    "malayalam_description": null,
+    "price": "65.00",
+    "category": 37,
+    "meal_session": 49,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Crispy Thattu Dosa & Coconut Chutney.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 241,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Masala Dosa",
+    "malayalam_name": null,
+    "description": "Crispy golden crepe stuffed with spiced potato masala, served with coconut chutney.",
+    "malayalam_description": null,
+    "price": "75.00",
+    "category": 37,
+    "meal_session": 49,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/thattu_dosa.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 242,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Ney Pathiri",
+    "malayalam_name": null,
+    "description": "Deep-fried seasoned rice flour flatbread infused with ghee, onions, and cumin.",
+    "malayalam_description": null,
+    "price": "75.00",
+    "category": 37,
+    "meal_session": 49,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Soft Malabar Pathiri & Veg Kurma.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 243,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Ulli Dosa",
+    "malayalam_name": null,
+    "description": "Thattu dosa topped with caramelized shallots, green chillies, and curry leaves.",
+    "malayalam_description": null,
+    "price": "70.00",
+    "category": 37,
+    "meal_session": 49,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Crispy Thattu Dosa & Coconut Chutney.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 244,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Chakka Puttu",
+    "malayalam_name": null,
+    "description": "Steamed rice flour puttu layered with sweet ripe jackfruit bits and fresh coconut.",
+    "malayalam_description": null,
+    "price": "85.00",
+    "category": 37,
+    "meal_session": 49,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/puttu_kadala.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 245,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Ragi Puttu",
+    "malayalam_name": null,
+    "description": "Healthy finger millet puttu steamed with grated coconut, rich in iron and fiber.",
+    "malayalam_description": null,
+    "price": "75.00",
+    "category": 37,
+    "meal_session": 49,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Steam Puttu & Kuttanadan Duck Curry.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 246,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Ada",
+    "malayalam_name": null,
+    "description": "Steamed rice parcel stuffed with sweet melted jaggery, coconut, and cardamom.",
+    "malayalam_description": null,
+    "price": "60.00",
+    "category": 37,
+    "meal_session": 49,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Steamed Ela Ada (Jaggery & Coconut in Banana Leaf).png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 247,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Kappa and Fish Curry",
+    "malayalam_name": null,
+    "description": "Mashed boiled tapioca served with authentic tangy Malabar kokum fish curry.",
+    "malayalam_description": null,
+    "price": "180.00",
+    "category": 38,
+    "meal_session": 49,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Kudampuli Mathi Fish Curry & Tapioca (Kappa).png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 248,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Paniyaram",
+    "malayalam_name": null,
+    "description": "Crispy outside, soft inside seasoned rice batter dumplings served with tomato chutney.",
+    "malayalam_description": null,
+    "price": "55.00",
+    "category": 37,
+    "meal_session": 49,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Traditional Rice Unniyappam (4 pcs).png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 249,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Kerala Upma",
+    "malayalam_name": null,
+    "description": "Roasted semolina cooked with mustard seeds, ginger, curry leaves, and grated coconut.",
+    "malayalam_description": null,
+    "price": "50.00",
+    "category": 37,
+    "meal_session": 49,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Palappam & Vegetable Stew.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 250,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Traditional Kerala Meals",
+    "malayalam_name": null,
+    "description": "Authentic Kerala Matta rice lunch feast on banana leaf with Avial, Thoran, Sambar, and Payasam.",
+    "malayalam_description": null,
+    "price": "220.00",
+    "category": 37,
+    "meal_session": 50,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Kerala Traditional Sadya Feast.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 251,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Matta Rice and Fish Curry",
+    "malayalam_name": null,
+    "description": "Home-cooked red Matta rice served with spicy tangy Kerala kokum fish curry.",
+    "malayalam_description": null,
+    "price": "160.00",
+    "category": 38,
+    "meal_session": 50,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/fish_curry.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 252,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Fish Curry Meals",
+    "malayalam_name": null,
+    "description": "Full Kerala red rice meals served with spicy sardine fish curry, cabbage thoran, and moru.",
+    "malayalam_description": null,
+    "price": "180.00",
+    "category": 38,
+    "meal_session": 50,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Kudampuli Mathi Fish Curry & Tapioca (Kappa).png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 253,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Chicken Curry Meals",
+    "malayalam_name": null,
+    "description": "Kerala Matta rice meals accompanied by Nadan roasted coconut chicken curry.",
+    "malayalam_description": null,
+    "price": "170.00",
+    "category": 38,
+    "meal_session": 50,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/3pcs chapathi chicken.jpg",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 254,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Beef Curry Meals",
+    "malayalam_name": null,
+    "description": "Kerala red rice meals paired with slow-roasted spicy coconut beef curry.",
+    "malayalam_description": null,
+    "price": "180.00",
+    "category": 38,
+    "meal_session": 50,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Kerala Porotta & Beef Roast.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 255,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Prawn Curry Meals",
+    "malayalam_name": null,
+    "description": "Kerala Matta rice meals served with rich Chemmeen coconut prawn curry.",
+    "malayalam_description": null,
+    "price": "210.00",
+    "category": 38,
+    "meal_session": 50,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/fish_fry_meals.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 256,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Sambar and Avial",
+    "malayalam_name": null,
+    "description": "Classic combination of mixed vegetable coconut Avial and hot drumstick Sambar.",
+    "malayalam_description": null,
+    "price": "120.00",
+    "category": 37,
+    "meal_session": 50,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Kachiya Moru Curry & Vendakka Thoran Meal.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 257,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Thoran and Olan",
+    "malayalam_name": null,
+    "description": "Cabbage coconut stir-fry paired with ash gourd red cowpea mild coconut milk Olan.",
+    "malayalam_description": null,
+    "price": "110.00",
+    "category": 37,
+    "meal_session": 50,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Kachiya Moru Curry & Vendakka Thoran Meal.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 258,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Kootu Curry",
+    "malayalam_name": null,
+    "description": "Thick rich curry made of raw plantain, black chickpeas, roasted coconut, and jaggery.",
+    "malayalam_description": null,
+    "price": "115.00",
+    "category": 37,
+    "meal_session": 50,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/kerala_sadya.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 259,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Moru Curry",
+    "malayalam_name": null,
+    "description": "Seasoned buttermilk curry cooked with turmeric, mustard, ginger, and curry leaves.",
+    "malayalam_description": null,
+    "price": "95.00",
+    "category": 37,
+    "meal_session": 50,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Kachiya Moru Curry & Vendakka Thoran Meal.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 260,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Meen Pollichathu",
+    "malayalam_name": null,
+    "description": "Pearl spot fish marinated in spicy tomato-onion masala pan roasted inside banana leaf.",
+    "malayalam_description": null,
+    "price": "260.00",
+    "category": 38,
+    "meal_session": 50,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Banana Leaf Karimeen Pollichathu & Matta Rice.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 261,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Karimeen Fry Meals",
+    "malayalam_name": null,
+    "description": "Kerala Matta rice meals served with crispy fried whole Karimeen pearl spot fish.",
+    "malayalam_description": null,
+    "price": "250.00",
+    "category": 38,
+    "meal_session": 50,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Banana Leaf Karimeen Pollichathu & Matta Rice.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 262,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Kerala Egg Curry Meals",
+    "malayalam_name": null,
+    "description": "Rice meals served with spicy roasted onion gravy hard boiled egg curry.",
+    "malayalam_description": null,
+    "price": "140.00",
+    "category": 38,
+    "meal_session": 50,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/appam_egg_curry.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 263,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Vegetable Sadya",
+    "malayalam_name": null,
+    "description": "Traditional vegetarian banana leaf feast featuring 12 side dishes and Payasam.",
+    "malayalam_description": null,
+    "price": "200.00",
+    "category": 37,
+    "meal_session": 50,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/kerala_sadya.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 264,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Traditional Kerala Sadya",
+    "malayalam_name": null,
+    "description": "Grand festival feast served on banana leaf with Matta rice, Parippu, Ghee, 14 curries.",
+    "malayalam_description": null,
+    "price": "240.00",
+    "category": 37,
+    "meal_session": 50,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Kerala Traditional Sadya Feast.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 265,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Pazham Pori",
+    "malayalam_name": null,
+    "description": "Crispy golden fried ripe banana fritters served with hot Kerala cardamom tea.",
+    "malayalam_description": null,
+    "price": "40.00",
+    "category": 37,
+    "meal_session": 51,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Hot Pazham Pori (Banana Fritters) & Chai.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 266,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Parippu Vada",
+    "malayalam_name": null,
+    "description": "Crunchy coarse chana dal savory fritters seasoned with ginger and green chillies.",
+    "malayalam_description": null,
+    "price": "35.00",
+    "category": 37,
+    "meal_session": 51,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/paripuvada.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 267,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Uzhunnu Vada",
+    "malayalam_name": null,
+    "description": "Golden crispy black gram donut fritters served with coconut chutney.",
+    "malayalam_description": null,
+    "price": "35.00",
+    "category": 37,
+    "meal_session": 51,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/paripuvada.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 268,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Unniyappam",
+    "malayalam_name": null,
+    "description": "Sweet jaggery, banana, and roasted coconut bits deep fried fritters (4 pcs).",
+    "malayalam_description": null,
+    "price": "50.00",
+    "category": 39,
+    "meal_session": 51,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Traditional Rice Unniyappam (4 pcs).png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 269,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Sukhiyan",
+    "malayalam_name": null,
+    "description": "Sweet green gram jaggery dumplings dipped in batter and fried crisp.",
+    "malayalam_description": null,
+    "price": "45.00",
+    "category": 37,
+    "meal_session": 51,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/neyyappam.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 270,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Ela Ada",
+    "malayalam_name": null,
+    "description": "Healthy steamed rice parcel filled with melted jaggery, grated coconut, and cardamom.",
+    "malayalam_description": null,
+    "price": "55.00",
+    "category": 37,
+    "meal_session": 51,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Steamed Ela Ada (Jaggery & Coconut in Banana Leaf).png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 271,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Kozhukatta",
+    "malayalam_name": null,
+    "description": "Steamed white rice flour balls stuffed with sweet grated coconut and jaggery.",
+    "malayalam_description": null,
+    "price": "45.00",
+    "category": 37,
+    "meal_session": 51,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Steamed Ela Ada (Jaggery & Coconut in Banana Leaf).png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 272,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Banana Bonda",
+    "malayalam_name": null,
+    "description": "Sweet ripe banana and wheat batter deep-fried golden round fritters.",
+    "malayalam_description": null,
+    "price": "40.00",
+    "category": 37,
+    "meal_session": 51,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Hot Pazham Pori (Banana Fritters) & Chai.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 273,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Achappam",
+    "malayalam_name": null,
+    "description": "Crunchy rosette cookies made from rice flour, coconut milk, and sesame seeds.",
+    "malayalam_description": null,
+    "price": "50.00",
+    "category": 37,
+    "meal_session": 51,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/neyyappam.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 274,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Kuzhalappam",
+    "malayalam_name": null,
+    "description": "Crispy tube-shaped fried rice flour snack seasoned with cumin and garlic.",
+    "malayalam_description": null,
+    "price": "50.00",
+    "category": 37,
+    "meal_session": 51,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/neyyappam.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 275,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Chapati and Vegetable Curry",
+    "malayalam_name": null,
+    "description": "Soft whole wheat chappathis served with healthy mixed vegetable curry.",
+    "malayalam_description": null,
+    "price": "110.00",
+    "category": 37,
+    "meal_session": 52,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Soft Wheat Chappathi & Paneer Butter Masala.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 276,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Chapati and Chicken Curry",
+    "malayalam_name": null,
+    "description": "Soft whole wheat chappathis served with roasted coconut Nadan chicken curry.",
+    "malayalam_description": null,
+    "price": "150.00",
+    "category": 38,
+    "meal_session": 52,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/3pcs chapathi chicken.jpg",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 277,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Appam and Fish Molee",
+    "malayalam_name": null,
+    "description": "Soft lacy Appams paired with tender fish cooked in mild turmeric coconut milk stew.",
+    "malayalam_description": null,
+    "price": "190.00",
+    "category": 38,
+    "meal_session": 52,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/appam_egg_curry.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 278,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Idiyappam and Chicken Curry",
+    "malayalam_name": null,
+    "description": "Steamed string hoppers served with spicy coconut Nadan chicken gravy.",
+    "malayalam_description": null,
+    "price": "160.00",
+    "category": 38,
+    "meal_session": 52,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Kerala Idiyappam & Egg Roast.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 279,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Kappa and Beef Curry",
+    "malayalam_name": null,
+    "description": "Boiled seasoned tapioca served with slow-roasted spicy coconut beef curry.",
+    "malayalam_description": null,
+    "price": "180.00",
+    "category": 38,
+    "meal_session": 52,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/kappa_biriyani.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 280,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Pathiri and Chicken Roast",
+    "malayalam_name": null,
+    "description": "Thin Malabar rice rotis served with spicy caramelized onion chicken roast.",
+    "malayalam_description": null,
+    "price": "170.00",
+    "category": 38,
+    "meal_session": 52,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Soft Malabar Pathiri & Veg Kurma.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 281,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Puttu and Egg Roast",
+    "malayalam_name": null,
+    "description": "Steamed rice puttu served with spicy caramelized onion Kerala egg roast.",
+    "malayalam_description": null,
+    "price": "110.00",
+    "category": 38,
+    "meal_session": 52,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/kerala puttu kadala curry.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 282,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Dosa and Coconut Chutney",
+    "malayalam_name": null,
+    "description": "Hot crispy dosa served with fresh green coconut chutney and sambar.",
+    "malayalam_description": null,
+    "price": "75.00",
+    "category": 37,
+    "meal_session": 52,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Crispy Thattu Dosa & Coconut Chutney.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 283,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Kanji and Payar",
+    "malayalam_name": null,
+    "description": "Soothing warm red rice porridge served with green gram thoran, papad, and pickle.",
+    "malayalam_description": null,
+    "price": "80.00",
+    "category": 37,
+    "meal_session": 52,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Nadan Matta Rice Kanji & Payar.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.fooditem",
+  "pk": 284,
+  "fields": {
+    "chef": [
+      "chef"
+    ],
+    "name": "Vegetable Kurma with Appam",
+    "malayalam_name": null,
+    "description": "Soft lacy rice appams served with rich aromatic vegetable coconut kurma.",
+    "malayalam_description": null,
+    "price": "120.00",
+    "category": 37,
+    "meal_session": 52,
+    "stock_quantity": 20,
+    "is_available": true,
+    "image": "/media/food_photos/Palappam & Vegetable Stew.png",
+    "is_vegetarian": false,
+    "is_vegan": false,
+    "contains_egg": false
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 235,
+  "fields": {
+    "food_item": 235,
+    "calories": 310.0,
+    "protein": 9.0,
+    "carbohydrates": 58.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 7.0,
+    "cholesterol": 0.0,
+    "sodium": 110.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 236,
+  "fields": {
+    "food_item": 236,
+    "calories": 270.0,
+    "protein": 4.5,
+    "carbohydrates": 48.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 3.5,
+    "cholesterol": 0.0,
+    "sodium": 95.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 237,
+  "fields": {
+    "food_item": 237,
+    "calories": 420.0,
+    "protein": 22.0,
+    "carbohydrates": 44.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 2.0,
+    "cholesterol": 65.0,
+    "sodium": 310.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 238,
+  "fields": {
+    "food_item": 238,
+    "calories": 340.0,
+    "protein": 12.0,
+    "carbohydrates": 50.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 2.5,
+    "cholesterol": 185.0,
+    "sodium": 280.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 239,
+  "fields": {
+    "food_item": 239,
+    "calories": 250.0,
+    "protein": 5.0,
+    "carbohydrates": 46.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 3.0,
+    "cholesterol": 0.0,
+    "sodium": 120.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 240,
+  "fields": {
+    "food_item": 240,
+    "calories": 240.0,
+    "protein": 5.5,
+    "carbohydrates": 45.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 3.0,
+    "cholesterol": 0.0,
+    "sodium": 150.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 241,
+  "fields": {
+    "food_item": 241,
+    "calories": 280.0,
+    "protein": 6.0,
+    "carbohydrates": 50.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 3.5,
+    "cholesterol": 0.0,
+    "sodium": 180.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 242,
+  "fields": {
+    "food_item": 242,
+    "calories": 290.0,
+    "protein": 4.0,
+    "carbohydrates": 44.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 2.0,
+    "cholesterol": 0.0,
+    "sodium": 140.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 243,
+  "fields": {
+    "food_item": 243,
+    "calories": 250.0,
+    "protein": 5.0,
+    "carbohydrates": 46.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 2.8,
+    "cholesterol": 0.0,
+    "sodium": 160.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 244,
+  "fields": {
+    "food_item": 244,
+    "calories": 260.0,
+    "protein": 4.0,
+    "carbohydrates": 56.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 4.0,
+    "cholesterol": 0.0,
+    "sodium": 45.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 245,
+  "fields": {
+    "food_item": 245,
+    "calories": 220.0,
+    "protein": 5.5,
+    "carbohydrates": 48.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 6.5,
+    "cholesterol": 0.0,
+    "sodium": 35.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 246,
+  "fields": {
+    "food_item": 246,
+    "calories": 195.0,
+    "protein": 3.0,
+    "carbohydrates": 37.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 3.5,
+    "cholesterol": 0.0,
+    "sodium": 20.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 247,
+  "fields": {
+    "food_item": 247,
+    "calories": 480.0,
+    "protein": 26.0,
+    "carbohydrates": 62.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 6.0,
+    "cholesterol": 45.0,
+    "sodium": 360.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 248,
+  "fields": {
+    "food_item": 248,
+    "calories": 210.0,
+    "protein": 4.5,
+    "carbohydrates": 38.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 2.0,
+    "cholesterol": 0.0,
+    "sodium": 120.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 249,
+  "fields": {
+    "food_item": 249,
+    "calories": 230.0,
+    "protein": 5.0,
+    "carbohydrates": 40.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 3.0,
+    "cholesterol": 0.0,
+    "sodium": 110.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 250,
+  "fields": {
+    "food_item": 250,
+    "calories": 590.0,
+    "protein": 14.0,
+    "carbohydrates": 105.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 9.0,
+    "cholesterol": 0.0,
+    "sodium": 340.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 251,
+  "fields": {
+    "food_item": 251,
+    "calories": 440.0,
+    "protein": 24.0,
+    "carbohydrates": 64.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 5.0,
+    "cholesterol": 40.0,
+    "sodium": 320.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 252,
+  "fields": {
+    "food_item": 252,
+    "calories": 480.0,
+    "protein": 25.0,
+    "carbohydrates": 68.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 5.5,
+    "cholesterol": 45.0,
+    "sodium": 350.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 253,
+  "fields": {
+    "food_item": 253,
+    "calories": 510.0,
+    "protein": 28.0,
+    "carbohydrates": 65.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 4.5,
+    "cholesterol": 60.0,
+    "sodium": 380.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 254,
+  "fields": {
+    "food_item": 254,
+    "calories": 560.0,
+    "protein": 32.0,
+    "carbohydrates": 62.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 4.0,
+    "cholesterol": 70.0,
+    "sodium": 420.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 255,
+  "fields": {
+    "food_item": 255,
+    "calories": 490.0,
+    "protein": 26.0,
+    "carbohydrates": 60.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 4.2,
+    "cholesterol": 85.0,
+    "sodium": 390.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 256,
+  "fields": {
+    "food_item": 256,
+    "calories": 320.0,
+    "protein": 8.0,
+    "carbohydrates": 58.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 7.0,
+    "cholesterol": 0.0,
+    "sodium": 210.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 257,
+  "fields": {
+    "food_item": 257,
+    "calories": 280.0,
+    "protein": 6.5,
+    "carbohydrates": 52.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 6.0,
+    "cholesterol": 0.0,
+    "sodium": 180.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 258,
+  "fields": {
+    "food_item": 258,
+    "calories": 310.0,
+    "protein": 7.5,
+    "carbohydrates": 55.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 6.5,
+    "cholesterol": 0.0,
+    "sodium": 160.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 259,
+  "fields": {
+    "food_item": 259,
+    "calories": 180.0,
+    "protein": 4.0,
+    "carbohydrates": 32.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 2.0,
+    "cholesterol": 0.0,
+    "sodium": 140.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 260,
+  "fields": {
+    "food_item": 260,
+    "calories": 520.0,
+    "protein": 32.0,
+    "carbohydrates": 58.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 4.0,
+    "cholesterol": 60.0,
+    "sodium": 390.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 261,
+  "fields": {
+    "food_item": 261,
+    "calories": 540.0,
+    "protein": 30.0,
+    "carbohydrates": 60.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 4.5,
+    "cholesterol": 65.0,
+    "sodium": 410.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 262,
+  "fields": {
+    "food_item": 262,
+    "calories": 420.0,
+    "protein": 16.0,
+    "carbohydrates": 62.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 4.0,
+    "cholesterol": 185.0,
+    "sodium": 310.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 263,
+  "fields": {
+    "food_item": 263,
+    "calories": 560.0,
+    "protein": 12.0,
+    "carbohydrates": 100.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 8.5,
+    "cholesterol": 0.0,
+    "sodium": 320.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 264,
+  "fields": {
+    "food_item": 264,
+    "calories": 620.0,
+    "protein": 15.0,
+    "carbohydrates": 110.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 9.5,
+    "cholesterol": 0.0,
+    "sodium": 360.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 265,
+  "fields": {
+    "food_item": 265,
+    "calories": 210.0,
+    "protein": 2.5,
+    "carbohydrates": 38.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 3.0,
+    "cholesterol": 0.0,
+    "sodium": 40.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 266,
+  "fields": {
+    "food_item": 266,
+    "calories": 190.0,
+    "protein": 6.0,
+    "carbohydrates": 26.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 4.0,
+    "cholesterol": 0.0,
+    "sodium": 85.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 267,
+  "fields": {
+    "food_item": 267,
+    "calories": 180.0,
+    "protein": 5.0,
+    "carbohydrates": 25.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 3.5,
+    "cholesterol": 0.0,
+    "sodium": 90.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 268,
+  "fields": {
+    "food_item": 268,
+    "calories": 250.0,
+    "protein": 3.0,
+    "carbohydrates": 44.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 2.0,
+    "cholesterol": 0.0,
+    "sodium": 30.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 269,
+  "fields": {
+    "food_item": 269,
+    "calories": 230.0,
+    "protein": 6.0,
+    "carbohydrates": 39.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 4.5,
+    "cholesterol": 0.0,
+    "sodium": 45.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 270,
+  "fields": {
+    "food_item": 270,
+    "calories": 195.0,
+    "protein": 3.0,
+    "carbohydrates": 37.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 3.5,
+    "cholesterol": 0.0,
+    "sodium": 20.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 271,
+  "fields": {
+    "food_item": 271,
+    "calories": 180.0,
+    "protein": 2.5,
+    "carbohydrates": 35.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 2.8,
+    "cholesterol": 0.0,
+    "sodium": 15.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 272,
+  "fields": {
+    "food_item": 272,
+    "calories": 200.0,
+    "protein": 3.0,
+    "carbohydrates": 36.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 2.5,
+    "cholesterol": 0.0,
+    "sodium": 35.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 273,
+  "fields": {
+    "food_item": 273,
+    "calories": 210.0,
+    "protein": 2.0,
+    "carbohydrates": 30.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 1.5,
+    "cholesterol": 0.0,
+    "sodium": 25.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 274,
+  "fields": {
+    "food_item": 274,
+    "calories": 220.0,
+    "protein": 2.5,
+    "carbohydrates": 31.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 1.2,
+    "cholesterol": 0.0,
+    "sodium": 50.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 275,
+  "fields": {
+    "food_item": 275,
+    "calories": 340.0,
+    "protein": 9.0,
+    "carbohydrates": 58.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 6.0,
+    "cholesterol": 0.0,
+    "sodium": 210.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 276,
+  "fields": {
+    "food_item": 276,
+    "calories": 490.0,
+    "protein": 28.0,
+    "carbohydrates": 54.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 5.0,
+    "cholesterol": 60.0,
+    "sodium": 370.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 277,
+  "fields": {
+    "food_item": 277,
+    "calories": 460.0,
+    "protein": 25.0,
+    "carbohydrates": 52.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 3.0,
+    "cholesterol": 50.0,
+    "sodium": 340.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 278,
+  "fields": {
+    "food_item": 278,
+    "calories": 450.0,
+    "protein": 26.0,
+    "carbohydrates": 52.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 3.5,
+    "cholesterol": 58.0,
+    "sodium": 360.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 279,
+  "fields": {
+    "food_item": 279,
+    "calories": 540.0,
+    "protein": 28.0,
+    "carbohydrates": 62.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 4.5,
+    "cholesterol": 65.0,
+    "sodium": 420.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 280,
+  "fields": {
+    "food_item": 280,
+    "calories": 480.0,
+    "protein": 26.0,
+    "carbohydrates": 58.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 3.0,
+    "cholesterol": 60.0,
+    "sodium": 380.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 281,
+  "fields": {
+    "food_item": 281,
+    "calories": 360.0,
+    "protein": 14.0,
+    "carbohydrates": 52.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 3.5,
+    "cholesterol": 185.0,
+    "sodium": 290.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 282,
+  "fields": {
+    "food_item": 282,
+    "calories": 260.0,
+    "protein": 6.0,
+    "carbohydrates": 48.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 3.2,
+    "cholesterol": 0.0,
+    "sodium": 160.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 283,
+  "fields": {
+    "food_item": 283,
+    "calories": 260.0,
+    "protein": 7.5,
+    "carbohydrates": 54.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 5.0,
+    "cholesterol": 0.0,
+    "sodium": 120.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.nutritioninfo",
+  "pk": 284,
+  "fields": {
+    "food_item": 284,
+    "calories": 330.0,
+    "protein": 7.0,
+    "carbohydrates": 56.0,
+    "total_sugars": 0.0,
+    "added_sugars": 0.0,
+    "total_fat": 0.0,
+    "saturated_fat": 0.0,
+    "trans_fat": 0.0,
+    "fiber": 4.5,
+    "cholesterol": 0.0,
+    "sodium": 190.0,
+    "ingredients": null,
+    "allergens": null,
+    "serving_size": null,
+    "cooking_method": null
+  }
+},
+{
+  "model": "food.reviewsentiment",
+  "pk": 24,
+  "fields": {
+    "user": [
+      "customer"
+    ],
+    "food_item": 235,
+    "rating": 5,
+    "review_text": "Excellent taste, extremely healthy breakfast. Loved it!",
+    "sentiment": "positive",
+    "confidence_score": 0.98,
+    "created_at": "2026-08-15T10:22:43.478Z"
+  }
+},
+{
+  "model": "food.reviewsentiment",
+  "pk": 25,
+  "fields": {
+    "user": [
+      "customer"
+    ],
+    "food_item": 254,
+    "rating": 2,
+    "review_text": "The beef roast was way too oily and extremely salty. Disappointed.",
+    "sentiment": "negative",
+    "confidence_score": 0.95,
+    "created_at": "2026-08-15T10:22:43.484Z"
+  }
+},
+{
+  "model": "orders.wishlist",
+  "pk": 1,
+  "fields": {
+    "user": [
+      "jibin"
+    ],
+    "food_item": 265,
+    "created_at": "2026-08-15T10:34:01.538Z"
+  }
+},
+{
+  "model": "orders.wishlist",
+  "pk": 2,
+  "fields": {
+    "user": [
+      "jibin"
+    ],
+    "food_item": 266,
+    "created_at": "2026-08-15T10:40:20.642Z"
+  }
+},
+{
+  "model": "orders.cartitem",
+  "pk": 12,
+  "fields": {
+    "user": [
+      "jibin"
+    ],
+    "food_item": 265,
+    "quantity": 1,
+    "created_at": "2026-08-15T10:57:20.276Z"
+  }
+},
+{
+  "model": "orders.coupon",
+  "pk": 25,
+  "fields": {
+    "code": "WELCOME15",
+    "discount_percentage": "15.00",
+    "min_purchase_amount": "100.00",
+    "is_active": true,
+    "expiry_date": "2027-12-31"
+  }
+},
+{
+  "model": "orders.coupon",
+  "pk": 26,
+  "fields": {
+    "code": "FESTIVAL25",
+    "discount_percentage": "25.00",
+    "min_purchase_amount": "150.00",
+    "is_active": true,
+    "expiry_date": "2027-12-31"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": "VR-20260815-XCMP",
+  "fields": {
+    "user": [
+      "customer"
+    ],
+    "total_amount": "70.00",
+    "coupon": null,
+    "status": "delivered",
+    "branch": null,
+    "latitude": 10.025,
+    "longitude": 76.315,
+    "delivery_address": "Green Valley Apartments, Block B, Kakkanad, Kochi",
+    "customer_delivery_notes": "",
+    "internal_kitchen_notes": "",
+    "created_at": "2026-08-15T10:22:44.389Z",
+    "preparing_started_at": null,
+    "food_prepared_at": null,
+    "courier_assigned_at": null,
+    "picked_up_at": null,
+    "delivered_at": null,
+    "updated_at": "2026-08-15T10:22:44.389Z"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 19,
+  "fields": {
+    "order": "VR-20260815-XCMP",
+    "food_item": 235,
+    "quantity": 1,
+    "price": "70.00"
+  }
+},
+{
+  "model": "orders.payment",
+  "pk": 17,
+  "fields": {
+    "order": "VR-20260815-XCMP",
+    "payment_method": "cod",
+    "transaction_id": "TXN-SIMULATED-1",
+    "status": "success",
+    "amount": "70.00",
+    "created_at": "2026-08-15T10:22:44.401Z"
+  }
+},
+{
+  "model": "delivery.deliveryassignment",
+  "pk": 14,
+  "fields": {
+    "order": "VR-20260815-XCMP",
+    "delivery_boy": 53,
+    "status": "delivered",
+    "assigned_at": "2026-08-15T10:22:44.406Z",
+    "picked_up_at": "2026-08-15T09:57:44.406Z",
+    "out_for_delivery_at": null,
+    "delivered_at": "2026-08-15T10:22:44.406Z",
+    "is_active": true,
+    "predicted_delivery_time": 20.0,
+    "actual_delivery_time": 25.0
+  }
+},
+{
+  "model": "delivery.gpslocationtracking",
+  "pk": 53,
+  "fields": {
+    "delivery_assignment": 14,
+    "latitude": 10.015,
+    "longitude": 76.325,
+    "timestamp": "2026-08-15T10:22:44.412Z"
+  }
+},
+{
+  "model": "delivery.gpslocationtracking",
+  "pk": 54,
+  "fields": {
+    "delivery_assignment": 14,
+    "latitude": 10.02,
+    "longitude": 76.32,
+    "timestamp": "2026-08-15T10:22:44.418Z"
+  }
+},
+{
+  "model": "delivery.gpslocationtracking",
+  "pk": 55,
+  "fields": {
+    "delivery_assignment": 14,
+    "latitude": 10.025,
+    "longitude": 76.315,
+    "timestamp": "2026-08-15T10:22:44.423Z"
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 234,
+  "fields": {
+    "food_item": 235,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 15.1,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 235,
+  "fields": {
+    "food_item": 236,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 14.0,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 236,
+  "fields": {
+    "food_item": 237,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 13.3,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 237,
+  "fields": {
+    "food_item": 238,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 14.2,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 238,
+  "fields": {
+    "food_item": 239,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 15.3,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 239,
+  "fields": {
+    "food_item": 240,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 13.3,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 240,
+  "fields": {
+    "food_item": 241,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 13.1,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 241,
+  "fields": {
+    "food_item": 242,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 14.0,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 242,
+  "fields": {
+    "food_item": 243,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 14.3,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 243,
+  "fields": {
+    "food_item": 244,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 15.3,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 244,
+  "fields": {
+    "food_item": 245,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 12.6,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 245,
+  "fields": {
+    "food_item": 246,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 12.3,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 246,
+  "fields": {
+    "food_item": 247,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 13.4,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 247,
+  "fields": {
+    "food_item": 248,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 15.2,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 248,
+  "fields": {
+    "food_item": 249,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 15.2,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 249,
+  "fields": {
+    "food_item": 250,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 12.6,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 250,
+  "fields": {
+    "food_item": 251,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 14.3,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 251,
+  "fields": {
+    "food_item": 252,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 16.1,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 252,
+  "fields": {
+    "food_item": 253,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 13.1,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 253,
+  "fields": {
+    "food_item": 254,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 14.1,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 254,
+  "fields": {
+    "food_item": 255,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 12.6,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 255,
+  "fields": {
+    "food_item": 256,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 12.4,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 256,
+  "fields": {
+    "food_item": 257,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 14.4,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 257,
+  "fields": {
+    "food_item": 258,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 12.4,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 258,
+  "fields": {
+    "food_item": 259,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 14.3,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 259,
+  "fields": {
+    "food_item": 260,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 16.0,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 260,
+  "fields": {
+    "food_item": 261,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 14.2,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 261,
+  "fields": {
+    "food_item": 262,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 14.2,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 262,
+  "fields": {
+    "food_item": 263,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 14.0,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 263,
+  "fields": {
+    "food_item": 264,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 12.5,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 264,
+  "fields": {
+    "food_item": 265,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 12.2,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 265,
+  "fields": {
+    "food_item": 266,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 13.2,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 266,
+  "fields": {
+    "food_item": 267,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 13.1,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 267,
+  "fields": {
+    "food_item": 268,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 14.4,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 268,
+  "fields": {
+    "food_item": 269,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 12.6,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 269,
+  "fields": {
+    "food_item": 270,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 16.1,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 270,
+  "fields": {
+    "food_item": 271,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 14.3,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 271,
+  "fields": {
+    "food_item": 272,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 13.4,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 272,
+  "fields": {
+    "food_item": 273,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 12.4,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 273,
+  "fields": {
+    "food_item": 274,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 12.5,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 274,
+  "fields": {
+    "food_item": 275,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 14.3,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 275,
+  "fields": {
+    "food_item": 276,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 16.1,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 276,
+  "fields": {
+    "food_item": 277,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 13.2,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 277,
+  "fields": {
+    "food_item": 278,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 12.5,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 278,
+  "fields": {
+    "food_item": 279,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 12.3,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 279,
+  "fields": {
+    "food_item": 280,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 15.0,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 280,
+  "fields": {
+    "food_item": 281,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 16.2,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 281,
+  "fields": {
+    "food_item": 282,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 13.1,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 282,
+  "fields": {
+    "food_item": 283,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 13.4,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.fooddemandforecast",
+  "pk": 283,
+  "fields": {
+    "food_item": 284,
+    "forecast_date": "2026-08-15",
+    "predicted_quantity": 15.0,
+    "confidence_score": 0.85
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 234,
+  "fields": {
+    "food_item": 235,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 3.21
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 235,
+  "fields": {
+    "food_item": 236,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.34
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 236,
+  "fields": {
+    "food_item": 237,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 3.0
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 237,
+  "fields": {
+    "food_item": 238,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 3.56
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 238,
+  "fields": {
+    "food_item": 239,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.46
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 239,
+  "fields": {
+    "food_item": 240,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.3
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 240,
+  "fields": {
+    "food_item": 241,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.9
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 241,
+  "fields": {
+    "food_item": 242,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.98
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 242,
+  "fields": {
+    "food_item": 243,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.8
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 243,
+  "fields": {
+    "food_item": 244,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.3
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 244,
+  "fields": {
+    "food_item": 245,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.84
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 245,
+  "fields": {
+    "food_item": 246,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.63
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 246,
+  "fields": {
+    "food_item": 247,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.11
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 247,
+  "fields": {
+    "food_item": 248,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 3.22
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 248,
+  "fields": {
+    "food_item": 249,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.61
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 249,
+  "fields": {
+    "food_item": 250,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.2
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 250,
+  "fields": {
+    "food_item": 251,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 3.5
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 251,
+  "fields": {
+    "food_item": 252,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.89
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 252,
+  "fields": {
+    "food_item": 253,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.33
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 253,
+  "fields": {
+    "food_item": 254,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.91
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 254,
+  "fields": {
+    "food_item": 255,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.57
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 255,
+  "fields": {
+    "food_item": 256,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.22
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 256,
+  "fields": {
+    "food_item": 257,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.56
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 257,
+  "fields": {
+    "food_item": 258,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.74
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 258,
+  "fields": {
+    "food_item": 259,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.29
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 259,
+  "fields": {
+    "food_item": 260,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 3.56
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 260,
+  "fields": {
+    "food_item": 261,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.71
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 261,
+  "fields": {
+    "food_item": 262,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.91
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 262,
+  "fields": {
+    "food_item": 263,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.48
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 263,
+  "fields": {
+    "food_item": 264,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.96
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 264,
+  "fields": {
+    "food_item": 265,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.03
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 265,
+  "fields": {
+    "food_item": 266,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.26
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 266,
+  "fields": {
+    "food_item": 267,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.43
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 267,
+  "fields": {
+    "food_item": 268,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 3.27
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 268,
+  "fields": {
+    "food_item": 269,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.24
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 269,
+  "fields": {
+    "food_item": 270,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 3.06
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 270,
+  "fields": {
+    "food_item": 271,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 3.09
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 271,
+  "fields": {
+    "food_item": 272,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 3.0
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 272,
+  "fields": {
+    "food_item": 273,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.35
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 273,
+  "fields": {
+    "food_item": 274,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.49
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 274,
+  "fields": {
+    "food_item": 275,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.35
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 275,
+  "fields": {
+    "food_item": 276,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.87
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 276,
+  "fields": {
+    "food_item": 277,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.89
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 277,
+  "fields": {
+    "food_item": 278,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.12
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 278,
+  "fields": {
+    "food_item": 279,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 1.96
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 279,
+  "fields": {
+    "food_item": 280,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.64
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 280,
+  "fields": {
+    "food_item": 281,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 3.51
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 281,
+  "fields": {
+    "food_item": 282,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.81
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 282,
+  "fields": {
+    "food_item": 283,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.83
+  }
+},
+{
+  "model": "ai_models.foodwasteprediction",
+  "pk": 283,
+  "fields": {
+    "food_item": 284,
+    "prediction_date": "2026-08-15",
+    "predicted_waste_quantity": 2.57
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 234,
+  "fields": {
+    "food_item": 235,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.5,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 235,
+  "fields": {
+    "food_item": 236,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.0,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 236,
+  "fields": {
+    "food_item": 237,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.4,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 237,
+  "fields": {
+    "food_item": 238,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.9,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 238,
+  "fields": {
+    "food_item": 239,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.4,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 239,
+  "fields": {
+    "food_item": 240,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.4,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 240,
+  "fields": {
+    "food_item": 241,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.5,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 241,
+  "fields": {
+    "food_item": 242,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.0,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 242,
+  "fields": {
+    "food_item": 243,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.9,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 243,
+  "fields": {
+    "food_item": 244,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.4,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 244,
+  "fields": {
+    "food_item": 245,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.7,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 245,
+  "fields": {
+    "food_item": 246,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.9,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 246,
+  "fields": {
+    "food_item": 247,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.3,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 247,
+  "fields": {
+    "food_item": 248,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.4,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 248,
+  "fields": {
+    "food_item": 249,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.4,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 249,
+  "fields": {
+    "food_item": 250,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.7,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 250,
+  "fields": {
+    "food_item": 251,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.9,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 251,
+  "fields": {
+    "food_item": 252,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 1.9,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 252,
+  "fields": {
+    "food_item": 253,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.5,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 253,
+  "fields": {
+    "food_item": 254,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.0,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 254,
+  "fields": {
+    "food_item": 255,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.7,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 255,
+  "fields": {
+    "food_item": 256,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.8,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 256,
+  "fields": {
+    "food_item": 257,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.8,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 257,
+  "fields": {
+    "food_item": 258,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.8,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 258,
+  "fields": {
+    "food_item": 259,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.9,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 259,
+  "fields": {
+    "food_item": 260,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.0,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 260,
+  "fields": {
+    "food_item": 261,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.9,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 261,
+  "fields": {
+    "food_item": 262,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.9,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 262,
+  "fields": {
+    "food_item": 263,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.0,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 263,
+  "fields": {
+    "food_item": 264,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.8,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 264,
+  "fields": {
+    "food_item": 265,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.9,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 265,
+  "fields": {
+    "food_item": 266,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.4,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 266,
+  "fields": {
+    "food_item": 267,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.5,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 267,
+  "fields": {
+    "food_item": 268,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.8,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 268,
+  "fields": {
+    "food_item": 269,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.7,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 269,
+  "fields": {
+    "food_item": 270,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 1.9,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 270,
+  "fields": {
+    "food_item": 271,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.9,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 271,
+  "fields": {
+    "food_item": 272,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.3,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 272,
+  "fields": {
+    "food_item": 273,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.8,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 273,
+  "fields": {
+    "food_item": 274,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.8,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 274,
+  "fields": {
+    "food_item": 275,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.9,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 275,
+  "fields": {
+    "food_item": 276,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 1.9,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 276,
+  "fields": {
+    "food_item": 277,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.4,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 277,
+  "fields": {
+    "food_item": 278,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.8,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 278,
+  "fields": {
+    "food_item": 279,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.9,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 279,
+  "fields": {
+    "food_item": 280,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.5,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 280,
+  "fields": {
+    "food_item": 281,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 1.9,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 281,
+  "fields": {
+    "food_item": 282,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.5,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 282,
+  "fields": {
+    "food_item": 283,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 3.3,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.stockprediction",
+  "pk": 283,
+  "fields": {
+    "food_item": 284,
+    "prediction_date": "2026-08-15",
+    "predicted_days_until_out_of_stock": 2.5,
+    "stock_needed_refill": 0
+  }
+},
+{
+  "model": "ai_models.customerbehavior",
+  "pk": 16,
+  "fields": {
+    "user": [
+      "customer"
+    ],
+    "total_orders_count": 1,
+    "average_order_value": "50.00",
+    "most_ordered_session": 49,
+    "most_ordered_category": 37,
+    "behavior_segment": "occasional"
+  }
+},
+{
+  "model": "health.healthprofile",
+  "pk": 21,
+  "fields": {
+    "user": [
+      "customer"
+    ],
+    "dietary_preference": "veg",
+    "cholesterol_conscious": false,
+    "sugar_conscious": false,
+    "diabetes_conscious": false,
+    "lower_saturated_fat": false,
+    "calorie_awareness": false,
+    "blood_pressure_conscious": false,
+    "reduced_sodium": false,
+    "reduced_sugar": false,
+    "allergies": null,
+    "dislikes": null,
+    "daily_calorie_target": 2000.0,
+    "enable_recommendations": true
+  }
+},
+{
+  "model": "health.healthprofile",
+  "pk": 22,
+  "fields": {
+    "user": [
+      "jibin"
+    ],
+    "dietary_preference": "veg",
+    "cholesterol_conscious": false,
+    "sugar_conscious": false,
+    "diabetes_conscious": false,
+    "lower_saturated_fat": false,
+    "calorie_awareness": false,
+    "blood_pressure_conscious": false,
+    "reduced_sodium": false,
+    "reduced_sugar": false,
+    "allergies": "",
+    "dislikes": null,
+    "daily_calorie_target": 2000.0,
+    "enable_recommendations": true
+  }
+},
+{
+  "model": "health.healthprofile",
+  "pk": 23,
+  "fields": {
+    "user": [
+      "chef"
+    ],
+    "dietary_preference": "any",
+    "cholesterol_conscious": false,
+    "sugar_conscious": false,
+    "diabetes_conscious": false,
+    "lower_saturated_fat": false,
+    "calorie_awareness": false,
+    "blood_pressure_conscious": false,
+    "reduced_sodium": false,
+    "reduced_sugar": false,
+    "allergies": null,
+    "dislikes": null,
+    "daily_calorie_target": 2000.0,
+    "enable_recommendations": true
+  }
+},
+{
+  "model": "health.healthprofile",
+  "pk": 24,
+  "fields": {
+    "user": [
+      "staff"
+    ],
+    "dietary_preference": "any",
+    "cholesterol_conscious": false,
+    "sugar_conscious": false,
+    "diabetes_conscious": false,
+    "lower_saturated_fat": false,
+    "calorie_awareness": false,
+    "blood_pressure_conscious": false,
+    "reduced_sodium": false,
+    "reduced_sugar": false,
+    "allergies": null,
+    "dislikes": null,
+    "daily_calorie_target": 2000.0,
+    "enable_recommendations": true
+  }
+},
+{
+  "model": "health.healthprofile",
+  "pk": 25,
+  "fields": {
+    "user": [
+      "admin"
+    ],
+    "dietary_preference": "any",
+    "cholesterol_conscious": false,
+    "sugar_conscious": false,
+    "diabetes_conscious": false,
+    "lower_saturated_fat": false,
+    "calorie_awareness": false,
+    "blood_pressure_conscious": false,
+    "reduced_sodium": false,
+    "reduced_sugar": false,
+    "allergies": null,
+    "dislikes": null,
+    "daily_calorie_target": 2000.0,
+    "enable_recommendations": true
+  }
+}
+]
