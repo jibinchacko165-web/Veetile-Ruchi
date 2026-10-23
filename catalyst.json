@@ -1,0 +1,10 @@
+{
+  "functions": [],
+  "appsail": [
+    {
+      "name": "veetile-ruchi",
+      "source": ".",
+      "stack": "Python_3_9"
+    }
+  ]
+}

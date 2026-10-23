@@ -1,0 +1,14 @@
+{
+  "stack": "Python_3_9",
+  "command": "sh -c 'gunicorn veetile_ruchi_project.wsgi:application --config gunicorn.conf.py'",
+  "env_variables": {
+    "DJANGO_SETTINGS_MODULE": "veetile_ruchi_project.settings",
+    "PYTHONUNBUFFERED": "1"
+  },
+  "build": {
+    "builder": "local"
+  },
+  "scripts": {
+    "predeploy": "pip install -r requirements.txt && python manage.py collectstatic --noinput"
+  }
+}
