@@ -1,5 +1,5 @@
 {
-  "command": "gunicorn veetile_ruchi_project.wsgi:application --config gunicorn.conf.py",
+  "command": "sh -c 'python -m gunicorn veetile_ruchi_project.wsgi:application --bind 0.0.0.0:${X_ZOHO_CATALYST_LISTEN_PORT:-8000} --workers 2 --threads 2'",
   "build_path": ".",
   "stack": "python_3_11",
   "memory": 512,
@@ -9,6 +9,6 @@
   },
   "catalyst_auth": false,
   "scripts": {
-    "predeploy": "pip install -r requirements.txt && python manage.py collectstatic --noinput"
+    "predeploy": "python manage.py collectstatic --noinput"
   }
 }

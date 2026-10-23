@@ -4,7 +4,19 @@
     {
       "name": "veetile-ruchi",
       "source": ".",
-      "stack": "python_3_11"
+      "stack": "python_3_11",
+      "ignore": [
+        "venv/**",
+        ".venv/**",
+        ".git/**",
+        "*.sqlite3.backup",
+        "*.sql",
+        "*.backup",
+        "scratch/**",
+        ".codeatlas/**",
+        ".pytest_cache/**",
+        "tests/selenium/screenshots/**"
+      ]
     }
   ]
 }

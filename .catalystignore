@@ -1,0 +1,12 @@
+venv
+.venv
+.git
+*.sqlite3.backup
+*.sql
+*.backup
+scratch
+.codeatlas
+.pytest_cache
+tests/selenium/screenshots
+__pycache__
+*.pyc

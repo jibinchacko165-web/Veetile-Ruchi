@@ -50,8 +50,11 @@ ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '.zohocatalystapps.com',
+    '.zohocatalystapps.in',
     '.catalystserverless.com',
+    '.catalystserverless.in',
     '.catalystappsail.com',
+    '.catalystappsail.in',
     '.zoho.com',
     '.zoho.in',
 ]
@@ -74,8 +77,11 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8001',
     'http://localhost:8002',
     'https://*.zohocatalystapps.com',
+    'https://*.zohocatalystapps.in',
     'https://*.catalystserverless.com',
+    'https://*.catalystserverless.in',
     'https://*.catalystappsail.com',
+    'https://*.catalystappsail.in',
     'https://*.zoho.com',
     'https://*.zoho.in',
 ]
@@ -182,15 +188,22 @@ if DATABASE_URL:
             conn_health_checks=True,
         )
     }
-else:
+elif os.getenv("DB_HOST"):
     DATABASES = {
         "default": {
             "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql"),
             "NAME": os.getenv("DB_NAME", "veetile_ruchi"),
             "USER": os.getenv("DB_USER", "postgres"),
             "PASSWORD": os.getenv("DB_PASSWORD", ""),
-            "HOST": os.getenv("DB_HOST", "localhost"),
+            "HOST": os.getenv("DB_HOST"),
             "PORT": os.getenv("DB_PORT", "5432"),
+        }
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
         }
     }
 

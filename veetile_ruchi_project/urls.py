@@ -14,7 +14,16 @@ admin.site.site_header = "Veetile-Ruchi – Django DB Administration"
 admin.site.site_title = "VR DB Admin"
 admin.site.index_title = "Database Model Administration"
 
+from django.http import JsonResponse
+
+def health_check(request):
+    return JsonResponse({"status": "ok", "app": "veetile-ruchi"})
+
 urlpatterns = [
+    # ───── Health Check for AppSail & Monitoring ─────
+    path('health', health_check, name='health_check_no_slash'),
+    path('health/', health_check, name='health_check'),
+
     # ───── Django Built-in DB Admin (Explicitly at /admin/) ─────
     path('admin/', admin.site.urls),
 
