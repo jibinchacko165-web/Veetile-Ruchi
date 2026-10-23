@@ -12,15 +12,103 @@
             Manage homemade dishes, real-time preparation queue, and AI kitchen demand forecasts
         </p>
     </div>
-    {% if is_approved %}
-        <a href="{% url 'chef_food_add' %}" class="btn">
-            + Add New Dish
-        </a>
-    {% else %}
-        <span class="btn" style="opacity: 0.6; cursor: not-allowed; background: #6c757d;" title="Approval required to add foods">
-            Add New Food (Pending Staff Approval)
-        </span>
-    {% endif %}
+    <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+        <button id="chef-sound-toggle" type="button" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.5rem 1rem; font-size: 0.88rem; border-radius: var(--radius-sm); border: 1.5px solid var(--border-warm); background: white; color: var(--primary-brown); cursor: pointer;" title="Toggle notification sound for new incoming orders">
+            <span id="sound-icon">🔔</span> <span id="sound-text">Sound: ON</span>
+        </button>
+        {% if is_approved %}
+            <a href="{% url 'chef_food_add' %}" class="btn">
+                + Add New Dish
+            </a>
+        {% else %}
+            <span class="btn" style="opacity: 0.6; cursor: not-allowed; background: #6c757d;" title="Approval required to add foods">
+                Add New Food (Pending Staff Approval)
+            </span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Instant New Order Received Popup Modal -->
+<div id="new-order-modal-backdrop" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(26, 17, 16, 0.75); backdrop-filter: blur(6px); z-index: 99999; justify-content: center; align-items: center; padding: 1rem;">
+    <div id="new-order-modal-card" style="background: #ffffff; border-radius: 18px; width: 100%; max-width: 540px; box-shadow: 0 25px 60px rgba(0,0,0,0.35); border: 2.5px solid #E11D48; overflow: hidden; animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+        <!-- Modal Header -->
+        <div style="background: linear-gradient(135deg, #E11D48 0%, #BE123C 100%); color: white; padding: 1.25rem 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 0.85rem;">
+                <div style="width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,0.22); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; animation: pulse 1.4s infinite; flex-shrink: 0;">
+                    🚨
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: white; letter-spacing: -0.3px;">
+                        New Order Received!
+                    </h3>
+                    <span style="font-size: 0.82rem; opacity: 0.95; font-weight: 400; display: block; margin-top: 2px;">
+                        Incoming Homemade Food Order &bull; Immediate Action Required
+                    </span>
+                </div>
+            </div>
+            <button type="button" onclick="closeNewOrderModal()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 34px; height: 34px; border-radius: 50%; font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" title="Close">&times;</button>
+        </div>
+
+        <!-- Modal Body -->
+        <div style="padding: 1.5rem; max-height: 72vh; overflow-y: auto;">
+            <!-- Order Meta Banner -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; background: #FFF1F2; border: 1.5px solid #FFE4E6; border-radius: 10px; padding: 0.75rem 1rem;">
+                <div>
+                    <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #BE123C; display: block; letter-spacing: 0.5px;">Order Reference</span>
+                    <strong id="modal-order-id" style="font-size: 1.1rem; color: #9F1239; font-weight: 800;">#VR-XXXX</strong>
+                </div>
+                <div style="text-align: right;">
+                    <span style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: #BE123C; display: block; letter-spacing: 0.5px;">Order Time</span>
+                    <span id="modal-order-time" style="font-size: 0.88rem; color: #9F1239; font-weight: 600;">Just now</span>
+                </div>
+            </div>
+
+            <!-- Customer Details Card -->
+            <div style="margin-bottom: 1rem; background: var(--bg-cream); border: 1.5px solid var(--border-warm); border-radius: 12px; padding: 0.9rem 1.1rem;">
+                <div style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.4rem; letter-spacing: 0.5px;">
+                    Customer Details
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                    <span id="modal-customer-name" style="font-size: 1.05rem; font-weight: 700; color: var(--primary-brown);">
+                        👤 Customer
+                    </span>
+                    <span id="modal-customer-phone" style="font-size: 0.9rem; color: var(--text-main); font-weight: 600;">
+                        📞 Phone
+                    </span>
+                </div>
+                <div id="modal-delivery-address" style="font-size: 0.86rem; color: var(--text-muted); margin-top: 0.45rem; line-height: 1.45;">
+                    📍 Address
+                </div>
+                <div id="modal-customer-notes-wrap" style="font-size: 0.85rem; color: var(--primary-orange); margin-top: 0.45rem; font-weight: 600; display: none;">
+                    📝 Note: <span id="modal-customer-notes"></span>
+                </div>
+            </div>
+
+            <!-- Ordered Dishes List -->
+            <div style="margin-bottom: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Dishes to Prepare</span>
+                    <strong id="modal-total-amount" style="font-size: 1.15rem; color: var(--primary-orange); font-weight: 800;">₹0.00</strong>
+                </div>
+                <div id="modal-items-container" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 160px; overflow-y: auto;">
+                    <!-- Injected dynamically -->
+                </div>
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                <button type="button" id="modal-accept-btn" class="btn" style="flex: 2; min-width: 190px; background: #E11D48; color: white; border: none; padding: 0.8rem 1.25rem; font-weight: 700; font-size: 0.95rem; border-radius: var(--radius-sm); box-shadow: 0 4px 15px rgba(225, 29, 72, 0.35); display: flex; align-items: center; justify-content: center; gap: 0.5rem; cursor: pointer;">
+                    🔥 Accept & Start Preparing
+                </button>
+                <button type="button" id="modal-reject-btn" class="btn btn-outline" style="flex: 1; min-width: 110px; border-color: #BE123C; color: #BE123C; padding: 0.8rem 1rem; font-weight: 700; font-size: 0.9rem; border-radius: var(--radius-sm); cursor: pointer;">
+                    ❌ Reject
+                </button>
+                <button type="button" onclick="closeNewOrderModal()" class="btn btn-secondary" style="flex: 1; min-width: 100px; padding: 0.8rem 1rem; font-size: 0.9rem; border-radius: var(--radius-sm); cursor: pointer;">
+                    Keep in Queue
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 {% if chef_profile and not chef_profile.is_approved %}
@@ -346,20 +434,232 @@
 <style>
     @keyframes pulse {
         0% { transform: scale(1); }
-        50% { transform: scale(1.05); }
+        50% { transform: scale(1.06); }
         100% { transform: scale(1); }
     }
     @keyframes redPop {
-        0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.4); }
-        70% { box-shadow: 0 0 0 10px rgba(225, 29, 72, 0); }
+        0% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.45); }
+        70% { box-shadow: 0 0 0 12px rgba(225, 29, 72, 0); }
         100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0); }
+    }
+    @keyframes modalPop {
+        0% { transform: scale(0.85); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
     }
 </style>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        let lastCount = -1;
+    // Global set tracking already notified order IDs to prevent duplicate alerts
+    const notifiedOrderIds = new Set();
+    let isInitialLoad = true;
 
+    // Web Audio API Pleasant 2-Tone Notification Chime (Zero external network dependencies)
+    function playNotificationSound() {
+        if (localStorage.getItem('chef_sound_alerts') === 'off') {
+            return;
+        }
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            const now = ctx.currentTime;
+
+            // Tone 1: High crisp ding (D5)
+            const osc1 = ctx.createOscillator();
+            const gain1 = ctx.createGain();
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(587.33, now);
+            gain1.gain.setValueAtTime(0.35, now);
+            gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+            osc1.connect(gain1);
+            gain1.connect(ctx.destination);
+            osc1.start(now);
+            osc1.stop(now + 0.35);
+
+            // Tone 2: Warm melodious chime (A5)
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = 'triangle';
+            osc2.frequency.setValueAtTime(880.00, now + 0.14);
+            gain2.gain.setValueAtTime(0.4, now + 0.14);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.start(now + 0.14);
+            osc2.stop(now + 0.75);
+        } catch(e) {
+            console.log("Audio notification skipped or blocked by browser autoplay policy:", e);
+        }
+    }
+
+    // Modal Control Functions
+    function openNewOrderModal(order) {
+        if (!order) return;
+        const backdrop = document.getElementById('new-order-modal-backdrop');
+        if (!backdrop) return;
+
+        document.getElementById('modal-order-id').textContent = '#' + order.order_id;
+        document.getElementById('modal-order-time').textContent = order.created_at || 'Just now';
+        document.getElementById('modal-customer-name').textContent = '👤 ' + (order.customer_name || 'Customer');
+        document.getElementById('modal-customer-phone').textContent = order.customer_phone ? '📞 ' + order.customer_phone : '';
+        document.getElementById('modal-delivery-address').textContent = '📍 ' + (order.delivery_address || 'Delivery Address on File');
+
+        const notesWrap = document.getElementById('modal-customer-notes-wrap');
+        const notesSpan = document.getElementById('modal-customer-notes');
+        if (order.customer_notes && order.customer_notes.trim()) {
+            notesSpan.textContent = order.customer_notes.trim();
+            notesWrap.style.display = 'block';
+        } else {
+            notesWrap.style.display = 'none';
+        }
+
+        document.getElementById('modal-total-amount').textContent = '₹' + (order.total_amount ? order.total_amount.toFixed(2) : '0.00');
+
+        const itemsContainer = document.getElementById('modal-items-container');
+        if (itemsContainer) {
+            let itemsHtml = '';
+            if (order.items && order.items.length > 0) {
+                order.items.forEach(it => {
+                    itemsHtml += `
+                        <div style="background: var(--bg-cream); border: 1px solid var(--border-warm); border-radius: 8px; padding: 0.6rem 0.85rem; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong style="color: var(--primary-brown); font-size: 0.95rem;">${it.name}</strong>
+                                <span style="font-size: 0.82rem; color: var(--text-muted); display: block;">Portion count: ${it.quantity}</span>
+                            </div>
+                            <span style="font-weight: 700; color: var(--primary-orange); font-size: 0.95rem;">
+                                ₹${(it.price * it.quantity).toFixed(2)}
+                            </span>
+                        </div>
+                    `;
+                });
+            } else {
+                itemsHtml = `<p style="margin: 0; color: var(--text-muted); font-size: 0.88rem;">Dishes assigned to kitchen.</p>`;
+            }
+            itemsContainer.innerHTML = itemsHtml;
+        }
+
+        // Configure Action Buttons
+        const acceptBtn = document.getElementById('modal-accept-btn');
+        const rejectBtn = document.getElementById('modal-reject-btn');
+
+        acceptBtn.onclick = function() {
+            acceptBtn.disabled = true;
+            acceptBtn.innerHTML = '⏳ Accepting...';
+            updateOrderStatus(order.order_id, 'preparing', function() {
+                closeNewOrderModal();
+                acceptBtn.disabled = false;
+                acceptBtn.innerHTML = '🔥 Accept & Start Preparing';
+            });
+        };
+
+        rejectBtn.onclick = function() {
+            if (confirm(`Are you sure you want to REJECT Order #${order.order_id}? This will cancel the order and return stock portions.`)) {
+                rejectBtn.disabled = true;
+                rejectBtn.innerHTML = '⏳ Rejecting...';
+                updateOrderStatus(order.order_id, 'cancelled', function() {
+                    closeNewOrderModal();
+                    rejectBtn.disabled = false;
+                    rejectBtn.innerHTML = '❌ Reject';
+                });
+            }
+        };
+
+        backdrop.style.display = 'flex';
+    }
+
+    function closeNewOrderModal() {
+        const backdrop = document.getElementById('new-order-modal-backdrop');
+        if (backdrop) {
+            backdrop.style.display = 'none';
+        }
+    }
+
+    // Fast AJAX Status Update Function (No full-page reload)
+    function updateOrderStatus(orderId, newStatus, callback) {
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        formData.append('status', newStatus);
+
+        fetch(`/chef/order/${orderId}/status/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(res => {
+            if (res.status === 'success') {
+                if (typeof callback === 'function') callback();
+                // Refresh queue immediately
+                fetchKitchenOrders();
+            } else {
+                alert(res.message || 'Status update failed.');
+                if (typeof callback === 'function') callback();
+            }
+        })
+        .catch(err => {
+            console.error('Error updating order status:', err);
+            // Fallback to standard form submit if fetch fails
+            const fallbackForm = document.createElement('form');
+            fallbackForm.method = 'POST';
+            fallbackForm.action = `/chef/order/${orderId}/status/`;
+            fallbackForm.innerHTML = `
+                <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+                <input type="hidden" name="status" value="${newStatus}">
+            `;
+            document.body.appendChild(fallbackForm);
+            fallbackForm.submit();
+        });
+    }
+
+    // Main Dashboard Initialization
+    document.addEventListener("DOMContentLoaded", function() {
+        // Sound toggle setup
+        const soundToggle = document.getElementById('chef-sound-toggle');
+        const soundIcon = document.getElementById('sound-icon');
+        const soundText = document.getElementById('sound-text');
+
+        const savedSound = localStorage.getItem('chef_sound_alerts');
+        if (savedSound === 'off') {
+            soundIcon.textContent = '🔕';
+            soundText.textContent = 'Sound: OFF';
+            soundToggle.style.opacity = '0.7';
+        }
+
+        if (soundToggle) {
+            soundToggle.addEventListener('click', function() {
+                const current = localStorage.getItem('chef_sound_alerts');
+                if (current === 'off') {
+                    localStorage.setItem('chef_sound_alerts', 'on');
+                    soundIcon.textContent = '🔔';
+                    soundText.textContent = 'Sound: ON';
+                    soundToggle.style.opacity = '1';
+                    playNotificationSound(); // Preview chime
+                } else {
+                    localStorage.setItem('chef_sound_alerts', 'off');
+                    soundIcon.textContent = '🔕';
+                    soundText.textContent = 'Sound: OFF';
+                    soundToggle.style.opacity = '0.7';
+                }
+            });
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeNewOrderModal();
+        });
+
+        // Seed initial known pending orders from server-rendered DOM
+        document.querySelectorAll('#kitchen-queue [data-order-id]').forEach(el => {
+            const oid = el.getAttribute('data-order-id');
+            const st = el.getAttribute('data-status');
+            if (oid && st === 'pending') {
+                notifiedOrderIds.add(oid);
+            }
+        });
+
+        // Polling function
         function fetchKitchenOrders() {
             fetch("{% url 'api_chef_orders' %}")
                 .then(response => response.json())
@@ -370,18 +670,22 @@
 
                         if (data.orders.length === 0) {
                             queueContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem; font-weight: 400;">No active order preparations in the kitchen.</p>';
-                            return;
                         }
 
-                        // Play sound alert if a new order arrives
-                        if (lastCount !== -1 && data.count > lastCount && data.has_pending) {
-                            try {
-                                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-                                audio.play().catch(e => {});
-                            } catch(e) {}
+                        // Check for truly new pending orders for popups
+                        if (data.pending_orders && data.pending_orders.length > 0) {
+                            data.pending_orders.forEach(pOrder => {
+                                if (!notifiedOrderIds.has(pOrder.order_id)) {
+                                    notifiedOrderIds.add(pOrder.order_id);
+                                    if (!isInitialLoad) {
+                                        playNotificationSound();
+                                        openNewOrderModal(pOrder);
+                                    }
+                                }
+                            });
                         }
-                        lastCount = data.count;
-                        
+                        isInitialLoad = false;
+
                         // Update the red pop banner
                         const bannerContainer = document.getElementById('pending-orders-banner-container');
                         if (bannerContainer) {
@@ -407,78 +711,81 @@
                                         </a>
                                     </div>
                                 `;
-                            } else if (!data.has_pending) {
+                            } else if (!data.has_pending && document.getElementById('pending-orders-banner')) {
                                 bannerContainer.innerHTML = '';
                             }
                         }
 
-                        let html = '';
-                        data.orders.forEach(item => {
-                            const isPending = item.status === 'pending';
-                            const isPreparing = item.status === 'preparing';
-                            const isReadyPickup = item.status === 'ready_pickup';
-                            const isAssigned = item.status === 'assigned';
-                            const isTransit = item.status === 'picked_up' || item.status === 'in_transit';
+                        // Re-render kitchen queue cards with instant action buttons
+                        if (data.orders.length > 0) {
+                            let html = '';
+                            data.orders.forEach(item => {
+                                const isPending = item.status === 'pending';
+                                const isPreparing = item.status === 'preparing';
+                                const isReadyPickup = item.status === 'ready_pickup';
+                                const isAssigned = item.status === 'assigned';
+                                const isTransit = item.status === 'picked_up' || item.status === 'in_transit';
 
-                            const bgStyle = isPending ? 'background-color: #FFF1F2; border: 1.5px solid #E11D48; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.15);' : 'background-color: var(--bg-cream); border: 1.5px solid var(--border-warm);';
-                            const badgeClass = isPending ? 'badge-danger' : (isPreparing ? 'badge-warning' : (isReadyPickup ? 'badge-success' : 'badge-primary'));
-                            const badgeStyle = isPending ? 'background: #E11D48; color: white; animation: pulse 1.5s infinite;' : '';
-                            const badgeText = isPending ? '🔥 NEW ORDER' : (isPreparing ? '🍳 Food Preparing' : (isReadyPickup ? 'Food Prepared' : (isAssigned ? 'Courier Assigned' : (isTransit ? 'Picked Up / In Transit' : item.status_display))));
+                                const bgStyle = isPending ? 'background-color: #FFF1F2; border: 1.5px solid #E11D48; box-shadow: 0 4px 15px rgba(225, 29, 72, 0.15);' : 'background-color: var(--bg-cream); border: 1.5px solid var(--border-warm);';
+                                const badgeClass = isPending ? 'badge-danger' : (isPreparing ? 'badge-warning' : (isReadyPickup ? 'badge-success' : 'badge-primary'));
+                                const badgeStyle = isPending ? 'background: #E11D48; color: white; animation: pulse 1.5s infinite;' : '';
+                                const badgeText = isPending ? '🔥 NEW ORDER' : (isPreparing ? '🍳 Food Preparing' : (isReadyPickup ? 'Food Prepared' : (isAssigned ? 'Courier Assigned' : (isTransit ? 'Picked Up / In Transit' : item.status_display))));
 
-                            let actionForm = '';
-                            if (isPending) {
-                                actionForm = `
-                                    <form method="POST" action="/chef/order/${item.order_id}/status/">
-                                        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-                                        <input type="hidden" name="status" value="preparing">
-                                        <button type="submit" class="btn btn-sm" style="background: #E11D48; color: white; border: none; padding: 0.45rem 1.1rem; font-size: 0.85rem; box-shadow: 0 4px 10px rgba(225, 29, 72, 0.25);">
+                                let actionControls = '';
+                                if (isPending) {
+                                    actionControls = `
+                                        <button type="button" onclick="updateOrderStatus('${item.order_id}', 'preparing')" class="btn btn-sm" style="background: #E11D48; color: white; border: none; padding: 0.45rem 1.1rem; font-size: 0.85rem; font-weight: 700; box-shadow: 0 4px 10px rgba(225, 29, 72, 0.25); cursor: pointer;">
                                             🔥 Accept & Start Preparing
                                         </button>
-                                    </form>
-                                `;
-                            } else if (isPreparing) {
-                                actionForm = `
-                                    <form method="POST" action="/chef/order/${item.order_id}/status/">
-                                        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-                                        <input type="hidden" name="status" value="ready_pickup">
-                                        <button type="submit" class="btn btn-secondary btn-sm" style="padding: 0.4rem 1.1rem; font-weight: 700;">
+                                        <button type="button" onclick="if(confirm('Reject Order #${item.order_id}?')) updateOrderStatus('${item.order_id}', 'cancelled')" class="btn btn-outline btn-sm" style="border-color: #BE123C; color: #BE123C; padding: 0.45rem 0.85rem; font-size: 0.82rem; font-weight: 600; cursor: pointer;">
+                                            Reject
+                                        </button>
+                                    `;
+                                } else if (isPreparing) {
+                                    actionControls = `
+                                        <button type="button" onclick="updateOrderStatus('${item.order_id}', 'ready_pickup')" class="btn btn-secondary btn-sm" style="padding: 0.45rem 1.1rem; font-weight: 700; cursor: pointer;">
                                             🍲 Mark Food Prepared
                                         </button>
-                                    </form>
-                                `;
-                            } else {
-                                const statusColor = isAssigned ? '#2563eb' : (isTransit ? 'var(--primary-orange)' : 'var(--success)');
-                                actionForm = `<span style="font-size: 0.85rem; color: ${statusColor}; font-weight: 700;">✓ ${item.status_message}</span>`;
-                            }
+                                    `;
+                                } else {
+                                    const statusColor = isAssigned ? '#2563eb' : (isTransit ? 'var(--primary-orange)' : 'var(--success)');
+                                    actionControls = `<span style="font-size: 0.85rem; color: ${statusColor}; font-weight: 700;">✓ ${item.status_message}</span>`;
+                                }
 
-                            html += `
-                                <div style="${bgStyle} border-radius: var(--radius-sm); padding: 1rem;">
-                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-warm); padding-bottom: 0.5rem;">
-                                        <span class="badge badge-primary" style="font-size: 0.75rem;">${item.session}</span>
-                                        <span class="badge ${badgeClass}" style="${badgeStyle}">${badgeText}</span>
-                                    </div>
-                                    <div style="margin-bottom: 0.75rem;">
-                                        <div style="font-size: 0.85rem; color: var(--primary-brown); font-weight: 600; margin-bottom: 0.2rem;">
-                                            Order ID: #${item.order_id}
+                                html += `
+                                    <div data-order-id="${item.order_id}" data-status="${item.status}" style="${bgStyle} border-radius: var(--radius-sm); padding: 1rem;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; border-bottom: 1px solid var(--border-warm); padding-bottom: 0.5rem;">
+                                            <span class="badge badge-primary" style="font-size: 0.75rem;">${item.session}</span>
+                                            <span class="badge ${badgeClass}" style="${badgeStyle}">${badgeText}</span>
                                         </div>
-                                        <h4 style="color: var(--primary-brown); font-size: 1.1rem; font-weight: 600; margin: 0;">
-                                            ${item.food_name}
-                                        </h4>
-                                        <p style="font-size: 0.92rem; color: var(--primary-orange); font-weight: 600; margin: 0.25rem 0 0 0;">
-                                            Quantity: ${item.quantity} portion(s)
-                                        </p>
-                                        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.4rem;">
-                                            <span class="badge badge-green" style="font-size: 0.7rem;">Category: ${item.category}</span>
-                                            <span class="badge badge-primary" style="font-size: 0.7rem;">${item.created_at}</span>
+                                        <div style="margin-bottom: 0.75rem;">
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.2rem;">
+                                                <span style="font-size: 0.85rem; color: var(--primary-brown); font-weight: 700;">
+                                                    Order ID: #${item.order_id}
+                                                </span>
+                                                <span style="font-size: 0.82rem; color: var(--text-muted); font-weight: 500;">
+                                                    👤 ${item.customer_name || 'Customer'}
+                                                </span>
+                                            </div>
+                                            <h4 style="color: var(--primary-brown); font-size: 1.1rem; font-weight: 600; margin: 0;">
+                                                ${item.food_name}
+                                            </h4>
+                                            <p style="font-size: 0.92rem; color: var(--primary-orange); font-weight: 600; margin: 0.25rem 0 0 0;">
+                                                Quantity: ${item.quantity} portion(s) &bull; ₹${(item.price * item.quantity).toFixed(2)}
+                                            </p>
+                                            <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.4rem;">
+                                                <span class="badge badge-green" style="font-size: 0.7rem;">Category: ${item.category}</span>
+                                                <span class="badge badge-primary" style="font-size: 0.7rem;">${item.created_at}</span>
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; flex-wrap: wrap;">
+                                            ${actionControls}
                                         </div>
                                     </div>
-                                    <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                                        ${actionForm}
-                                    </div>
-                                </div>
-                            `;
-                        });
-                        queueContainer.innerHTML = html;
+                                `;
+                            });
+                            queueContainer.innerHTML = html;
+                        }
                     }
                 })
                 .catch(err => console.error("Error fetching kitchen orders:", err));
@@ -486,6 +793,8 @@
 
         // Poll kitchen orders queue every 3 seconds for instant real-time updates
         setInterval(fetchKitchenOrders, 3000);
+        // Initial fetch to sync queue state
+        fetchKitchenOrders();
     });
 </script>
 {% endblock %}

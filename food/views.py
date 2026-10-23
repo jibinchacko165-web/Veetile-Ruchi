@@ -9,7 +9,7 @@ from django.db.models import Q, Avg, Sum, Count, F, FloatField
 from .models import FoodItem, Category, MealSession, NutritionInfo, ReviewSentiment
 from accounts.models import User, ChefProfile, DeliveryBoyProfile
 from accounts.decorators import role_required
-from orders.models import Wishlist, Order, OrderItem, Coupon, Payment, ChefFeedback
+from orders.models import Wishlist, Order, OrderItem, Coupon, Payment, ChefFeedback, Notification
 from orders.utils import to_kolkata_datetime
 from delivery.models import DeliveryAssignment, GPSLocationTracking, District, HotelBranch
 from health.models import HealthProfile, HealthRecommendation
@@ -442,15 +442,17 @@ def api_chef_orders(request):
     if request.user.role == 'admin':
         order_items = OrderItem.objects.filter(
             order__status__in=active_statuses
-        ).select_related('order', 'food_item', 'food_item__meal_session', 'food_item__category').order_by('-order__created_at')
+        ).select_related('order', 'order__user', 'food_item', 'food_item__meal_session', 'food_item__category').order_by('-order__created_at')
     else:
         chef_foods = FoodItem.objects.filter(Q(chef=request.user) | Q(chef__isnull=True))
         order_items = OrderItem.objects.filter(
             order__status__in=active_statuses,
             food_item__in=chef_foods
-        ).select_related('order', 'food_item', 'food_item__meal_session', 'food_item__category').order_by('-order__created_at')
+        ).select_related('order', 'order__user', 'food_item', 'food_item__meal_session', 'food_item__category').order_by('-order__created_at')
 
     data = []
+    pending_orders_map = {}
+
     for item in order_items:
         st = item.order.status
         if st == 'ready_pickup':
@@ -467,23 +469,64 @@ def api_chef_orders(request):
         created_dt = to_kolkata_datetime(item.order.created_at)
         created_str = created_dt.strftime("%b %d, %Y • %I:%M %p") if created_dt else ""
 
-        data.append({
+        cust = item.order.user
+        cust_name = cust.get_full_name() if cust else ""
+        if not cust_name and cust:
+            cust_name = cust.username
+        if not cust_name:
+            cust_name = "Customer"
+
+        cust_phone = getattr(cust, 'phone', '') or ''
+
+        item_dict = {
             'order_id': item.order.order_id,
             'food_id': f"FOOD{item.food_item.id:04d}",
             'food_name': item.food_item.name,
             'quantity': item.quantity,
+            'price': float(item.price),
             'category': item.food_item.category.name if item.food_item.category else 'General',
             'session': item.food_item.meal_session.name if item.food_item.meal_session else 'All Day',
             'status': item.order.status,
             'status_display': item.order.get_status_display(),
             'status_message': status_message,
             'created_at': created_str,
-        })
+            'customer_name': cust_name,
+            'customer_phone': cust_phone,
+            'delivery_address': item.order.delivery_address or '',
+            'customer_notes': item.order.customer_delivery_notes or '',
+            'total_amount': float(item.order.total_amount),
+        }
+        data.append(item_dict)
+
+        if item.order.status == 'pending':
+            oid = item.order.order_id
+            if oid not in pending_orders_map:
+                pending_orders_map[oid] = {
+                    'order_id': oid,
+                    'customer_name': cust_name,
+                    'customer_phone': cust_phone,
+                    'delivery_address': item.order.delivery_address or '',
+                    'customer_notes': item.order.customer_delivery_notes or '',
+                    'total_amount': float(item.order.total_amount),
+                    'created_at': created_str,
+                    'status': item.order.status,
+                    'items': []
+                }
+            pending_orders_map[oid]['items'].append({
+                'name': item.food_item.name,
+                'quantity': item.quantity,
+                'price': float(item.price)
+            })
+
+    for oid, p_order in pending_orders_map.items():
+        p_order['items_summary'] = ", ".join(f"{it['name']} x{it['quantity']}" for it in p_order['items'])
 
     return JsonResponse({
         'status': 'success',
         'count': len(data),
-        'has_pending': any(item['status'] == 'pending' for item in data),
+        'has_pending': len(pending_orders_map) > 0,
+        'pending_count': len(pending_orders_map),
+        'pending_orders': list(pending_orders_map.values()),
         'orders': data
     })
 
@@ -628,32 +671,87 @@ def chef_food_manage(request, pk=None):
 @login_required
 @role_required('chef', 'admin')
 def chef_order_status_update(request, order_id):
-    """Allows Chef to update preparation status for their own kitchen order."""
-    if request.user.role != 'chef' and request.user.role != 'admin':
+    """Allows Chef to update preparation status (accept, start prep, food prepared, or reject) for their kitchen order."""
+    is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json')
+    if request.user.role not in ['chef', 'admin']:
+        if is_ajax:
+            return JsonResponse({'status': 'error', 'message': 'Access Denied.'}, status=403)
         messages.error(request, "Access Denied.")
         return redirect('dashboard_redirect')
         
     order = get_object_or_404(Order, order_id=order_id)
 
     if request.user.role == 'chef':
-        is_chef_order = order.items.filter(food_item__chef=request.user).exists() or (order.responsible_chef == request.user)
+        is_chef_order = order.items.filter(Q(food_item__chef=request.user) | Q(food_item__chef__isnull=True)).exists()
         if not is_chef_order:
+            if is_ajax:
+                return JsonResponse({'status': 'error', 'message': 'Access Denied for this kitchen.'}, status=403)
             messages.error(request, "Access Denied. You are not authorized to update orders for other kitchens.")
             return redirect('chef_dashboard')
 
     new_status = request.POST.get('status')
-    if new_status in ['preparing', 'ready_pickup']:
-        now = timezone.now()
-        order.status = new_status
-        if new_status == 'preparing' and not order.preparing_started_at:
-            order.preparing_started_at = now
+    now = timezone.now()
+    msg = ""
+
+    if new_status in ['preparing', 'ready_pickup', 'cancelled']:
+        if new_status == 'preparing':
+            order.status = 'preparing'
+            if not order.preparing_started_at:
+                order.preparing_started_at = now
+            order.save()
+            # Customer Notification
+            Notification.objects.create(
+                user=order.user,
+                order=order,
+                title="Food Preparing",
+                message=f"The chef has accepted order #{order.order_id} and started fresh homemade preparation.",
+                notification_type='order_preparing'
+            )
+            msg = f"Order #{order.order_id} accepted. Kitchen preparation started."
         elif new_status == 'ready_pickup':
-            order.food_prepared_at = now
-        order.save()
-        if new_status == 'ready_pickup':
-            messages.success(request, f"Order #{order.order_id} marked as Food Prepared. Staff notified for courier assignment.")
-        else:
-            messages.success(request, f"Order #{order.order_id} accepted. Kitchen preparation started.")
+            order.status = 'ready_pickup'
+            if not order.food_prepared_at:
+                order.food_prepared_at = now
+            order.save()
+            # Customer Notification
+            Notification.objects.create(
+                user=order.user,
+                order=order,
+                title="Food Prepared",
+                message=f"Order #{order.order_id} is freshly prepared and ready for delivery pickup.",
+                notification_type='food_prepared'
+            )
+            msg = f"Order #{order.order_id} marked as Food Prepared. Staff notified for courier assignment."
+        elif new_status == 'cancelled':
+            order.status = 'cancelled'
+            order.save()
+            # Restore food item portions in stock
+            for oi in order.items.select_related('food_item'):
+                oi.food_item.stock_quantity += oi.quantity
+                oi.food_item.save()
+            # Customer Notification
+            Notification.objects.create(
+                user=order.user,
+                order=order,
+                title="Order Rejected by Kitchen",
+                message=f"Order #{order.order_id} could not be prepared by the kitchen and has been cancelled.",
+                notification_type='order_cancelled'
+            )
+            msg = f"Order #{order.order_id} has been rejected and cancelled."
+
+        if is_ajax:
+            return JsonResponse({
+                'status': 'success',
+                'order_id': order.order_id,
+                'new_status': order.status,
+                'status_display': order.get_status_display(),
+                'message': msg
+            })
+        messages.success(request, msg)
+    else:
+        if is_ajax:
+            return JsonResponse({'status': 'error', 'message': 'Invalid status provided.'}, status=400)
+
     return redirect('chef_dashboard')
 
 @never_cache

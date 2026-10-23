@@ -398,6 +398,24 @@ def place_order(request):
                 message=f"Order Confirmed – #{order.order_id} has been received.",
                 notification_type='order_confirmed'
             )
+
+            # Create Chef notification(s) for New Incoming Food Order
+            chef_recipients = set()
+            for oi in order.items.select_related('food_item', 'food_item__chef'):
+                if oi.food_item.chef:
+                    chef_recipients.add(oi.food_item.chef)
+            if not chef_recipients:
+                chef_recipients = set(User.objects.filter(role='chef', is_active=True))
+
+            cust_display_name = request.user.get_full_name() or request.user.username
+            for chef_user in chef_recipients:
+                Notification.objects.create(
+                    user=chef_user,
+                    order=order,
+                    title="New Order Received!",
+                    message=f"New Order #{order.order_id} received from {cust_display_name}.",
+                    notification_type='new_order'
+                )
             
         messages.success(request, f"Order placed successfully! Order ID: {order.order_id}")
         return redirect('order_tracking', order_id=order.order_id)
