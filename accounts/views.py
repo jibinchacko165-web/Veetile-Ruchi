@@ -711,18 +711,8 @@ def csrf_failure_view(request, reason=""):
     print(f"[CSRF ERROR] Reason: {reason} | Referer: {request.META.get('HTTP_REFERER')}", flush=True)
     messages.warning(request, "Security token refreshed. Please submit your request again.")
     referer = request.META.get('HTTP_REFERER')
-    resp = redirect(referer) if referer else redirect('food_catalog')
-    resp['X-CSRF-Reason'] = str(reason)
-    resp['X-DEBUG-POST'] = str(list(request.POST.keys()))
-    resp['X-DEBUG-CL'] = str(request.META.get('CONTENT_LENGTH'))
-    resp['X-DEBUG-CT'] = str(request.META.get('CONTENT_TYPE'))
-    resp['X-DEBUG-HCL'] = str(request.META.get('HTTP_CONTENT_LENGTH'))
-    resp['X-DEBUG-HCT'] = str(request.META.get('HTTP_CONTENT_TYPE'))
-    try:
-        resp['X-DEBUG-BODY'] = request.body.decode('utf-8', errors='ignore')[:100]
-    except Exception as e:
-        resp['X-DEBUG-BODY'] = f"Err: {e}"
-    return resp
+    return redirect(referer) if referer else redirect('food_catalog')
+
 
 import json
 import urllib.request

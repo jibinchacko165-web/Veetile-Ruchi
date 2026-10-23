@@ -6,6 +6,7 @@ Binds to X_ZOHO_CATALYST_LISTEN_PORT immediately to pass health checks within 10
 """
 import os
 import sys
+import io
 import logging
 from socketserver import ThreadingMixIn
 from wsgiref.simple_server import make_server, WSGIServer, WSGIRequestHandler
@@ -84,10 +85,43 @@ class AppSailRequestHandler(WSGIRequestHandler):
         sys.stdout.write(f"[HTTP] {self.client_address[0]} - {format % args}\n")
         sys.stdout.flush()
 
-    def get_environ(self):
-        env = super().get_environ()
-        env['raw_headers_list'] = list(self.headers.items())
-        return env
+def read_chunked_stream(stream):
+    """
+    De-chunks an incoming HTTP stream when Catalyst AppSail reverse proxy
+    forwards client POST/PUT/PATCH requests using Transfer-Encoding: chunked.
+    Returns bytes of the unchunked body.
+    """
+    body = bytearray()
+    try:
+        while True:
+            line = stream.readline()
+            if not line:
+                break
+            line_clean = line.strip()
+            if not line_clean:
+                continue
+            chunk_hex = line_clean.split(b';')[0].strip()
+            try:
+                chunk_len = int(chunk_hex, 16)
+            except ValueError:
+                break
+            if chunk_len == 0:
+                while True:
+                    trailer = stream.readline()
+                    if not trailer or trailer.strip() == b'':
+                        break
+                break
+            remaining = chunk_len
+            while remaining > 0:
+                part = stream.read(remaining)
+                if not part:
+                    break
+                body.extend(part)
+                remaining -= len(part)
+            stream.readline()
+    except Exception as e:
+        print(f"[AppSail] Error reading chunked stream: {e}", flush=True)
+    return bytes(body)
 
 def resilient_wsgi_app(environ, start_response):
     # AppSail public gateway terminates SSL and exposes apps over HTTPS (:443)
@@ -102,22 +136,23 @@ def resilient_wsgi_app(environ, start_response):
         start_response('200 OK', [('Content-Type', 'application/json')])
         return [b'{"status": "ok", "app": "veetile-ruchi"}']
 
-    if path == '/test-post':
-        cl = environ.get('CONTENT_LENGTH', '')
-        stream = environ.get('wsgi.input')
-        body = b''
-        if cl and cl.isdigit() and int(cl) > 0:
-            body = stream.read(int(cl))
-        import json
-        headers_dump = {k: str(v) for k, v in environ.items() if k.startswith('HTTP_') or 'CONTENT' in k or 'LENGTH' in k}
-        start_response('200 OK', [('Content-Type', 'application/json')])
-        return [json.dumps({"cl": cl, "body": body.decode('utf-8', errors='ignore'), "raw_headers": environ.get('raw_headers_list', []), "headers": headers_dump}).encode('utf-8')]
-
     # Normalize CGI content variables for WSGI compliance
     if not environ.get('CONTENT_TYPE') and environ.get('HTTP_CONTENT_TYPE'):
         environ['CONTENT_TYPE'] = environ['HTTP_CONTENT_TYPE']
     if not environ.get('CONTENT_LENGTH') and environ.get('HTTP_CONTENT_LENGTH'):
         environ['CONTENT_LENGTH'] = environ['HTTP_CONTENT_LENGTH']
+
+    # Catalyst reverse proxy forwards POST/PUT requests using Transfer-Encoding: chunked
+    # Python wsgiref does not de-chunk by default, causing CONTENT_LENGTH to remain empty
+    # which truncates Django's LimitedStream to 0 bytes. We de-chunk into an in-memory BytesIO.
+    te = environ.get('HTTP_TRANSFER_ENCODING', '').lower()
+    if 'chunked' in te:
+        raw_stream = environ.get('wsgi.input')
+        if raw_stream:
+            body_bytes = read_chunked_stream(raw_stream)
+            environ['CONTENT_LENGTH'] = str(len(body_bytes))
+            environ['wsgi.input'] = io.BytesIO(body_bytes)
+            environ.pop('HTTP_TRANSFER_ENCODING', None)
 
     app = get_django_app()
     if app is not None:
