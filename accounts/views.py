@@ -708,11 +708,23 @@ def password_reset_cancel_view(request):
     return redirect('password_reset')
 
 def csrf_failure_view(request, reason=""):
-    print(f"[CSRF ERROR] Reason: {reason} | Origin: {request.META.get('HTTP_ORIGIN')} | Referer: {request.META.get('HTTP_REFERER')} | Host: {request.get_host()}", flush=True)
+    keys = list(request.POST.keys())
+    cl = request.META.get('CONTENT_LENGTH', '')
+    ct = request.META.get('CONTENT_TYPE', '')
+    raw_body = ""
+    try:
+        raw_body = request.body.decode('utf-8', errors='ignore')
+    except Exception as e:
+        raw_body = f"Err: {e}"
+    print(f"[CSRF ERROR] Reason: {reason} | Keys: {keys} | CL: {cl} | CT: {ct} | Body: {raw_body[:100]}", flush=True)
     messages.warning(request, f"Security token refreshed. Please submit your request again. ({reason})")
     referer = request.META.get('HTTP_REFERER')
     resp = redirect(referer) if referer else redirect('food_catalog')
     resp['X-CSRF-Reason'] = str(reason)
+    resp['X-CSRF-Post-Keys'] = ",".join(keys)
+    resp['X-CSRF-CL'] = str(cl)
+    resp['X-CSRF-CT'] = str(ct)
+    resp['X-CSRF-Body'] = raw_body[:100]
     return resp
 
 import json

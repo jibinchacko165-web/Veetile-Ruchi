@@ -88,9 +88,18 @@ def resilient_wsgi_app(environ, start_response):
     path = environ.get('PATH_INFO', '')
     if path in ('/health', '/health/'):
         import json
-        headers_dict = {k: v for k, v in environ.items() if k.startswith('HTTP_') or k.startswith('wsgi.') or k in ('SERVER_NAME', 'SERVER_PORT')}
+        headers_dict = {
+            k: str(v) for k, v in environ.items()
+            if k.startswith('HTTP_') or k.startswith('CONTENT_') or k in ('SERVER_NAME', 'SERVER_PORT', 'REQUEST_METHOD', 'PATH_INFO', 'wsgi.url_scheme')
+        }
         start_response('200 OK', [('Content-Type', 'application/json')])
         return [json.dumps({"status": "ok", "app": "veetile-ruchi", "env": headers_dict}).encode('utf-8')]
+
+    # Normalize CGI content variables for WSGI compliance
+    if 'CONTENT_TYPE' not in environ and 'HTTP_CONTENT_TYPE' in environ:
+        environ['CONTENT_TYPE'] = environ['HTTP_CONTENT_TYPE']
+    if 'CONTENT_LENGTH' not in environ and 'HTTP_CONTENT_LENGTH' in environ:
+        environ['CONTENT_LENGTH'] = environ['HTTP_CONTENT_LENGTH']
 
     # CRITICAL: Forward HTTPS scheme behind Zoho Catalyst reverse proxy
     proto = environ.get('HTTP_X_FORWARDED_PROTO', '').lower()
