@@ -87,8 +87,10 @@ class AppSailRequestHandler(WSGIRequestHandler):
 def resilient_wsgi_app(environ, start_response):
     path = environ.get('PATH_INFO', '')
     if path in ('/health', '/health/'):
+        import json
+        headers_dict = {k: v for k, v in environ.items() if k.startswith('HTTP_') or k.startswith('wsgi.') or k in ('SERVER_NAME', 'SERVER_PORT')}
         start_response('200 OK', [('Content-Type', 'application/json')])
-        return [b'{"status": "ok", "app": "veetile-ruchi"}']
+        return [json.dumps({"status": "ok", "app": "veetile-ruchi", "env": headers_dict}).encode('utf-8')]
 
     # CRITICAL: Forward HTTPS scheme behind Zoho Catalyst reverse proxy
     proto = environ.get('HTTP_X_FORWARDED_PROTO', '').lower()

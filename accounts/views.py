@@ -708,11 +708,12 @@ def password_reset_cancel_view(request):
     return redirect('password_reset')
 
 def csrf_failure_view(request, reason=""):
-    messages.warning(request, "Security token refreshed. Please submit your request again.")
+    print(f"[CSRF ERROR] Reason: {reason} | Origin: {request.META.get('HTTP_ORIGIN')} | Referer: {request.META.get('HTTP_REFERER')} | Host: {request.get_host()}", flush=True)
+    messages.warning(request, f"Security token refreshed. Please submit your request again. ({reason})")
     referer = request.META.get('HTTP_REFERER')
-    if referer:
-        return redirect(referer)
-    return redirect('food_catalog')
+    resp = redirect(referer) if referer else redirect('food_catalog')
+    resp['X-CSRF-Reason'] = str(reason)
+    return resp
 
 import json
 import urllib.request
