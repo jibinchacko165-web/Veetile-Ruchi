@@ -84,6 +84,11 @@ class AppSailRequestHandler(WSGIRequestHandler):
         sys.stdout.write(f"[HTTP] {self.client_address[0]} - {format % args}\n")
         sys.stdout.flush()
 
+    def get_environ(self):
+        env = super().get_environ()
+        env['raw_headers_list'] = list(self.headers.items())
+        return env
+
 def resilient_wsgi_app(environ, start_response):
     # AppSail public gateway terminates SSL and exposes apps over HTTPS (:443)
     environ['wsgi.url_scheme'] = 'https'
@@ -96,6 +101,17 @@ def resilient_wsgi_app(environ, start_response):
     if path in ('/health', '/health/'):
         start_response('200 OK', [('Content-Type', 'application/json')])
         return [b'{"status": "ok", "app": "veetile-ruchi"}']
+
+    if path == '/test-post':
+        cl = environ.get('CONTENT_LENGTH', '')
+        stream = environ.get('wsgi.input')
+        body = b''
+        if cl and cl.isdigit() and int(cl) > 0:
+            body = stream.read(int(cl))
+        import json
+        headers_dump = {k: str(v) for k, v in environ.items() if k.startswith('HTTP_') or 'CONTENT' in k or 'LENGTH' in k}
+        start_response('200 OK', [('Content-Type', 'application/json')])
+        return [json.dumps({"cl": cl, "body": body.decode('utf-8', errors='ignore'), "raw_headers": environ.get('raw_headers_list', []), "headers": headers_dump}).encode('utf-8')]
 
     # Normalize CGI content variables for WSGI compliance
     if not environ.get('CONTENT_TYPE') and environ.get('HTTP_CONTENT_TYPE'):
