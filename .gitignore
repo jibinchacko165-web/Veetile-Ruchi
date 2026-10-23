@@ -17,5 +17,6 @@ implementation_plan.md
 tests/selenium/screenshots/
 generate_pdf.py
 *.sql
+!flyway/sql/*.sql
 *.backup
 initial_data_backup.json
