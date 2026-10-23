@@ -198,6 +198,12 @@ MAP_TILE_FALLBACK_ATTRIBUTION = os.getenv(
     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 )
 
+# OSRM Road Routing Endpoint
+OSRM_ROUTING_URL = os.getenv(
+    'OSRM_ROUTING_URL',
+    'https://router.project-osrm.org/route/v1/driving/{coords}?overview=simplified&geometries=geojson'
+)
+
 # Email Configuration (Console backend for development)
 # Switch to Gmail SMTP in production
 if os.getenv('DJANGO_ENV') == 'production':

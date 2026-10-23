@@ -716,6 +716,15 @@ class StartNavigationCoordinateTests(TestCase):
         self.assertIn('9.614967', content)
         self.assertIn('76.741563', content)
 
+        # Verify Travel ETA is calculated and displayed (not stuck on static "Calculating...")
+        self.assertIn("Estimated Arrival:", content)
+        self.assertIn(response.context['travel_eta_display'], content)
+        self.assertTrue(response.context['travel_mins'] > 0)
+
+        # Verify Open Full-Screen Map button is present
+        self.assertIn('btn-toggle-fullscreen', content)
+        self.assertIn('Open Full-Screen Map', content)
+
         # Verify unwanted duplicate OpenStreetMap map buttons are completely removed
         self.assertNotIn('id="trackGpsNavBtn"', content)
         self.assertNotIn('id="btn-nav-directions"', content)
@@ -874,6 +883,10 @@ class RealTimeDeviceGPSLinkTests(TestCase):
         self.assertEqual(data['longitude'], 76.7885)
         self.assertEqual(data['accuracy'], 8.5)
         self.assertTrue('timestamp' in data)
+        self.assertTrue('travel_eta_display' in data)
+        self.assertIn("Estimated Arrival:", data['travel_eta_display'])
+        self.assertTrue('distance_km' in data)
+        self.assertTrue('route_steps' in data)
 
         # Verify DB records updated
         self.courier_profile.refresh_from_db()

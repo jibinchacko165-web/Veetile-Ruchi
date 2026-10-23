@@ -308,6 +308,18 @@ def delivery_boy_track(request, assignment_id):
         road_distance_km=distance_km
     )
 
+    duration_min = getattr(route_res, 'duration_min', None)
+    if duration_min is not None and duration_min > 0:
+        travel_mins = duration_min
+    else:
+        travel_mins = max(1.0, round((dist_km / 25.0) * 60.0, 1))
+
+    travel_mins_int = int(round(travel_mins))
+    if dist_km <= 0.4 or travel_mins_int <= 1:
+        travel_eta_display = "Estimated Arrival: < 2 minutes"
+    else:
+        travel_eta_display = f"Estimated Arrival: {travel_mins_int} minutes"
+
     # Calculate AI Delivery Status Condition Prediction
     if dist_km <= 0.5:
         ai_status_pred = "Near Destination 🎯"
@@ -332,6 +344,8 @@ def delivery_boy_track(request, assignment_id):
         'last_gps_timestamp': last_gps_timestamp,
         'route_steps': route_steps,
         'distance_km': dist_km,
+        'travel_eta_display': travel_eta_display,
+        'travel_mins': travel_mins_int,
         'pred_delivery_min': pred_delivery_min,
         'ai_eta_min': ai_eta_min,
         'ai_status_pred': ai_status_pred,
@@ -659,12 +673,63 @@ def update_courier_gps(request, assignment_id):
     profile.save(update_fields=['current_latitude', 'current_longitude', 'status'])
 
     now_str = timezone.localtime().strftime("%I:%M:%S %p")
+
+    # Calculate real-time route, distance & Travel ETA from courier's latest GPS to customer
+    from orders.utils import get_active_delivery_setting, sanitize_customer_coordinates
+    from ai_models.ml_engine import optimize_delivery_route, predict_delivery_time_rf
+
+    delivery_setting = get_active_delivery_setting()
+    branch = getattr(assignment.order, 'branch', None)
+    hub_lat = branch.latitude if branch else delivery_setting.latitude
+    hub_lon = branch.longitude if branch else delivery_setting.longitude
+    cust_lat, cust_lon = sanitize_customer_coordinates(
+        assignment.order.latitude, assignment.order.longitude,
+        fallback_lat=hub_lat, fallback_lon=hub_lon
+    )
+
+    route_res = optimize_delivery_route(c_lat, c_lon, cust_lat, cust_lon)
+    route_steps = route_res.route
+    distance_km = route_res.distance
+    is_road = getattr(route_res, 'is_road', True)
+    duration_min = getattr(route_res, 'duration_min', None)
+
+    if duration_min is not None and duration_min > 0:
+        travel_mins = duration_min
+    else:
+        travel_mins = max(1.0, round((distance_km / 25.0) * 60.0, 1))
+
+    travel_mins_int = int(round(travel_mins))
+    if distance_km <= 0.4 or travel_mins_int <= 1:
+        travel_eta_display = "Estimated Arrival: < 2 minutes"
+    else:
+        travel_eta_display = f"Estimated Arrival: {travel_mins_int} minutes"
+
+    # AI Delivery Time & Status
+    items_cnt = assignment.order.items.count() if hasattr(assignment.order, 'items') else 1
+    pred_delivery_min, ai_eta_min, dist_km = predict_delivery_time_rf(
+        c_lat, c_lon, cust_lat, cust_lon,
+        items_count=items_cnt, road_distance_km=distance_km
+    )
+    if dist_km <= 0.5:
+        ai_status_pred = "Near Destination 🎯"
+    elif pred_delivery_min <= (assignment.predicted_delivery_time or 30.0) + 5.0:
+        ai_status_pred = "On Time ⏱️"
+    else:
+        ai_status_pred = "Slightly Delayed ⚠️"
+
     return JsonResponse({
         'status': 'success',
         'latitude': c_lat,
         'longitude': c_lon,
         'accuracy': accuracy,
-        'timestamp': now_str
+        'timestamp': now_str,
+        'distance_km': dist_km,
+        'is_road_distance': is_road,
+        'travel_eta_display': travel_eta_display,
+        'travel_mins': travel_mins_int,
+        'ai_eta_min': ai_eta_min,
+        'ai_status_pred': ai_status_pred,
+        'route_steps': route_steps,
     })
 
 @login_required

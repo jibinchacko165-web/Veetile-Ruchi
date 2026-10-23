@@ -220,7 +220,7 @@
                 <!-- Travel ETA -->
                 <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
                     <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.25rem;">Travel ETA</span>
-                    <strong id="ui-travel-time" style="font-size: 1.1rem; color: var(--primary-orange);">Calculating...</strong>
+                    <strong id="ui-travel-time" style="font-size: 1.1rem; color: var(--primary-orange);">{{ travel_eta_display|default:"Calculating..." }}</strong>
                 </div>
                 <!-- Delivery ETA -->
                 <div style="background: var(--bg-cream); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-warm);">
@@ -252,19 +252,62 @@
         </div>
     </div>
 
-    <!-- Right: Single Professional Leaflet GPS Map -->
-    <div class="card" style="display: flex; flex-direction: column;">
+    <!-- Right: Single Professional Leaflet GPS Map with Full-Screen Mode -->
+    <div class="card" id="map-section-card" style="display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
             <h3 style="color: var(--primary-brown); font-weight: 700; margin: 0;">
                 📍 Live GPS Route & Location Tracking Map
             </h3>
-            <button type="button" class="btn btn-outline" onclick="if(window.recenterCourierMap) window.recenterCourierMap();" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 600;">
-                🎯 Recenter Map
-            </button>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <button type="button" id="btn-toggle-fullscreen" onclick="toggleFullScreenMap()" class="btn" style="padding: 0.4rem 0.95rem; font-size: 0.82rem; font-weight: 700; background: #0284c7; color: #ffffff; border: none; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; box-shadow: 0 2px 6px rgba(2,132,199,0.3);">
+                    <span>⛶</span> Open Full-Screen Map
+                </button>
+                <button type="button" class="btn btn-outline" onclick="if(window.recenterCourierMap) window.recenterCourierMap();" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 600;">
+                    🎯 Recenter Map
+                </button>
+            </div>
         </div>
 
-        <!-- Leaflet Map Container -->
-        <div id="delivery-nav-map" style="height: 480px; width: 100%; border-radius: 14px; border: 1.5px solid var(--dark-border); z-index: 1; margin-bottom: 1rem;"></div>
+        <!-- Leaflet Map Container Wrapper (Supports Dedicated Full-Screen View) -->
+        <div id="delivery-nav-map-wrapper" style="position: relative; width: 100%;">
+            <!-- Floating Full-Screen Controls Bar (Visible only in Full-Screen Mode) -->
+            <div id="fs-floating-bar" style="display: none; position: absolute; top: 16px; left: 16px; right: 16px; z-index: 1000; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(8px); padding: 0.75rem 1rem; border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.25); border: 1px solid rgba(0,0,0,0.1); align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+                <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                    <a href="{% url 'delivery_boy_dashboard' %}" class="btn btn-outline" style="padding: 0.4rem 0.85rem; font-size: 0.82rem; font-weight: 700; text-decoration: none; background: #ffffff;">
+                        &larr; Back to Dashboard
+                    </a>
+                    <button type="button" onclick="toggleFullScreenMap()" class="btn" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; font-weight: 700; background: #dc2626; color: #ffffff; border: none; border-radius: 6px; cursor: pointer;">
+                        ✖ Exit Full Screen
+                    </button>
+                    <button type="button" onclick="if(window.recenterCourierMap) window.recenterCourierMap();" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; font-weight: 600; background: #ffffff;">
+                        🎯 Recenter
+                    </button>
+                    <a id="fs-external-nav-btn" href="https://www.google.com/maps/dir/?api=1&destination={{ cust_lat }},{{ cust_lon }}&travelmode=driving" target="_blank" rel="noopener noreferrer" class="btn" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; font-weight: 700; background: #10b981; color: #ffffff; text-decoration: none; border-radius: 6px; display: inline-flex; align-items: center; gap: 0.35rem;">
+                        🧭 Launch Phone GPS App &rarr;
+                    </a>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; font-weight: 700;">
+                    <span style="background: #fef3c7; color: #b45309; padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid #fde68a;">
+                        ⏱️ <span id="fs-travel-eta">{{ travel_eta_display|default:"Calculating..." }}</span>
+                    </span>
+                    <span style="background: #e0f2fe; color: #0369a1; padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid #bae6fd;">
+                        📍 <span id="fs-distance">{{ distance_km }} km</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Leaflet Map Container -->
+            <div id="delivery-nav-map" style="height: 500px; width: 100%; border-radius: 14px; border: 1.5px solid var(--dark-border); z-index: 1; margin-bottom: 0.5rem;"></div>
+        </div>
+
+        <div style="margin-top: 0.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <a href="https://www.google.com/maps/dir/?api=1&destination={{ cust_lat }},{{ cust_lon }}&travelmode=driving" target="_blank" rel="noopener noreferrer" class="btn btn-outline" style="padding: 0.45rem 1rem; font-size: 0.85rem; font-weight: 700; color: #0284c7; border-color: #0284c7; text-decoration: none; display: inline-flex; align-items: center; gap: 0.4rem;">
+                🧭 Open Phone Turn-by-Turn Navigation (Google Maps) &rarr;
+            </a>
+            <span style="font-size: 0.82rem; color: var(--text-muted);">
+                Destination: <strong style="color: var(--primary-orange);">Lat {{ cust_lat }}, Lon {{ cust_lon }}</strong>
+            </span>
+        </div>
 
         <div style="margin-top: 0.5rem; font-size: 0.82rem; text-align: center; color: var(--text-muted); display: flex; justify-content: space-around; flex-wrap: wrap; gap: 0.5rem;">
             <span>🏠 <strong>Hub Base:</strong> Lat {{ chef_lat|default:'9.5564' }}, Lon {{ chef_lon|default:'76.7909' }}</span>
@@ -274,7 +317,88 @@
     </div>
 </div>
 
+<style>
+.leaflet-fullscreen-active {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 999999 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #0f172a;
+}
+.leaflet-fullscreen-active #delivery-nav-map {
+    height: 100vh !important;
+    width: 100vw !important;
+    border: none !important;
+    border-radius: 0 !important;
+}
+</style>
+
 <script>
+    let isMapFullScreen = false;
+
+    function toggleFullScreenMap(forceState) {
+        const wrapper = document.getElementById("delivery-nav-map-wrapper");
+        const mapElem = document.getElementById("delivery-nav-map");
+        const floatingBar = document.getElementById("fs-floating-bar");
+        const toggleBtn = document.getElementById("btn-toggle-fullscreen");
+        if (!wrapper || !mapElem) return;
+
+        if (forceState !== undefined) {
+            isMapFullScreen = forceState;
+        } else {
+            isMapFullScreen = !isMapFullScreen;
+        }
+
+        if (isMapFullScreen) {
+            wrapper.classList.add("leaflet-fullscreen-active");
+            mapElem.style.height = "100vh";
+            mapElem.style.borderRadius = "0";
+            if (floatingBar) floatingBar.style.display = "flex";
+            if (toggleBtn) {
+                toggleBtn.innerHTML = "<span>✖</span> Exit Full Screen";
+                toggleBtn.style.background = "#dc2626";
+            }
+            document.body.style.overflow = "hidden";
+        } else {
+            wrapper.classList.remove("leaflet-fullscreen-active");
+            mapElem.style.height = "500px";
+            mapElem.style.borderRadius = "14px";
+            if (floatingBar) floatingBar.style.display = "none";
+            if (toggleBtn) {
+                toggleBtn.innerHTML = "<span>⛶</span> Open Full-Screen Map";
+                toggleBtn.style.background = "#0284c7";
+            }
+            document.body.style.overflow = "";
+        }
+
+        if (leafletMap) {
+            leafletMap.invalidateSize();
+            setTimeout(() => {
+                leafletMap.invalidateSize();
+                if (window.recenterCourierMap) window.recenterCourierMap();
+            }, 180);
+        }
+    }
+
+    document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape" && isMapFullScreen) {
+            toggleFullScreenMap(false);
+        }
+    });
+
+    window.addEventListener("DOMContentLoaded", function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get("fullscreen") === "1" || window.location.hash === "#fullscreen") {
+            setTimeout(() => {
+                toggleFullScreenMap(true);
+            }, 300);
+        }
+    });
+
     function startNavigation(latitude, longitude, ev) {
         if (ev && typeof ev.preventDefault === 'function') {
             ev.preventDefault();
@@ -307,7 +431,7 @@
         const destination = `${lat},${lng}`;
 
         const navigationUrl =
-            `https://www.openstreetmap.org/?mlat=${encodeURIComponent(lat)}&mlon=${encodeURIComponent(lng)}#map=16/${encodeURIComponent(lat)}/${encodeURIComponent(lng)}`;
+            `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`;
 
         window.open(navigationUrl, "_blank", "noopener,noreferrer");
     }
@@ -718,6 +842,46 @@
                         <button type="button" onclick="retryGpsTracking()" class="btn btn-sm btn-outline" style="padding: 0.2rem 0.55rem; font-size: 0.78rem; background: #fff; color: #065f46; border-color: #86efac;">🔄 Refresh GPS</button>
                     </div>
                 `, false);
+
+                // Dynamically update Travel ETA, distance, and AI predictions
+                if (data.travel_eta_display) {
+                    const travelEtaElem = document.getElementById("ui-travel-time");
+                    if (travelEtaElem) travelEtaElem.textContent = data.travel_eta_display;
+                    const fsTravelEta = document.getElementById("fs-travel-eta");
+                    if (fsTravelEta) fsTravelEta.textContent = data.travel_eta_display;
+                }
+                if (data.distance_km !== undefined) {
+                    const distElem = document.getElementById("ui-road-distance");
+                    if (distElem) {
+                        distElem.textContent = `${data.distance_km} km ${data.is_road_distance ? '(Road)' : '(Estimate)'}`;
+                    }
+                    const fsDist = document.getElementById("fs-distance");
+                    if (fsDist) fsDist.textContent = `${data.distance_km} km`;
+                }
+                if (data.ai_eta_min !== undefined) {
+                    const deliveryTimeElem = document.getElementById("ui-delivery-time");
+                    if (deliveryTimeElem) deliveryTimeElem.textContent = `${data.ai_eta_min} mins`;
+                }
+                if (data.ai_status_pred) {
+                    const statusElem = document.getElementById("ui-delivery-status");
+                    if (statusElem) statusElem.textContent = data.ai_status_pred;
+                }
+                const lastUpdatedElem = document.getElementById("ui-last-updated");
+                if (lastUpdatedElem) lastUpdatedElem.textContent = data.timestamp || "Just now";
+
+                // Update real driving route polyline on Leaflet map if updated route steps provided
+                if (data.route_steps && data.route_steps.length > 1 && leafletMap) {
+                    const newRouteCoords = data.route_steps.map(s => [s.lat, s.lng]);
+                    if (routePolyline) {
+                        routePolyline.setLatLngs(newRouteCoords);
+                    } else {
+                        routePolyline = L.polyline(newRouteCoords, {
+                            color: '#2563EB',
+                            weight: 4,
+                            opacity: 0.85
+                        }).addTo(leafletMap);
+                    }
+                }
             } else if (data.status === 'stopped') {
                 stopTracking(false);
                 setGpsStatus('stopped', '✅ Tracking concluded. Order is delivered or cancelled.', false);
