@@ -23,10 +23,7 @@
                     <span class="badge badge-primary" style="padding: 0.4rem 0.8rem; font-size: 0.82rem;">📌 Status: Assigned / Pending Delivery</span>
                 {% endif %}
             </div>
-            
-                <a id="trackGpsNavBtn" href="https://www.openstreetmap.org/?mlat={{ cust_lat }}&mlon={{ cust_lon }}#map=16/{{ cust_lat }}/{{ cust_lon }}" target="_blank" rel="noopener noreferrer" onclick="startNavigation('{{ cust_lat }}', '{{ cust_lon }}', event);" class="btn" style="padding: 0.45rem 1rem; font-size: 0.85rem; font-weight: 700; background: #2563eb; text-decoration: none; color: #ffffff;">
-                    📍 Open Destination Location (OpenStreetMap)
-                </a>
+            <div style="margin-top: 0.4rem;">
                 <span style="font-size: 0.85rem; color: var(--text-muted);">
                     Destination Coordinates: <strong style="font-family: monospace; color: var(--primary-orange);">Lat {{ cust_lat }}, Lon {{ cust_lon }}</strong>
                 </span>
@@ -252,19 +249,14 @@
                         <strong>Last Location Update:</strong> <span id="ui-last-updated" style="color: var(--primary-orange); font-weight: 600;">Just now</span>
                     </div>
                 </div>
-            </div>
-            
-            <a id="btn-nav-directions" href="https://www.openstreetmap.org/?mlat={{ cust_lat }}&mlon={{ cust_lon }}#map=16/{{ cust_lat }}/{{ cust_lon }}" target="_blank" onclick="startNavigation('{{ cust_lat }}', '{{ cust_lon }}', event);" class="btn" style="width: 100%; padding: 0.75rem; font-weight: 700; background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%); color: #ffffff; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; text-decoration: none; box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);">
-                🗺️ Open Destination on Map (OpenStreetMap) &rarr;
-            </a>
         </div>
     </div>
 
-    <!-- Right: GPS Route Maps -->
+    <!-- Right: Single Professional Leaflet GPS Map -->
     <div class="card" style="display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
             <h3 style="color: var(--primary-brown); font-weight: 700; margin: 0;">
-                📍 Live GPS Route & Location Tracking Maps
+                📍 Live GPS Route & Location Tracking Map
             </h3>
             <button type="button" class="btn btn-outline" onclick="if(window.recenterCourierMap) window.recenterCourierMap();" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 600;">
                 🎯 Recenter Map
@@ -763,16 +755,6 @@
         if (debugElem) {
             const accStr = accuracy ? ` (&plusmn;${Math.round(accuracy)}m)` : '';
             debugElem.innerHTML = `🛵 <strong>Courier GPS:</strong> Lat ${lat.toFixed(5)}, Lon ${lon.toFixed(5)}${accStr}`;
-        }
-
-        // Maintain validated destination on OpenStreetMap external navigation URLs
-        const navBtn1 = document.getElementById("trackGpsNavBtn");
-        if (navBtn1) {
-            navBtn1.href = `https://www.openstreetmap.org/?mlat=${encodeURIComponent(custLat)}&mlon=${encodeURIComponent(custLon)}#map=16/${encodeURIComponent(custLat)}/${encodeURIComponent(custLon)}`;
-        }
-        const navBtn2 = document.getElementById("btn-nav-directions");
-        if (navBtn2) {
-            navBtn2.href = `https://www.openstreetmap.org/?mlat=${encodeURIComponent(custLat)}&mlon=${encodeURIComponent(custLon)}#map=16/${encodeURIComponent(custLat)}/${encodeURIComponent(custLon)}`;
         }
 
         sendGpsCoordinate(lat, lon, accuracy);

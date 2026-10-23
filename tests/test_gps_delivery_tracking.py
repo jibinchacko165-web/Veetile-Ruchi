@@ -699,8 +699,8 @@ class StartNavigationCoordinateTests(TestCase):
         track_url = reverse('delivery_boy_track', kwargs={'assignment_id': self.assignment.id})
         self.assertIn(track_url, content)
 
-    def test_start_navigation_courier_track_exact_coordinates(self):
-        """Courier track page renders OpenStreetMap navigation with exact customer destination."""
+    def test_single_leaflet_map_courier_track_exact_coordinates(self):
+        """Courier track page renders single professional Leaflet map with exact customer destination and no duplicate map buttons."""
         self.client.force_login(self.courier_user)
         response = self.client.get(reverse('delivery_boy_track', kwargs={'assignment_id': self.assignment.id}))
         self.assertEqual(response.status_code, 200)
@@ -710,11 +710,17 @@ class StartNavigationCoordinateTests(TestCase):
         self.assertEqual(response.context['cust_lat'], 9.614967)
         self.assertEqual(response.context['cust_lon'], 76.741563)
 
-        # Verify OpenStreetMap navigation button points to customer destination
-        self.assertIn('openstreetmap.org', content)
+        # Verify single professional Leaflet map container is present with accurate coordinates
+        self.assertIn('id="delivery-nav-map"', content)
+        self.assertIn('initLeafletMap()', content)
         self.assertIn('9.614967', content)
         self.assertIn('76.741563', content)
-        self.assertIn("startNavigation('9.614967', '76.741563', event);", content)
+
+        # Verify unwanted duplicate OpenStreetMap map buttons are completely removed
+        self.assertNotIn('id="trackGpsNavBtn"', content)
+        self.assertNotIn('id="btn-nav-directions"', content)
+        self.assertNotIn('Open Destination Location (OpenStreetMap)', content)
+        self.assertNotIn('Open Destination on Map (OpenStreetMap)', content)
 
     def test_notification_api_clean_nav_url(self):
         """Courier notification API returns clean destination nav_url without stale origin."""
