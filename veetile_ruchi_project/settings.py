@@ -179,8 +179,18 @@ WSGI_APPLICATION = 'veetile_ruchi_project.wsgi.application'
 
 import dj_database_url
 
+try:
+    import psycopg
+    has_psycopg = True
+except ImportError:
+    try:
+        import psycopg2
+        has_psycopg = True
+    except ImportError:
+        has_psycopg = False
+
 DATABASE_URL = os.getenv("DATABASE_URL")
-if DATABASE_URL:
+if DATABASE_URL and has_psycopg:
     DATABASES = {
         "default": dj_database_url.config(
             default=DATABASE_URL,
@@ -188,7 +198,7 @@ if DATABASE_URL:
             conn_health_checks=True,
         )
     }
-elif os.getenv("DB_HOST"):
+elif os.getenv("DB_HOST") and has_psycopg and os.getenv("DB_HOST") not in ('', 'localhost'):
     DATABASES = {
         "default": {
             "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql"),
