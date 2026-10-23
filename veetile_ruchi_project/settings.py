@@ -23,13 +23,27 @@ load_dotenv(BASE_DIR / '.env')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
+# Environment detection: Zoho Catalyst AppSail injects CATALYST_PROJECT_ID and X_ZOHO_CATALYST_LISTEN_PORT
+IS_PRODUCTION = (
+    os.getenv('DJANGO_ENV') == 'production'
+    or os.getenv('CATALYST_PROJECT_ID') is not None
+    or os.getenv('X_ZOHO_CATALYST_LISTEN_PORT') is not None
+)
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-pwx&h*jc1xuvwk-ojs3r2+2k9ljv!_x65@t)#x0-ri0!tg@y5f')
+SECRET_KEY = os.getenv('SECRET_KEY')
+if not SECRET_KEY or (IS_PRODUCTION and SECRET_KEY.startswith('django-insecure-')):
+    if IS_PRODUCTION:
+        import secrets
+        SECRET_KEY = secrets.token_urlsafe(50)
+    else:
+        SECRET_KEY = 'django-insecure-pwx&h*jc1xuvwk-ojs3r2+2k9ljv!_x65@t)#x0-ri0!tg@y5f'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 't')
-if os.getenv('DJANGO_ENV') == 'production' and 'DEBUG' not in os.environ:
-    DEBUG = False
+if IS_PRODUCTION:
+    DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() in ('true', '1', 't')
+else:
+    DEBUG = os.getenv('DEBUG', 'True').lower() in ('true', '1', 't')
 
 # Allowed Hosts: Support Zoho Catalyst domains, custom domains, and local development
 ALLOWED_HOSTS = [
@@ -37,6 +51,7 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '.zohocatalystapps.com',
     '.catalystserverless.com',
+    '.catalystappsail.com',
     '.zoho.com',
     '.zoho.in',
 ]
@@ -60,6 +75,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8002',
     'https://*.zohocatalystapps.com',
     'https://*.catalystserverless.com',
+    'https://*.catalystappsail.com',
     'https://*.zoho.com',
     'https://*.zoho.in',
 ]
@@ -73,6 +89,19 @@ if extra_csrf:
 CSRF_COOKIE_HTTPONLY = False
 CSRF_FAILURE_VIEW = 'accounts.views.csrf_failure_view'
 
+# Production Security & SSL Configuration
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'True').lower() in ('true', '1')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '31536000'))  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    X_FRAME_OPTIONS = 'DENY'
+
 # Session Configuration
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 1209600  # 2 weeks
@@ -81,19 +110,6 @@ SESSION_SAVE_EVERY_REQUEST = False
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SECURE = not DEBUG
-
-# Security & SSL Settings (Active in production)
-if not DEBUG:
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False').lower() in ('true', '1')
-    CSRF_COOKIE_SECURE = True
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    hsts_seconds = int(os.getenv('SECURE_HSTS_SECONDS', '31536000'))
-    if hsts_seconds > 0:
-        SECURE_HSTS_SECONDS = hsts_seconds
-        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-        SECURE_HSTS_PRELOAD = True
 
 
 # Application definition

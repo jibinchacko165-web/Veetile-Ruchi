@@ -4,7 +4,7 @@
     {
       "name": "veetile-ruchi",
       "source": ".",
-      "stack": "Python_3_9"
+      "stack": "python_3_11"
     }
   ]
 }
