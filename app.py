@@ -75,32 +75,6 @@ try:
 except Exception as e:
     print(f"Warning: Pre-warm deferred ({e})", flush=True)
 
-import io
-
-def read_chunked_body(rfile):
-    body = bytearray()
-    while True:
-        line = rfile.readline()
-        if not line:
-            break
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            chunk_len = int(line.split(b';')[0], 16)
-        except ValueError:
-            break
-        if chunk_len == 0:
-            while True:
-                trailer = rfile.readline()
-                if not trailer or trailer in (b'\r\n', b'\n', b''):
-                    break
-            break
-        chunk = rfile.read(chunk_len)
-        body.extend(chunk)
-        rfile.readline()  # Consume trailing \r\n
-    return bytes(body)
-
 class ThreadingWSGIServer(ThreadingMixIn, WSGIServer):
     daemon_threads = True
     allow_reuse_address = True
@@ -110,41 +84,23 @@ class AppSailRequestHandler(WSGIRequestHandler):
         sys.stdout.write(f"[HTTP] {self.client_address[0]} - {format % args}\n")
         sys.stdout.flush()
 
-    def get_environ(self):
-        env = super().get_environ()
-        te = self.headers.get('transfer-encoding', '').lower()
-        if 'chunked' in te:
-            body = read_chunked_body(self.rfile)
-            env['CONTENT_LENGTH'] = str(len(body))
-            env['wsgi.input'] = io.BytesIO(body)
-            env.pop('HTTP_TRANSFER_ENCODING', None)
-        elif not env.get('CONTENT_LENGTH') and self.command in ('POST', 'PUT', 'PATCH'):
-            raw_cl = self.headers.get('content-length')
-            if raw_cl:
-                env['CONTENT_LENGTH'] = str(raw_cl).strip()
-        return env
-
 def resilient_wsgi_app(environ, start_response):
+    # AppSail public gateway terminates SSL and exposes apps over HTTPS (:443)
+    environ['wsgi.url_scheme'] = 'https'
+    environ['HTTP_X_FORWARDED_PROTO'] = 'https'
+    if environ.get('HTTP_HOST', '').endswith(':443'):
+        environ['HTTP_HOST'] = environ['HTTP_HOST'][:-4]
+
     path = environ.get('PATH_INFO', '')
     if path in ('/health', '/health/'):
-        import json
-        headers_dict = {
-            k: str(v) for k, v in environ.items()
-            if k.startswith('HTTP_') or k.startswith('CONTENT_') or k in ('SERVER_NAME', 'SERVER_PORT', 'REQUEST_METHOD', 'PATH_INFO', 'wsgi.url_scheme')
-        }
         start_response('200 OK', [('Content-Type', 'application/json')])
-        return [json.dumps({"status": "ok", "app": "veetile-ruchi", "env": headers_dict}).encode('utf-8')]
+        return [b'{"status": "ok", "app": "veetile-ruchi"}']
 
     # Normalize CGI content variables for WSGI compliance
     if 'CONTENT_TYPE' not in environ and 'HTTP_CONTENT_TYPE' in environ:
         environ['CONTENT_TYPE'] = environ['HTTP_CONTENT_TYPE']
     if 'CONTENT_LENGTH' not in environ and 'HTTP_CONTENT_LENGTH' in environ:
         environ['CONTENT_LENGTH'] = environ['HTTP_CONTENT_LENGTH']
-
-    # AppSail public gateway terminates SSL and exposes apps over HTTPS (:443)
-    # Always set wsgi.url_scheme to https and inject HTTP_X_FORWARDED_PROTO for Django
-    environ['wsgi.url_scheme'] = 'https'
-    environ['HTTP_X_FORWARDED_PROTO'] = 'https'
 
     app = get_django_app()
     if app is not None:

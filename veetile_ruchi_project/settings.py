@@ -95,6 +95,8 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.zoho.in',
     'https://veetile-ruchi-50047116467.development.catalystappsail.in',
     'https://veetile-ruchi-50047116467.catalystappsail.in',
+    'https://veetile-ruchi-50047116467.development.catalystappsail.in:443',
+    'https://veetile-ruchi-50047116467.catalystappsail.in:443',
 ]
 extra_csrf = os.getenv('CSRF_TRUSTED_ORIGINS', '')
 if extra_csrf:
