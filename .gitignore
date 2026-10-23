@@ -21,3 +21,4 @@ generate_pdf.py
 !flyway/sql/*.sql
 *.backup
 initial_data_backup.json
+lib/
