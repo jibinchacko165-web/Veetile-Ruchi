@@ -113,11 +113,6 @@
                     ⚪ GPS Disconnected &bull; Click "Connect Device Live GPS" to broadcast your location
                 {% endif %}
             </div>
-
-            <div style="margin-top: 0.65rem; padding-top: 0.65rem; border-top: 1px dashed var(--dark-border); font-size: 0.76rem; color: var(--text-muted); line-height: 1.4;">
-                <div>📱 <strong>Mobile Note:</strong> Ensure Location Services & Browser Permissions are turned <strong>ON</strong>.</div>
-                <div>⚡ <em>Mobile browsers automatically suspend continuous GPS tracking when tabs are minimized or screens are locked. Keep this tab active while on delivery, or use a native background-service app for unattended background tracking.</em></div>
-            </div>
         </div>
 
         <!-- Status Transition Action Form -->
@@ -252,371 +247,51 @@
         </div>
     </div>
 
-    <!-- Right: Single Professional Leaflet GPS Map with Full-Screen Mode -->
+    <!-- Right: Delivery Destination & Location Details -->
     <div class="card" id="map-section-card" style="display: flex; flex-direction: column;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
             <h3 style="color: var(--primary-brown); font-weight: 700; margin: 0;">
-                📍 Live GPS Route & Location Tracking Map
+                📍 Delivery Destination & Location Overview
             </h3>
-            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-                <button type="button" id="btn-toggle-fullscreen" onclick="toggleFullScreenMap()" class="btn" style="padding: 0.4rem 0.95rem; font-size: 0.82rem; font-weight: 700; background: #0284c7; color: #ffffff; border: none; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 0.4rem; box-shadow: 0 2px 6px rgba(2,132,199,0.3);">
-                    <span>⛶</span> Open Full-Screen Map
-                </button>
-                <button type="button" class="btn btn-outline" onclick="if(window.recenterCourierMap) window.recenterCourierMap();" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 600;">
-                    🎯 Recenter Map
-                </button>
-            </div>
-        </div>
-
-        <!-- Leaflet Map Container Wrapper (Supports Dedicated Full-Screen View) -->
-        <div id="delivery-nav-map-wrapper" style="position: relative; width: 100%;">
-            <!-- Floating Full-Screen Controls Bar (Visible only in Full-Screen Mode) -->
-            <div id="fs-floating-bar" style="display: none; position: absolute; top: 16px; left: 16px; right: 16px; z-index: 1000; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(8px); padding: 0.75rem 1rem; border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.25); border: 1px solid rgba(0,0,0,0.1); align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
-                <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
-                    <a href="{% url 'delivery_boy_dashboard' %}" class="btn btn-outline" style="padding: 0.4rem 0.85rem; font-size: 0.82rem; font-weight: 700; text-decoration: none; background: #ffffff;">
-                        &larr; Back to Dashboard
-                    </a>
-                    <button type="button" onclick="toggleFullScreenMap()" class="btn" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; font-weight: 700; background: #dc2626; color: #ffffff; border: none; border-radius: 6px; cursor: pointer;">
-                        ✖ Exit Full Screen
-                    </button>
-                    <button type="button" onclick="if(window.recenterCourierMap) window.recenterCourierMap();" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; font-weight: 600; background: #ffffff;">
-                        🎯 Recenter
-                    </button>
-                    <a id="fs-external-nav-btn" href="https://www.google.com/maps/dir/?api=1&destination={{ cust_lat }},{{ cust_lon }}&travelmode=driving" target="_blank" rel="noopener noreferrer" class="btn" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; font-weight: 700; background: #10b981; color: #ffffff; text-decoration: none; border-radius: 6px; display: inline-flex; align-items: center; gap: 0.35rem;">
-                        🧭 Launch Phone GPS App &rarr;
-                    </a>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.85rem; font-weight: 700;">
-                    <span style="background: #fef3c7; color: #b45309; padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid #fde68a;">
-                        ⏱️ <span id="fs-travel-eta">{{ travel_eta_display|default:"Calculating..." }}</span>
-                    </span>
-                    <span style="background: #e0f2fe; color: #0369a1; padding: 0.35rem 0.75rem; border-radius: 6px; border: 1px solid #bae6fd;">
-                        📍 <span id="fs-distance">{{ distance_km }} km</span>
-                    </span>
-                </div>
-            </div>
-
-            <!-- Leaflet Map Container -->
-            <div id="delivery-nav-map" style="height: 500px; width: 100%; border-radius: 14px; border: 1.5px solid var(--dark-border); z-index: 1; margin-bottom: 0.5rem;"></div>
-        </div>
-
-        <div style="margin-top: 0.5rem; text-align: right;">
-            <span style="font-size: 0.82rem; color: var(--text-muted);">
-                Destination: <strong style="color: var(--primary-orange);">Lat {{ cust_lat }}, Lon {{ cust_lon }}</strong>
+            <span style="font-size: 0.82rem; font-weight: 700; background: #e0f2fe; color: #0369a1; padding: 0.35rem 0.75rem; border-radius: 6px;">
+                Destination: Lat {{ cust_lat }}, Lon {{ cust_lon }}
             </span>
         </div>
 
-        <div style="margin-top: 0.5rem; font-size: 0.82rem; text-align: center; color: var(--text-muted); display: flex; justify-content: space-around; flex-wrap: wrap; gap: 0.5rem;">
-            <span>🏠 <strong>Hub Base:</strong> Lat {{ chef_lat|default:'9.5564' }}, Lon {{ chef_lon|default:'76.7909' }}</span>
-            <span>📍 <strong>Destination:</strong> Lat {{ cust_lat }}, Lon {{ cust_lon }}</span>
-            <span id="courier-coord-debug">🛵 <strong>Courier GPS:</strong> {% if has_courier_gps and courier_lat %}Lat {{ courier_lat|floatformat:4 }}, Lon {{ courier_lon|floatformat:4 }}{% else %}Not Connected{% endif %}</span>
+        <div style="background: #ffffff; padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border-light); margin-bottom: 1rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div style="background: var(--bg-cream); padding: 1rem; border-radius: 10px; border: 1px solid var(--border-warm);">
+                    <span style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.3rem;">🏨 Kitchen Hub Base</span>
+                    <strong style="color: var(--primary-brown); font-size: 1rem; display: block;">{{ order.branch.name|default:"Central Kitchen Hub" }}</strong>
+                    <span style="font-size: 0.82rem; color: var(--text-muted);">Coordinates: Lat {{ chef_lat|default:'9.5564' }}, Lon {{ chef_lon|default:'76.7909' }}</span>
+                </div>
+                <div style="background: var(--bg-cream); padding: 1rem; border-radius: 10px; border: 1px solid var(--border-warm);">
+                    <span style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 0.3rem;">📍 Customer Delivery Location</span>
+                    <strong style="color: var(--primary-orange); font-size: 1rem; display: block;">{{ assignment.order.formatted_delivery_address|truncatechars:45 }}</strong>
+                    <span style="font-size: 0.82rem; color: var(--text-muted);">Coordinates: Lat {{ cust_lat }}, Lon {{ cust_lon }}</span>
+                </div>
+            </div>
+
+            <div style="background: var(--accent-warm); padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; font-size: 0.85rem;">
+                <span id="courier-coord-debug">🛵 <strong>Courier GPS:</strong> {% if has_courier_gps and courier_lat %}Lat {{ courier_lat|floatformat:4 }}, Lon {{ courier_lon|floatformat:4 }}{% else %}Not Connected{% endif %}</span>
+                <span>⏱️ <strong>Estimated Travel Time:</strong> <strong id="fs-travel-eta" style="color: var(--primary-orange);">{{ travel_eta_display|default:"Calculating..." }}</strong></span>
+            </div>
         </div>
     </div>
 </div>
 
-<style>
-.leaflet-fullscreen-active {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    z-index: 999999 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #0f172a;
-}
-.leaflet-fullscreen-active #delivery-nav-map {
-    height: 100vh !important;
-    width: 100vw !important;
-    border: none !important;
-    border-radius: 0 !important;
-}
-</style>
-
 <script>
-    let isMapFullScreen = false;
-
-    function toggleFullScreenMap(forceState) {
-        const wrapper = document.getElementById("delivery-nav-map-wrapper");
-        const mapElem = document.getElementById("delivery-nav-map");
-        const floatingBar = document.getElementById("fs-floating-bar");
-        const toggleBtn = document.getElementById("btn-toggle-fullscreen");
-        if (!wrapper || !mapElem) return;
-
-        if (forceState !== undefined) {
-            isMapFullScreen = forceState;
-        } else {
-            isMapFullScreen = !isMapFullScreen;
-        }
-
-        if (isMapFullScreen) {
-            wrapper.classList.add("leaflet-fullscreen-active");
-            mapElem.style.height = "100vh";
-            mapElem.style.borderRadius = "0";
-            if (floatingBar) floatingBar.style.display = "flex";
-            if (toggleBtn) {
-                toggleBtn.innerHTML = "<span>✖</span> Exit Full Screen";
-                toggleBtn.style.background = "#dc2626";
-            }
-            document.body.style.overflow = "hidden";
-        } else {
-            wrapper.classList.remove("leaflet-fullscreen-active");
-            mapElem.style.height = "500px";
-            mapElem.style.borderRadius = "14px";
-            if (floatingBar) floatingBar.style.display = "none";
-            if (toggleBtn) {
-                toggleBtn.innerHTML = "<span>⛶</span> Open Full-Screen Map";
-                toggleBtn.style.background = "#0284c7";
-            }
-            document.body.style.overflow = "";
-        }
-
-        if (leafletMap) {
-            leafletMap.invalidateSize();
-            setTimeout(() => {
-                leafletMap.invalidateSize();
-                if (window.recenterCourierMap) window.recenterCourierMap();
-            }, 180);
-        }
-    }
-
-    document.addEventListener("keydown", function(e) {
-        if (e.key === "Escape" && isMapFullScreen) {
-            toggleFullScreenMap(false);
-        }
-    });
-
-    window.addEventListener("DOMContentLoaded", function() {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get("fullscreen") === "1" || window.location.hash === "#fullscreen") {
-            setTimeout(() => {
-                toggleFullScreenMap(true);
-            }, 300);
-        }
-    });
-
-    function startNavigation(latitude, longitude, ev) {
-        if (ev && typeof ev.preventDefault === 'function') {
-            ev.preventDefault();
-        }
-        let lat = Number(latitude);
-        let lng = Number(longitude);
-
-        if (
-            !Number.isFinite(lat) ||
-            !Number.isFinite(lng) ||
-            Math.abs(lat) > 90 ||
-            Math.abs(lng) > 180
-        ) {
-            console.error("Invalid destination coordinates", {
-                latitude,
-                longitude
-            });
-            alert("The delivery location is invalid. Please select it again.");
-            return;
-        }
-
-        // Auto-correct reversed coordinates if latitude/longitude are swapped (Kerala longitude ~76-77, latitude ~8-12)
-        if (lat >= 70 && lat <= 80 && lng >= 8 && lng <= 13) {
-            console.warn("Detected reversed destination coordinates in startNavigation. Auto-correcting to [latitude, longitude]:", { lat, lng });
-            const temp = lat;
-            lat = lng;
-            lng = temp;
-        }
-
-        const destination = `${lat},${lng}`;
-
-        const navigationUrl =
-            `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`;
-
-        window.open(navigationUrl, "_blank", "noopener,noreferrer");
-    }
-
-    let leafletMap = null;
-    let kitchenMarker = null;
-    let customerMarker = null;
-    let courierMarker = null;
-    let routePolyline = null;
-    let perimeterCircle = null;
-    let watchId = null;
-    let isCourierDraggingMap = false;
-    let courierDragTimeout = null;
-
     const chefLat = parseFloat("{{ chef_lat|default:'9.5564' }}") || 9.5564;
     const chefLon = parseFloat("{{ chef_lon|default:'76.7909' }}") || 76.7909;
     const custLat = parseFloat("{{ cust_lat|default:'9.5564' }}") || 9.5564;
     const custLon = parseFloat("{{ cust_lon|default:'76.7909' }}") || 76.7909;
-    
+
     let courierLat = {% if has_courier_gps and courier_lat %}parseFloat("{{ courier_lat }}"){% else %}null{% endif %};
     let courierLon = {% if has_courier_gps and courier_lon %}parseFloat("{{ courier_lon }}"){% else %}null{% endif %};
     let hasCourierGps = {% if has_courier_gps %}true{% else %}false{% endif %};
     const isOrderDelivered = ("{{ assignment.status }}" === "delivered");
     const csrfToken = "{{ csrf_token }}";
-
-    const routeSteps = [
-        {% for step in route_steps %}
-            [{{ step.lat }}, {{ step.lng }}]{% if not forloop.last %},{% endif %}
-        {% endfor %}
-    ];
-
-    function createIcon(color, emoji) {
-        return L.divIcon({
-            className: 'custom-div-icon',
-            html: `<div style="background-color:${color}; width:30px; height:30px; border-radius:50%; border:2px solid white; box-shadow:0 2px 8px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; color:white; font-size:15px;">${emoji}</div>`,
-            iconSize: [30, 30],
-            iconAnchor: [15, 15]
-        });
-    }
-
-    function initLeafletMap() {
-        const container = document.getElementById('delivery-nav-map');
-        if (!container || typeof L === 'undefined') return;
-        if (leafletMap) {
-            leafletMap.invalidateSize();
-            return;
-        }
-
-        const centerLat = isFinite(custLat) ? (chefLat + custLat) / 2 : chefLat;
-        const centerLon = isFinite(custLon) ? (chefLon + custLon) / 2 : chefLon;
-
-        leafletMap = L.map('delivery-nav-map', {
-            center: [centerLat, centerLon],
-            zoom: 12,
-            zoomControl: true,
-            scrollWheelZoom: true,
-            dragging: true,
-            tap: false,
-            touchZoom: true,
-            bounceAtZoomLimits: false
-        });
-
-        // User map interaction guard: prevent live GPS updates from jumping the map while courier is dragging
-        leafletMap.on('dragstart movestart', function() {
-            isCourierDraggingMap = true;
-            if (courierDragTimeout) clearTimeout(courierDragTimeout);
-        });
-
-        leafletMap.on('dragend moveend', function() {
-            if (courierDragTimeout) clearTimeout(courierDragTimeout);
-            courierDragTimeout = setTimeout(() => {
-                isCourierDraggingMap = false;
-            }, 8000);
-        });
-
-        window.recenterCourierMap = function() {
-            if (!leafletMap) return;
-            const pts = [[chefLat, chefLon]];
-            if (isFinite(custLat) && isFinite(custLon)) pts.push([custLat, custLon]);
-            if (hasCourierGps && isFinite(courierLat) && isFinite(courierLon)) pts.push([courierLat, courierLon]);
-            leafletMap.fitBounds(L.latLngBounds(pts), { padding: [45, 45], maxZoom: 15 });
-        };
-
-        const primaryTileUrl = window.MAP_TILE_URL || "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
-        const primaryTileAttr = window.MAP_TILE_ATTRIBUTION || '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom"|safe }}';
-        const primaryTileSubdomains = window.MAP_TILE_SUBDOMAINS || "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
-        const fallbackTileUrl = window.MAP_TILE_FALLBACK_URL || "{{ MAP_TILE_FALLBACK_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
-
-
-        const tileLayer = L.tileLayer(primaryTileUrl, {
-            subdomains: primaryTileSubdomains,
-            maxZoom: 19,
-            attribution: primaryTileAttr
-        });
-        tileLayer.addTo(leafletMap);
-
-        let tileErrCount = 0;
-        let fallbackApplied = false;
-        tileLayer.on('tileerror', function() {
-            tileErrCount++;
-            if (tileErrCount > 3 && !fallbackApplied && fallbackTileUrl && fallbackTileUrl !== primaryTileUrl) {
-                fallbackApplied = true;
-                console.warn("Primary tile provider slow/offline. Switching to fallback provider:", fallbackTileUrl);
-                tileLayer.setUrl(fallbackTileUrl);
-            }
-        });
-
-        // 1. Central Kitchen Hub Marker (Kanjirappally)
-        kitchenMarker = L.marker([chefLat, chefLon], {
-            icon: createIcon('#10B981', '🏠'),
-            draggable: false,
-            autoPan: false
-        }).addTo(leafletMap).bindPopup("<b>Central Kitchen Hub</b><br>Kanjirappally, Kerala", { autoPan: false });
-
-        // 2. Authoritative 30 km Delivery Perimeter Circle (30,000 metres) - non-interactive so dragging map is completely smooth
-        perimeterCircle = L.circle([chefLat, chefLon], {
-            radius: 30000,
-            color: '#10B981',
-            fillColor: '#10B981',
-            fillOpacity: 0.08,
-            weight: 2,
-            dashArray: '6, 6',
-            interactive: false
-        }).addTo(leafletMap);
-
-    function sanitizeGpsCoords(lat, lon, fallbackLat, fallbackLon) {
-        let latNum = Number(lat);
-        let lonNum = Number(lon);
-        if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) {
-            return fallbackLat !== null ? L.latLng(fallbackLat, fallbackLon) : null;
-        }
-        // Auto-correct reversed coordinates
-        if (latNum >= 70 && latNum <= 80 && lonNum >= 8 && lonNum <= 13) {
-            const temp = latNum;
-            latNum = lonNum;
-            lonNum = temp;
-        }
-        // Catch offshore sea coordinates west of the Kerala coast (e.g. 10.0, 76.0)
-        const isSea = (Math.round(latNum * 100) / 100 === 10.0 && Math.round(lonNum * 100) / 100 === 76.0) ||
-                      (latNum >= 8.0 && latNum <= 10.0 && lonNum < 76.15) ||
-                      (latNum > 10.0 && latNum <= 11.5 && lonNum < 75.6) ||
-                      (latNum > 11.5 && latNum <= 13.0 && lonNum < 74.9);
-        if (isSea) {
-            console.warn("Offshore sea coordinates detected in courier tracking:", latNum, lonNum, "Falling back to verified hub.");
-            return fallbackLat !== null ? L.latLng(fallbackLat, fallbackLon) : null;
-        }
-        if (Math.abs(latNum) > 90 || Math.abs(lonNum) > 180) {
-            return fallbackLat !== null ? L.latLng(fallbackLat, fallbackLon) : null;
-        }
-        return L.latLng(latNum, lonNum);
-    }
-
-    const customerLatLng = sanitizeGpsCoords(custLat, custLon, chefLat, chefLon);
-
-    // 3. Customer Destination Marker
-    if (customerLatLng) {
-        customerMarker = L.marker(customerLatLng, {
-            icon: createIcon('#2563EB', '📍'),
-            draggable: false,
-            autoPan: false
-        }).addTo(leafletMap).bindPopup("<b>Customer Delivery Destination</b><br>Lat: " + customerLatLng.lat.toFixed(5) + ", Lng: " + customerLatLng.lng.toFixed(5), { autoPan: false });
-    }
-
-        // 4. Courier Live Marker (only if genuine coordinates exist)
-        if (hasCourierGps && isFinite(courierLat) && isFinite(courierLon)) {
-            courierMarker = L.marker([courierLat, courierLon], {
-                icon: createIcon('#D97736', '🛵'),
-                draggable: false,
-                autoPan: false
-            }).addTo(leafletMap).bindPopup("<b>Your Current GPS Location</b>", { autoPan: false });
-        }
-
-        // 5. Road Route Polyline (if genuine road steps returned from routing engine)
-        if (routeSteps.length > 1) {
-            routePolyline = L.polyline(routeSteps, {
-                color: '#2563EB',
-                weight: 4,
-                opacity: 0.85
-            }).addTo(leafletMap);
-        }
-
-        // Fit map bounds around available points initially
-        window.recenterCourierMap();
-
-        setTimeout(() => {
-            if (leafletMap) leafletMap.invalidateSize();
-        }, 300);
-    }
+    let watchId = null;
 
     // ── Live GPS State Management ──
     let isTrackingActive = false;
@@ -865,20 +540,6 @@
                 }
                 const lastUpdatedElem = document.getElementById("ui-last-updated");
                 if (lastUpdatedElem) lastUpdatedElem.textContent = data.timestamp || "Just now";
-
-                // Update real driving route polyline on Leaflet map if updated route steps provided
-                if (data.route_steps && data.route_steps.length > 1 && leafletMap) {
-                    const newRouteCoords = data.route_steps.map(s => [s.lat, s.lng]);
-                    if (routePolyline) {
-                        routePolyline.setLatLngs(newRouteCoords);
-                    } else {
-                        routePolyline = L.polyline(newRouteCoords, {
-                            color: '#2563EB',
-                            weight: 4,
-                            opacity: 0.85
-                        }).addTo(leafletMap);
-                    }
-                }
             } else if (data.status === 'stopped') {
                 stopTracking(false);
                 setGpsStatus('stopped', '✅ Tracking concluded. Order is delivered or cancelled.', false);
@@ -901,16 +562,6 @@
         courierLat = lat;
         courierLon = lon;
         hasCourierGps = true;
-
-        if (leafletMap) {
-            if (!courierMarker) {
-                courierMarker = L.marker([lat, lon], {
-                    icon: createIcon('#D97736', '🛵')
-                }).addTo(leafletMap).bindPopup("<b>Your Current GPS Location</b>");
-            } else {
-                courierMarker.setLatLng([lat, lon]);
-            }
-        }
 
         const debugElem = document.getElementById("courier-coord-debug");
         if (debugElem) {
@@ -1090,8 +741,6 @@
     });
 
     document.addEventListener("DOMContentLoaded", function() {
-        initLeafletMap();
-
         const connectBtn = document.getElementById("connectGpsBtn");
         if (connectBtn) {
             connectBtn.addEventListener("click", function() {

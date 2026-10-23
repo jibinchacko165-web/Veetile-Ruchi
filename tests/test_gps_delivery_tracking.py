@@ -673,7 +673,7 @@ class StartNavigationCoordinateTests(TestCase):
         )
 
     def test_start_navigation_dashboard_exact_coordinates(self):
-        """Dashboard renders Start Navigation button with exact destination and onclick handler."""
+        """Dashboard renders clean courier actions without OpenStreetMap or destination map button."""
         self.client.force_login(self.courier_user)
         response = self.client.get(reverse('delivery_boy_dashboard'))
         self.assertEqual(response.status_code, 200)
@@ -684,23 +684,18 @@ class StartNavigationCoordinateTests(TestCase):
         self.assertIn("Longitude: 76.741563", content)
         self.assertIn("Elikulam Junction, Elikulam, Kottayam", content)
 
-        # 2. Verify Start Navigation button uses destination without stale profile origin
-        self.assertIn('openstreetmap.org', content)
-        self.assertIn('9.614967', content)
-        self.assertIn('76.741563', content)
+        # 2. Verify Open Destination Map button and OpenStreetMap links are completely removed
+        self.assertNotIn('openstreetmap.org', content)
+        self.assertNotIn('Open Destination Map', content)
+        self.assertNotIn('startNavigation(', content)
         self.assertNotIn('origin=9.5564,76.7909', content)
 
-        # 3. Verify data attributes and onclick handler
-        self.assertIn('data-dest-lat="9.614967"', content)
-        self.assertIn('data-dest-lon="76.741563"', content)
-        self.assertIn("startNavigation('9.614967', '76.741563', event);", content)
-
-        # 4. Verify Track Delivery Route button
+        # 3. Verify Track Delivery Route button is present
         track_url = reverse('delivery_boy_track', kwargs={'assignment_id': self.assignment.id})
         self.assertIn(track_url, content)
 
-    def test_single_leaflet_map_courier_track_exact_coordinates(self):
-        """Courier track page renders single professional Leaflet map with exact customer destination and no duplicate map buttons."""
+    def test_destination_details_courier_track_exact_coordinates(self):
+        """Courier track page renders clean destination overview with exact coordinates and no OpenStreetMap or Leaflet map."""
         self.client.force_login(self.courier_user)
         response = self.client.get(reverse('delivery_boy_track', kwargs={'assignment_id': self.assignment.id}))
         self.assertEqual(response.status_code, 200)
@@ -710,29 +705,26 @@ class StartNavigationCoordinateTests(TestCase):
         self.assertEqual(response.context['cust_lat'], 9.614967)
         self.assertEqual(response.context['cust_lon'], 76.741563)
 
-        # Verify single professional Leaflet map container is present with accurate coordinates
-        self.assertIn('id="delivery-nav-map"', content)
-        self.assertIn('initLeafletMap()', content)
+        # Verify exact coordinates and address are present
         self.assertIn('9.614967', content)
         self.assertIn('76.741563', content)
 
-        # Verify Travel ETA is calculated and displayed (not stuck on static "Calculating...")
+        # Verify Travel ETA is calculated and displayed
         self.assertIn("Estimated Arrival:", content)
         self.assertIn(response.context['travel_eta_display'], content)
         self.assertTrue(response.context['travel_mins'] > 0)
 
-        # Verify Open Full-Screen Map button is present
-        self.assertIn('btn-toggle-fullscreen', content)
-        self.assertIn('Open Full-Screen Map', content)
-
-        # Verify unwanted duplicate OpenStreetMap map buttons are completely removed
-        self.assertNotIn('id="trackGpsNavBtn"', content)
-        self.assertNotIn('id="btn-nav-directions"', content)
-        self.assertNotIn('Open Destination Location (OpenStreetMap)', content)
-        self.assertNotIn('Open Destination on Map (OpenStreetMap)', content)
+        # Verify OpenStreetMap, Leaflet map container, and full-screen map button are completely removed
+        self.assertNotIn('initLeafletMap()', content)
+        self.assertNotIn('id="delivery-nav-map"', content)
+        self.assertNotIn('btn-toggle-fullscreen', content)
+        self.assertNotIn('Open Full-Screen Map', content)
+        self.assertNotIn('openstreetmap.org', content)
+        self.assertNotIn('Open Destination Location', content)
+        self.assertNotIn('Open Destination on Map', content)
 
     def test_notification_api_clean_nav_url(self):
-        """Courier notification API returns clean destination nav_url without stale origin."""
+        """Courier notification API returns internal tracking nav_url without OpenStreetMap."""
         from orders.models import Notification
         notif = Notification.objects.create(
             user=self.courier_user,
@@ -750,9 +742,8 @@ class StartNavigationCoordinateTests(TestCase):
         notif_item = data['notifications'][0]
         self.assertEqual(notif_item['latitude'], 9.614967)
         self.assertEqual(notif_item['longitude'], 76.741563)
-        self.assertIn('openstreetmap.org', notif_item['nav_url'])
-        self.assertIn('9.614967', notif_item['nav_url'])
-        self.assertIn('76.741563', notif_item['nav_url'])
+        self.assertIn('/delivery/track/', notif_item['nav_url'])
+        self.assertNotIn('openstreetmap.org', notif_item['nav_url'])
         self.assertNotIn('origin=', notif_item['nav_url'])
 
 
@@ -831,10 +822,10 @@ class RealTimeDeviceGPSLinkTests(TestCase):
         self.assertIn('id="gpsConnectionBadge"', content)
         self.assertIn('id="gpsStatusBanner"', content)
 
-        # Guidance on mobile permissions and background behavior
-        self.assertIn("Mobile Note:", content)
-        self.assertIn("Location Services & Browser Permissions", content)
-        self.assertIn("suspend continuous GPS tracking", content)
+        # Mobile Note and permission notices completely removed per requirements
+        self.assertNotIn("Mobile Note:", content)
+        self.assertNotIn("Location Services & Browser Permissions are turned ON", content)
+        self.assertNotIn("suspend continuous GPS tracking", content)
 
     def test_track_template_has_resilient_geolocation_workflow(self):
         """Template JavaScript contains 2-tier fallback, 25s timeout, watchPosition, and visibilitychange."""
@@ -1241,23 +1232,23 @@ class LiveDeliveryMapVisibilityTests(TestCase):
         )
 
     def test_active_order_shows_map_and_controls(self):
-        """Active in-transit order displays Live Map section, container, and controls."""
+        """Active in-transit order displays ETA card and does not include OpenStreetMap or map controls."""
         self.client.force_login(self.customer)
         response = self.client.get(reverse('order_tracking', kwargs={'order_id': self.active_order.order_id}))
         self.assertEqual(response.status_code, 200)
         content = response.content.decode('utf-8')
 
-        # Live Map section & container present
-        self.assertIn('id="live-order-map-section"', content)
-        self.assertIn('id="live-delivery-map"', content)
-        self.assertIn('Live Order Delivery Map & GPS Tracking', content)
-        self.assertIn('Locate Me', content)
-        self.assertIn('Re-center Map', content)
-        self.assertIn('OpenStreetMap Navigation', content)
+        # Delivery ETA card present
+        self.assertIn('id="eta-arrival-time"', content)
+        self.assertIn('id="eta-status-pill"', content)
+        self.assertIn('Expected by', content)
 
-        # Context flags
-        self.assertTrue(response.context.get('show_map'))
-        self.assertTrue(response.context.get('is_live_tracking_active'))
+        # OpenStreetMap, map container, and map buttons completely removed
+        self.assertNotIn('id="live-order-map-section"', content)
+        self.assertNotIn('id="live-delivery-map"', content)
+        self.assertNotIn('Locate Me', content)
+        self.assertNotIn('Re-center Map', content)
+        self.assertNotIn('OpenStreetMap Navigation', content)
 
     def test_delivered_order_hides_entire_map_section(self):
         """Delivered order completely removes the Live Map section and controls from HTML."""
@@ -1331,7 +1322,7 @@ class LiveDeliveryMapVisibilityTests(TestCase):
         self.assertFalse(response.context.get('show_map'))
 
     def test_multiple_orders_independent_map_visibility(self):
-        """Delivered order does not affect live map rendering for another active order for same customer."""
+        """Delivered and active orders both maintain clean UI without map containers."""
         delivered_order = Order.objects.create(
             order_id="VR-DEL-002",
             user=self.customer,
@@ -1350,17 +1341,17 @@ class LiveDeliveryMapVisibilityTests(TestCase):
 
         self.client.force_login(self.customer)
 
-        # 1. Delivered order: Map is NOT rendered
+        # 1. Delivered order: Feedback section present, map containers absent
         r_del = self.client.get(reverse('order_tracking', kwargs={'order_id': delivered_order.order_id}))
         self.assertEqual(r_del.status_code, 200)
         self.assertNotIn('id="live-order-map-section"', r_del.content.decode('utf-8'))
-        self.assertFalse(r_del.context.get('show_map'))
+        self.assertIn('id="delivery-feedback-section"', r_del.content.decode('utf-8'))
 
-        # 2. Active order: Map IS rendered
+        # 2. Active order: ETA card present, map containers absent
         r_act = self.client.get(reverse('order_tracking', kwargs={'order_id': self.active_order.order_id}))
         self.assertEqual(r_act.status_code, 200)
-        self.assertIn('id="live-order-map-section"', r_act.content.decode('utf-8'))
-        self.assertTrue(r_act.context.get('show_map'))
+        self.assertNotIn('id="live-order-map-section"', r_act.content.decode('utf-8'))
+        self.assertIn('id="eta-arrival-time"', r_act.content.decode('utf-8'))
 
     def test_api_order_status_returns_show_map_flag(self):
         """API live status endpoint emits show_map flag for real-time client transitions without reload."""
@@ -1389,7 +1380,7 @@ class LiveDeliveryMapVisibilityTests(TestCase):
         self.assertEqual(d_del['order_status'], 'delivered')
 
     def test_preparing_and_pickup_orders_keep_map_visible(self):
-        """Orders in preparing or ready_pickup workflow stages display map according to requirements."""
+        """Orders in preparing or ready_pickup workflow stages display progress and ETA card cleanly."""
         self.client.force_login(self.customer)
 
         # 1. Preparing stage
@@ -1397,16 +1388,16 @@ class LiveDeliveryMapVisibilityTests(TestCase):
         self.active_order.save()
         r_prep = self.client.get(reverse('order_tracking', kwargs={'order_id': self.active_order.order_id}))
         self.assertEqual(r_prep.status_code, 200)
-        self.assertIn('id="live-order-map-section"', r_prep.content.decode('utf-8'))
-        self.assertTrue(r_prep.context.get('show_map'))
+        self.assertNotIn('id="live-order-map-section"', r_prep.content.decode('utf-8'))
+        self.assertIn('id="eta-arrival-time"', r_prep.content.decode('utf-8'))
 
         # 2. Ready for pickup stage
         self.active_order.status = 'ready_pickup'
         self.active_order.save()
         r_ready = self.client.get(reverse('order_tracking', kwargs={'order_id': self.active_order.order_id}))
         self.assertEqual(r_ready.status_code, 200)
-        self.assertIn('id="live-order-map-section"', r_ready.content.decode('utf-8'))
-        self.assertTrue(r_ready.context.get('show_map'))
+        self.assertNotIn('id="live-order-map-section"', r_ready.content.decode('utf-8'))
+        self.assertIn('id="eta-arrival-time"', r_ready.content.decode('utf-8'))
 
 
 class CheckoutKitchenBranchSelectionTests(TestCase):

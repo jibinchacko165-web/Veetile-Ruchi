@@ -782,11 +782,7 @@
                 </div>
             </div>
 
-            <!-- Interactive Leaflet Map -->
-            <div id="branch-picker-map" style="height: 320px; width: 100%; border-radius: 10px; border: 1.5px solid var(--border-light); background: #f1f5f9;"></div>
-            <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 0.4rem;">
-                💡 Drag the marker or click anywhere on the map to set verified coordinates. The circle visualizes the 25 km service coverage.
-            </p>
+
         </div>
 
         <!-- Menu items assignment -->
@@ -814,137 +810,16 @@
 </div>
 
 <script>
-    let branchMap, branchMarker, branchCircle;
-
-    function initBranchPickerMap() {
-        const container = document.getElementById('branch-picker-map');
-        if (!container || typeof L === 'undefined') return;
-
-        let bLat = parseFloat(document.getElementById('branch_lat').value) || 9.5564;
-        let bLon = parseFloat(document.getElementById('branch_lon').value) || 76.7909;
-        let bRad = parseFloat(document.getElementById('branch_radius').value) || 25.0;
-
-        branchMap = L.map(container, {
-            center: [bLat, bLon],
-            zoom: 11,
-            zoomControl: true,
-            scrollWheelZoom: true,
-            dragging: true,
-            tap: false,
-            touchZoom: true,
-            bounceAtZoomLimits: false
-        });
-
-        const tileUrl = window.MAP_TILE_URL || "{{ MAP_TILE_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
-        const tileAttr = window.MAP_TILE_ATTRIBUTION || '{{ MAP_TILE_ATTRIBUTION|default:"Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, TomTom"|safe }}';
-        const fallbackTileUrl = window.MAP_TILE_FALLBACK_URL || "{{ MAP_TILE_FALLBACK_URL|default:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'|escapejs }}";
-
-        const bTileLayer = L.tileLayer(tileUrl, { attribution: tileAttr, maxZoom: 19 }).addTo(branchMap);
-        let bTileErr = 0;
-        bTileLayer.on('tileerror', function() {
-            bTileErr++;
-            if (bTileErr > 3 && fallbackTileUrl && fallbackTileUrl !== tileUrl) {
-                bTileLayer.setUrl(fallbackTileUrl);
-            }
-        });
-
-        branchCircle = L.circle([bLat, bLon], {
-            radius: Math.min(bRad, 25.0) * 1000,
-            color: '#16A34A',
-            weight: 2,
-            fillColor: '#86EFAC',
-            fillOpacity: 0.15,
-            interactive: false
-        }).addTo(branchMap);
-
-        const hubPin = L.divIcon({
-            className: 'custom-hub-pin-icon',
-            html: `<div style="width: 32px; height: 32px; background: #D97706; border-radius: 50%; border: 3px solid white; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.4);"><span style="font-size:16px;">🏨</span></div>`,
-            iconSize: [32, 32],
-            iconAnchor: [16, 16]
-        });
-
-        branchMarker = L.marker([bLat, bLon], { icon: hubPin, draggable: false, autoPan: false }).addTo(branchMap);
-        branchMarker.bindPopup("<b>Hotel Branch Position</b><br>Click map to set location", { autoPan: false });
-
-        function syncBranchCoords(lat, lon) {
-            document.getElementById('branch_lat').value = Number(lat).toFixed(6);
-            document.getElementById('branch_lon').value = Number(lon).toFixed(6);
-            branchCircle.setLatLng([lat, lon]);
-        }
-
-        branchMarker.on('dragstart', function() {
-            branchMarker.closePopup();
-        });
-
-        branchMarker.on('dragend', function(e) {
-            const p = branchMarker.getLatLng();
-            syncBranchCoords(p.lat, p.lng);
-        });
-
-        let branchInteractionDownPos = null;
-        let branchDragOccurred = false;
-        let branchLastDragEndTime = 0;
-
-        container.addEventListener('mousedown', function(e) {
-            branchInteractionDownPos = { x: e.clientX, y: e.clientY };
-            branchDragOccurred = false;
-        }, { passive: true });
-
-        container.addEventListener('touchstart', function(e) {
-            if (e.touches && e.touches[0]) {
-                branchInteractionDownPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                branchDragOccurred = false;
-            }
-        }, { passive: true });
-
-        branchMap.on('movestart dragstart', function() { branchDragOccurred = true; });
-        branchMap.on('move drag', function() { branchDragOccurred = true; });
-        branchMap.on('moveend dragend', function() { 
-            branchLastDragEndTime = Date.now();
-            setTimeout(() => { branchDragOccurred = false; }, 400); 
-        });
-
-        branchMap.on('click', function(e) {
-            if (branchDragOccurred || (Date.now() - branchLastDragEndTime < 400)) return;
-            if (e.originalEvent) {
-                const orig = e.originalEvent;
-                const clientX = orig.clientX !== undefined ? orig.clientX : (orig.touches && orig.touches[0] ? orig.touches[0].clientX : null);
-                const clientY = orig.clientY !== undefined ? orig.clientY : (orig.touches && orig.touches[0] ? orig.touches[0].clientY : null);
-                if (branchInteractionDownPos && clientX !== null && clientY !== null) {
-                    const distMoved = Math.hypot(clientX - branchInteractionDownPos.x, clientY - branchInteractionDownPos.y);
-                    if (distMoved > 6) return;
-                }
-            }
-            branchMarker.setLatLng(e.latlng);
-            syncBranchCoords(e.latlng.lat, e.latlng.lng);
-        });
-
-        document.getElementById('branch_radius').addEventListener('input', function() {
-            let val = Math.min(parseFloat(this.value) || 25.0, 25.0);
-            branchCircle.setRadius(val * 1000);
-        });
-
-        setTimeout(() => { branchMap.invalidateSize(); }, 300);
-    }
-
     function onStaffBranchDistrictChange(sel) {
         if (!sel || !sel.selectedIndex) return;
         const opt = sel.options[sel.selectedIndex];
         const lat = parseFloat(opt.getAttribute('data-lat'));
         const lon = parseFloat(opt.getAttribute('data-lon'));
-        if (lat && lon && branchMap && branchMarker) {
-            branchMarker.setLatLng([lat, lon]);
-            branchCircle.setLatLng([lat, lon]);
-            branchMap.setView([lat, lon], 12);
+        if (lat && lon) {
             document.getElementById('branch_lat').value = lat.toFixed(6);
             document.getElementById('branch_lon').value = lon.toFixed(6);
         }
     }
-
-    document.addEventListener("DOMContentLoaded", function() {
-        initBranchPickerMap();
-    });
 </script>
 {% endif %}
 

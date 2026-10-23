@@ -16,23 +16,7 @@
     <!-- FontAwesome 6 Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-    <!-- Leaflet Map CSS & JS (Local Static Assets) -->
-    <link rel="stylesheet" href="/static/leaflet/leaflet.css" />
-    <script src="/static/leaflet/leaflet.js"></script>
-    <script>
-        // Configure Leaflet to locate default marker assets from local static directory
-        if (typeof L !== 'undefined' && L.Icon && L.Icon.Default) {
-            L.Icon.Default.imagePath = '/static/leaflet/images/';
-        }
-
-        // Global Map Provider Tokens (Standard OpenStreetMap tile provider)
-        window.MAP_TILE_URL = "{{ MAP_TILE_URL|default:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'|escapejs }}";
-        window.MAP_TILE_ATTRIBUTION = '{{ MAP_TILE_ATTRIBUTION|default:"&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"|safe }}';
-        window.MAP_TILE_SUBDOMAINS = "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
-        window.MAP_TILE_FALLBACK_URL = "{{ MAP_TILE_FALLBACK_URL|default:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'|escapejs }}";
-        window.MAP_TILE_FALLBACK_ATTRIBUTION = '{{ MAP_TILE_FALLBACK_ATTRIBUTION|default:"&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"|safe }}';
-
-        // Global Reverse Geocoding Utility (Powered by Backend OpenStreetMap Nominatim + Local Presets)
+    <!-- Global Reverse Geocoding Utility (Local Presets) -->
         window.veetileReverseGeocode = function(lat, lon, callback) {
             if (!callback) return;
             callBackendGeocode(lat, lon, callback);

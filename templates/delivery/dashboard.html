@@ -577,20 +577,8 @@
                             <!-- Footer Action Bar: Prominent Navigation, View Location & Delivery Actions -->
                             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; background: #ffffff; padding: 1rem; border-radius: 12px; border: 1px solid var(--border-light);">
                                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                    {% if assign.order.latitude and assign.order.longitude %}
-                                        <a href="https://www.openstreetmap.org/?mlat={{ assign.order.latitude }}&mlon={{ assign.order.longitude }}#map=16/{{ assign.order.latitude }}/{{ assign.order.longitude }}" target="_blank" rel="noopener noreferrer" class="btn courier-nav-btn" data-dest-lat="{{ assign.order.latitude }}" data-dest-lon="{{ assign.order.longitude }}" onclick="startNavigation('{{ assign.order.latitude }}', '{{ assign.order.longitude }}', event);" style="padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 700; text-decoration: none; background: #2563eb; color: #fff;">
-                                            📍 Open Destination Map
-                                        </a>
-                                    {% else %}
-                                        <button type="button" class="btn btn-outline" onclick="startNavigation(null, null, event);" style="padding: 0.5rem 1.1rem; font-size: 0.85rem; opacity: 0.6; cursor: not-allowed;">
-                                            📍 GPS Unavailable
-                                        </button>
-                                    {% endif %}
-                                    <a href="{% url 'delivery_boy_track' assign.id %}" class="btn btn-outline" style="padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 700; text-decoration: none;">
-                                        🗺️ Track Delivery Route
-                                    </a>
-                                    <a href="{% url 'delivery_boy_track' assign.id %}?fullscreen=1" class="btn" style="padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 700; text-decoration: none; background: #0284c7; color: #ffffff; display: inline-flex; align-items: center; gap: 0.35rem;">
-                                        ⛶ Open Full-Screen Map
+                                    <a href="{% url 'delivery_boy_track' assign.id %}" class="btn" style="padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 700; text-decoration: none; background: #2563eb; color: #fff;">
+                                        🛵 Delivery Details & Live GPS
                                     </a>
                                 </div>
 
@@ -645,43 +633,6 @@
 </div>
 
 <script>
-function startNavigation(latitude, longitude, ev) {
-    if (ev && typeof ev.preventDefault === 'function') {
-        ev.preventDefault();
-    }
-    let lat = Number(latitude);
-    let lng = Number(longitude);
-
-    if (
-        !Number.isFinite(lat) ||
-        !Number.isFinite(lng) ||
-        Math.abs(lat) > 90 ||
-        Math.abs(lng) > 180
-    ) {
-        console.error("Invalid destination coordinates", {
-            latitude,
-            longitude
-        });
-        alert("The delivery location is invalid. Please select it again.");
-        return;
-    }
-
-    // Auto-correct reversed coordinates if latitude/longitude are swapped (Kerala longitude ~76-77, latitude ~8-12)
-    if (lat >= 70 && lat <= 80 && lng >= 8 && lng <= 13) {
-        console.warn("Detected reversed destination coordinates in startNavigation. Auto-correcting to [latitude, longitude]:", { lat, lng });
-        const temp = lat;
-        lat = lng;
-        lng = temp;
-    }
-
-    const destination = `${lat},${lng}`;
-
-    const navigationUrl =
-        `https://www.openstreetmap.org/?mlat=${encodeURIComponent(lat)}&mlon=${encodeURIComponent(lng)}#map=16/${encodeURIComponent(lat)}/${encodeURIComponent(lng)}`;
-
-    window.open(navigationUrl, "_blank", "noopener,noreferrer");
-}
-
 let courierLiveLat = null;
 let courierLiveLon = null;
 let dashboardGpsWatchId = null;
@@ -719,16 +670,7 @@ function autoSyncCourierGpsLocation() {
             courierLiveLat = lat;
             courierLiveLon = lon;
 
-            // 1. Maintain validated destination coordinates on OpenStreetMap navigation buttons
-            document.querySelectorAll('.courier-nav-btn').forEach(btn => {
-                const destLat = btn.getAttribute('data-dest-lat');
-                const destLon = btn.getAttribute('data-dest-lon');
-                if (destLat && destLon) {
-                    btn.href = `https://www.openstreetmap.org/?mlat=${encodeURIComponent(destLat)}&mlon=${encodeURIComponent(destLon)}#map=16/${encodeURIComponent(destLat)}/${encodeURIComponent(destLon)}`;
-                }
-            });
-
-            // 2. Transmit live coordinates to backend with throttling (min 5s or > 10m movement)
+            // Transmit live coordinates to backend with throttling (min 5s or > 10m movement)
             const now = Date.now();
             if (lastDashboardGpsSentLat !== null && lastDashboardGpsSentLon !== null) {
                 const elapsed = now - lastDashboardGpsSentTime;

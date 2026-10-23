@@ -758,15 +758,9 @@ class RouteResult(tuple):
 
 def optimize_delivery_route(chef_lat, chef_lon, cust_lat, cust_lon):
     """
-    Calls OSRM (Open Source Routing Machine) to retrieve the actual driving route,
-    travel distance, and estimated travel duration.
-    Falls back gracefully to straight-line Haversine estimate if network or OSRM is unreachable.
+    Computes travel distance and estimated travel duration between kitchen and delivery destination.
     Returns RouteResult(route, distance_km, is_road, duration_min).
     """
-    import requests
-    from django.conf import settings
-    from django.core.cache import cache
-
     try:
         c_chef_lat = float(chef_lat)
         c_chef_lon = float(chef_lon)
@@ -779,56 +773,12 @@ def optimize_delivery_route(chef_lat, chef_lon, cust_lat, cust_lon):
         return RouteResult([], 0.0, False, 0.0)
 
     straight_line_dist = calculate_distance(c_chef_lat, c_chef_lon, c_cust_lat, c_cust_lon)
-
-    # Check cache for recent route calculation between these coordinates (4 decimal precision ~11m)
-    cache_key = f"osrm_route_{round(c_chef_lat, 4)}_{round(c_chef_lon, 4)}_{round(c_cust_lat, 4)}_{round(c_cust_lon, 4)}"
-    cached_result = cache.get(cache_key)
-    if cached_result:
-        return RouteResult(
-            cached_result['route'],
-            cached_result['distance_km'],
-            cached_result['is_road'],
-            cached_result['duration_min']
-        )
-
-    # Call OSRM public or configured road routing engine
-    try:
-        raw_url = getattr(settings, 'OSRM_ROUTING_URL', 'https://router.project-osrm.org/route/v1/driving/{coords}?overview=simplified&geometries=geojson')
-        coords_str = f"{c_chef_lon},{c_chef_lat};{c_cust_lon},{c_cust_lat}"
-        if '{coords}' in raw_url:
-            osrm_url = raw_url.replace('{coords}', coords_str)
-        else:
-            base_url = raw_url.rstrip('/')
-            osrm_url = f"{base_url}/{coords_str}?overview=simplified&geometries=geojson"
-
-        resp = requests.get(osrm_url, timeout=3.5, headers={'User-Agent': 'VeetileRuchiDelivery/1.0'})
-        if resp.status_code == 200:
-            osrm_data = resp.json()
-            if osrm_data.get('code') == 'Ok' and osrm_data.get('routes'):
-                primary_route = osrm_data['routes'][0]
-                distance_meters = primary_route.get('distance', 0)
-                duration_seconds = primary_route.get('duration', 0)
-                road_dist_km = distance_meters / 1000.0
-                duration_minutes = duration_seconds / 60.0 if duration_seconds else (road_dist_km / 25.0) * 60.0
-                coords = primary_route.get('geometry', {}).get('coordinates', [])  # [lon, lat] pairs
-                route = [{'lat': round(c[1], 6), 'lng': round(c[0], 6)} for c in coords]
-                res = RouteResult(route, round(road_dist_km, 2), True, round(duration_minutes, 1))
-                cache.set(cache_key, {
-                    'route': res.route,
-                    'distance_km': res.distance_km,
-                    'is_road': res.is_road,
-                    'duration_min': res.duration_min
-                }, timeout=1800)
-                return res
-    except Exception as e:
-        logger.warning(f"OSRM road routing unavailable or timed out: {e}")
-
-    fallback_dist = round(straight_line_dist * 1.3, 2)
-    fallback_duration_min = round((fallback_dist / 25.0) * 60.0, 1) if fallback_dist > 0 else 0.0
-    straight_line_segment = [
+    road_dist = round(straight_line_dist * 1.3, 2)
+    duration_min = round((road_dist / 25.0) * 60.0, 1) if road_dist > 0 else 0.0
+    route_segment = [
         {'lat': round(c_chef_lat, 6), 'lng': round(c_chef_lon, 6)},
         {'lat': round(c_cust_lat, 6), 'lng': round(c_cust_lon, 6)}
     ]
-    return RouteResult(straight_line_segment, fallback_dist, False, fallback_duration_min)
+    return RouteResult(route_segment, road_dist, False, duration_min)
 
 

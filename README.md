@@ -1,7 +1,7 @@
 # Veetile-Ruchi (വീട്ടിലെ രുചി)
 **Authentic Kerala Homemade Food Delivery Platform**
 
-Veetile-Ruchi is a full-featured online food ordering and delivery system connecting local home chefs in Kerala with customers. Built with Django and PostgreSQL, the platform features multi-role dashboards (Customer, Home Chef, Courier Delivery Boy, Staff/Admin), AI-driven delivery time predictions, real-time GPS courier delivery tracking, OpenStreetMap/Leaflet delivery tracking with straight-line distance estimation, nutritional tracking, and health profiling.
+Veetile-Ruchi is a full-featured online food ordering and delivery system connecting local home chefs in Kerala with customers. Built with Django and PostgreSQL, the platform features multi-role dashboards (Customer, Home Chef, Courier Delivery Boy, Staff/Admin), AI-driven delivery time predictions, real-time GPS courier delivery tracking with straight-line distance estimation, nutritional tracking, and health profiling.
 
 ---
 
@@ -12,10 +12,8 @@ Veetile-Ruchi is a full-featured online food ordering and delivery system connec
 - **Primary Database**: PostgreSQL 14+ (Database: `veetile_ruchi`)
 - **Python DB Drivers**: `psycopg` (v3) / `psycopg2-binary`
 - **Mapping & Geolocation**:
-  - Map Display: **Leaflet.js** (Local static assets, zero CDN dependencies for offline reliability)
-  - Map Tiles: **OpenStreetMap** (`https://tile.openstreetmap.org/{z}/{x}/{y}.png`)
   - Geolocation: **HTML5 Browser Geolocation API** (High Accuracy)
-  - Reverse Geocoding: OpenStreetMap Nominatim with local Kerala preset fallbacks and server caching
+  - Reverse Geocoding & Landmarks: Local curated Kerala preset places and coordinate resolution
 - **Machine Learning & Analytics**:
   - Scikit-Learn (Random Forest delivery time predictor)
   - NumPy, Pandas, SciPy
@@ -24,14 +22,13 @@ Veetile-Ruchi is a full-featured online food ordering and delivery system connec
 
 ## 2. Architecture & Design Principles
 
-1. **Leaflet + OpenStreetMap Only**:
-   - Zero Google Maps dependency. Google Maps scripts, API keys, and SDK calls have been completely removed.
-   - Map tiles are served via OpenStreetMap with automated tile failover.
+1. **Lightweight & Independent Geolocation**:
+   - Zero external map dependency. All external map tile servers, third-party tile APIs, and OpenStreetMap SDK calls have been completely removed.
 2. **Accurate Distance & Transit Estimation**:
    - Haversine straight-line distance calculations provide reliable, consistent distance measurements and transit time estimates without third-party routing service failure risks.
 3. **Strict Separation of Hub & Courier Live GPS**:
    - Central Kitchen Hub coordinates (`Kanjirappally, Kottayam: 9.5564, 76.7909`) represent the physical preparation facility.
-   - Courier live GPS coordinates are continuously recorded from the courier's device during active transit and displayed on the customer's live tracking map.
+   - Courier live GPS coordinates are continuously recorded from the courier's device during active transit and updated in real-time.
 4. **Data Integrity & Relational Safety**:
    - Clean foreign keys across User, CustomerProfile, ChefProfile, DeliveryBoyProfile, FoodItem, Order, and DeliveryAssignment.
    - Automatic fallback images for food items where media files are missing.
@@ -117,16 +114,13 @@ Configure these settings in your `.env` file (do not commit `.env` to Git):
 | `DB_PASSWORD` | PostgreSQL password | Required |
 | `DB_HOST` | PostgreSQL host address | `localhost` |
 | `DB_PORT` | PostgreSQL port | `5432` |
-| `MAP_TILE_URL` | Map tile template URL | `https://tile.openstreetmap.org/{z}/{x}/{y}.png` |
-| `MAP_TILE_ATTRIBUTION` | Legal tile attribution markup | OpenStreetMap contributors |
 
 ---
 
 ## 5. Live GPS Tracking Workflow
 
 ### Customer GPS
-- Handled via `navigator.geolocation.getCurrentPosition` with `enableHighAccuracy: true`.
-- For desktop browsers or denied permissions, customers can click on the interactive Leaflet map to pinpoint their exact location or type an address notes fallback.
+- Handled via `navigator.geolocation.getCurrentPosition` with `enableHighAccuracy: true` or by selecting verified Kerala places from preset dropdowns.
 - Latitude and Longitude are stored on the `Order` record upon checkout.
 
 ### Courier Live GPS
@@ -168,5 +162,4 @@ python manage.py test --keepdb
 ## 8. License & Credits
 
 - Developed for **Veetile-Ruchi** home food delivery.
-- Map tiles: &copy; [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
 - Icons: FontAwesome 6 Free.

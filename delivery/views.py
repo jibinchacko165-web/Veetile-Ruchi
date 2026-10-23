@@ -1027,7 +1027,7 @@ def get_courier_notifications(request):
                 
         track_url = f"/orders/notifications/mark-read/{notif.id}/" if notif.id else '#'
         dismiss_url = f"/delivery/notifications/dismiss/{notif.id}/" if notif.id else '#'
-        nav_url = f"https://www.openstreetmap.org/?mlat={lat}&mlon={lon}#map=16/{lat}/{lon}" if lat and lon else '#'
+        nav_url = f"/delivery/track/{assignment_id}/" if assignment_id else '#'
             
         notif_dt = to_kolkata_datetime(notif.created_at)
         data.append({

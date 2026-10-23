@@ -739,36 +739,6 @@ def reverse_geocode_api(request):
     if cached_data:
         return JsonResponse(cached_data)
 
-    # 1. Policy-compliant Nominatim reverse geocoding
-    try:
-        url = f"https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={lat_val}&lon={lon_val}&addressdetails=1"
-        req = urllib.request.Request(url, headers={
-            'User-Agent': 'Veetile-Ruchi-Delivery/1.0 (contact@veetileruchi.com)',
-            'Accept': 'application/json'
-        })
-        with urllib.request.urlopen(req, timeout=4) as response:
-            if response.status == 200:
-                payload = json.loads(response.read().decode('utf-8'))
-                display_name = payload.get('display_name', '')
-                addr = payload.get('address', {})
-                landmark = (
-                    addr.get('amenity') or addr.get('building') or addr.get('neighbourhood') or
-                    addr.get('suburb') or addr.get('village') or addr.get('town') or
-                    addr.get('county') or ''
-                )
-                data = {
-                    'status': 'success',
-                    'provider': 'nominatim',
-                    'address': display_name,
-                    'landmark': landmark or (display_name.split(',')[0].strip() if display_name else ''),
-                    'lat': lat_val,
-                    'lon': lon_val,
-                }
-                cache.set(cache_key, data, timeout=86400)
-                return JsonResponse(data)
-    except Exception:
-        pass
-
     # Coordinate fallback
     return JsonResponse({
         'status': 'success',

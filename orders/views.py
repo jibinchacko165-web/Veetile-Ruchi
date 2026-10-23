@@ -1101,7 +1101,7 @@ def staff_toggle_branch_status(request, branch_id):
 def api_reverse_geocode(request):
     """
     Reverse-geocode latitude and longitude into a readable address string.
-    Uses OpenStreetMap Nominatim with local Kerala Landmark presets fallback.
+    Uses local Kerala Landmark presets and coordinate formatting.
     """
     lat_str = request.GET.get('lat')
     lon_str = request.GET.get('lon')
@@ -1117,26 +1117,7 @@ def api_reverse_geocode(request):
     from django.core.cache import cache
     cache_key = f"orders_rev_geo_{round(lat, 4)}_{round(lon, 4)}"
     cached = cache.get(cache_key)
-    if cached:
-        return JsonResponse(cached)
-
-    # 1. Try OpenStreetMap Nominatim (compliant User-Agent identification per OSM Usage Policy)
-    try:
-        import requests
-        headers = {'User-Agent': 'VeetileRuchiApp/1.0 (delivery-contact@veetileruchi.com)'}
-        url = f"https://nominatim.openstreetmap.org/reverse?format=json&lat={lat}&lon={lon}&zoom=18&addressdetails=1"
-        resp = requests.get(url, headers=headers, timeout=2.5)
-        if resp.status_code == 200:
-            data = resp.json()
-            display_name = data.get('display_name')
-            if display_name:
-                res = {'success': True, 'address': display_name, 'source': 'nominatim'}
-                cache.set(cache_key, res, timeout=86400)
-                return JsonResponse(res)
-    except Exception:
-        pass
-
-    # 3. Fallback to Nearest Kerala Preset Place
+    # 1. Resolve via Nearest Kerala Preset Place
     best_place = None
     min_dist = float('inf')
     for p in KERALA_PRESET_PLACES:
