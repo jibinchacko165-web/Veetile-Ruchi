@@ -529,6 +529,11 @@ def api_order_status(request, order_id):
         last_gps_update=gps_info['last_gps_update']
     )
 
+    payment = getattr(order, 'payment', None)
+    payment_method = payment.payment_method if payment else 'cod'
+    payment_status = payment.status if payment else 'pending'
+    payment_display = payment.display_status if payment else ('Paid Online' if payment_method == 'upi' else 'Cash on Delivery')
+
     return JsonResponse({
         'status': 'success',
         **tracking_data,
@@ -542,6 +547,9 @@ def api_order_status(request, order_id):
         'vehicle_number': courier_profile.vehicle_number if courier_profile else None,
         'distance_km': tracking_data.get('remaining_road_distance_km', 0.0),
         'pred_delivery_min': tracking_data.get('remaining_travel_minutes', 0),
+        'payment_method': payment_method,
+        'payment_status': payment_status,
+        'payment_display_status': payment_display,
     })
 
 
@@ -721,11 +729,42 @@ def staff_dashboard(request):
     """Staff Console for food order management, chef approvals, delivery tracking, and district-wise branches."""
     active_tab = request.GET.get('tab', 'orders')
     orders = Order.objects.all().order_by('-created_at').select_related('user', 'payment', 'delivery_assignment__delivery_boy__user').prefetch_related('items__food_item')
-    available_boys = DeliveryBoyProfile.objects.filter(status='available').select_related('user')
-    all_couriers = DeliveryBoyProfile.objects.all().select_related('user')
-    chefs = ChefProfile.objects.all().select_related('user')
-    
+    # All 9 registered courier boys with unique mobile numbers
+    courier_usernames = [f'courier{i}' for i in range(1, 10)]
+    all_couriers_qs = DeliveryBoyProfile.objects.filter(user__username__in=courier_usernames).select_related('user').prefetch_related('assignments__order')
+    all_couriers = list(all_couriers_qs)
+    if len(all_couriers) < 9:
+        fallback = list(DeliveryBoyProfile.objects.exclude(user__username='courier').select_related('user').prefetch_related('assignments__order')[:9])
+        if len(fallback) > len(all_couriers):
+            all_couriers = fallback
+
+    # Sort stably: Courier 1 through Courier 9
+    def courier_sort_key(c):
+        u = c.user.username.lower() if c.user else ''
+        for i in range(1, 10):
+            if f"courier{i}" in u:
+                return i
+        return c.id
+    all_couriers.sort(key=courier_sort_key)
+
+    # Automatically synchronize each courier boy's status based on active delivery assignments
+    for c in all_couriers:
+        active = c.assignments.filter(
+            status__in=['assigned', 'picked_up', 'in_transit'],
+            is_active=True
+        ).exists()
+        if active and c.status not in ['on_delivery', 'busy']:
+            c.status = 'on_delivery'
+            c.save(update_fields=['status'])
+        elif not active and c.status in ['on_delivery', 'busy']:
+            c.status = 'available'
+            c.save(update_fields=['status'])
+
+    available_boys = [c for c in all_couriers if c.realtime_status == 'Available']
+    busy_couriers = [c for c in all_couriers if c.realtime_status == 'Busy (currently delivering an order)']
+    offline_couriers = [c for c in all_couriers if c.realtime_status == 'Offline']
     delivery_boys = all_couriers
+    chefs = ChefProfile.objects.all().select_related('user')
     delivery_setting = get_active_delivery_setting()
 
     # District & Hotel Branch Management Data
@@ -737,12 +776,16 @@ def staff_dashboard(request):
         hotel_branches = hotel_branches.filter(models.Q(district__code=district_filter) | models.Q(district__name__iexact=district_filter))
         
     all_food_items = FoodItem.objects.all().order_by('name')
+    cash_collected_orders_count = orders.filter(payment__payment_method='cod', payment__status='cash_collected').count()
 
     context = {
         'active_tab': active_tab,
         'orders': orders,
+        'cash_collected_orders_count': cash_collected_orders_count,
         'delivery_boys': delivery_boys,
-        'available_couriers_count': available_boys.count(),
+        'available_couriers_count': len(available_boys),
+        'busy_couriers_count': len(busy_couriers),
+        'offline_couriers_count': len(offline_couriers),
         'all_couriers': all_couriers,
         'chefs': chefs,
         'assignments': DeliveryAssignment.objects.all().order_by('-assigned_at').select_related('order__user', 'delivery_boy__user').prefetch_related('order__items__food_item'),
@@ -782,8 +825,14 @@ def staff_confirm_payment(request, order_id):
     order = get_object_or_404(Order, order_id=order_id)
     payment = get_object_or_404(Payment, order=order)
     payment.status = 'success'
-    payment.save()
-    messages.success(request, f"Payment for Order {order.order_id} verified.")
+    now = timezone.now()
+    if payment.payment_method == 'cod' and not payment.cash_collected_by:
+        payment.cash_collected_by = request.user
+        payment.cash_collected_at = now
+        payment.save(update_fields=['status', 'cash_collected_by', 'cash_collected_at'])
+    else:
+        payment.save(update_fields=['status'])
+    messages.success(request, f"Payment for Order #{order.order_id} verified successfully.")
     return redirect('staff_dashboard')
 
 @login_required
@@ -828,8 +877,8 @@ def staff_assign_delivery(request, order_id):
                 messages.error(request, "The selected delivery boy account is inactive.")
                 return redirect('staff_dashboard')
                 
-            if db_profile.status != 'available':
-                messages.error(request, f"Courier {db_profile.courier_name} is currently not available for assignment.")
+            if db_profile.realtime_status != 'Available':
+                messages.error(request, f"Courier {db_profile.courier_name} is currently {db_profile.realtime_status} and cannot be assigned a new order.")
                 return redirect('staff_dashboard')
 
             active_deliv = DeliveryAssignment.objects.filter(

@@ -196,20 +196,9 @@ WSGI_APPLICATION = 'veetile_ruchi_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-import dj_database_url
-
-try:
-    import psycopg
-    has_psycopg = True
-except ImportError:
-    try:
-        import psycopg2
-        has_psycopg = True
-    except ImportError:
-        has_psycopg = False
-
 DATABASE_URL = os.getenv("DATABASE_URL")
-if DATABASE_URL and has_psycopg:
+if DATABASE_URL:
+    import dj_database_url
     DATABASES = {
         "default": dj_database_url.config(
             default=DATABASE_URL,
@@ -217,24 +206,31 @@ if DATABASE_URL and has_psycopg:
             conn_health_checks=True,
         )
     }
-elif os.getenv("DB_HOST") and has_psycopg and os.getenv("DB_HOST") not in ('', 'localhost'):
-    DATABASES = {
-        "default": {
-            "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql"),
-            "NAME": os.getenv("DB_NAME", "veetile_ruchi"),
-            "USER": os.getenv("DB_USER", "postgres"),
-            "PASSWORD": os.getenv("DB_PASSWORD", ""),
-            "HOST": os.getenv("DB_HOST"),
-            "PORT": os.getenv("DB_PORT", "5432"),
-        }
-    }
 else:
     DATABASES = {
         "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("DB_NAME", "veetile_ruchi"),
+            "USER": os.getenv("DB_USER", "postgres"),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+            "PORT": os.getenv("DB_PORT", "5432"),
         }
     }
+
+from django.db.backends.signals import connection_created
+from django.dispatch import receiver
+
+@receiver(connection_created)
+def configure_sqlite_pragmas(sender, connection, **kwargs):
+    if connection.vendor == 'sqlite':
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute('PRAGMA journal_mode = WAL;')
+                cursor.execute('PRAGMA synchronous = NORMAL;')
+                cursor.execute('PRAGMA busy_timeout = 60000;')
+        except Exception:
+            pass
 
 import sys
 if 'test' in sys.argv:
@@ -284,7 +280,15 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # WhiteNoise storage for efficient production static assets serving with compression
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
-MEDIA_URL = '/media/'
+# Media Storage Configuration (Local development or Supabase Storage)
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "media")
+USE_SUPABASE_STORAGE = os.getenv("USE_SUPABASE_STORAGE", "False").lower() in ("true", "1")
+
+if USE_SUPABASE_STORAGE and SUPABASE_URL:
+    MEDIA_URL = f"{SUPABASE_URL.rstrip('/')}/storage/v1/object/public/{SUPABASE_STORAGE_BUCKET}/"
+else:
+    MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type

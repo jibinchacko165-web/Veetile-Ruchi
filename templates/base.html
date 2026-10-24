@@ -43,6 +43,15 @@
     <!-- Master Kerala Design System -->
     <link rel="stylesheet" href="/static/css/style.css">
 
+    <!-- Leaflet Interactive Maps (Local Static Assets) -->
+    <link rel="stylesheet" href="/static/leaflet/leaflet.css">
+    <script src="/static/leaflet/leaflet.js"></script>
+    <script>
+        if (typeof L !== 'undefined') {
+            L.Icon.Default.imagePath = '/static/leaflet/images/';
+        }
+    </script>
+
     <style>
 
         /* Kerala Nature Navbar Styles */
@@ -218,6 +227,9 @@
             padding: 1.25rem 1.5rem;
             box-shadow: var(--shadow-lg);
             z-index: 999;
+            max-height: calc(100vh - var(--nav-height));
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .mobile-drawer.open {
@@ -250,9 +262,14 @@
             border-color: var(--border-leaf);
         }
 
-        @media (max-width: 992px) {
-            .nav-links-desktop { display: none; }
-            .mobile-toggle { display: block; }
+        @media (max-width: 1023px) {
+            .nav-links-desktop { display: none !important; }
+            .mobile-toggle { display: block !important; }
+        }
+        @media (min-width: 1024px) {
+            .nav-links-desktop { display: flex !important; }
+            .mobile-toggle { display: none !important; }
+            .mobile-drawer { display: none !important; }
         }
 
         /* Kerala Heritage Footer */
@@ -504,6 +521,28 @@
                 drawer.classList.toggle('open');
             }
         }
+
+        // Responsive Leaflet map invalidation on window resize & orientationchange
+        window.addEventListener('resize', function () {
+            if (typeof L !== 'undefined') {
+                document.querySelectorAll('.leaflet-container').forEach(function(el) {
+                    if (el._leaflet_map) {
+                        try { el._leaflet_map.invalidateSize(); } catch(e) {}
+                    }
+                });
+            }
+        });
+        window.addEventListener('orientationchange', function () {
+            setTimeout(function() {
+                if (typeof L !== 'undefined') {
+                    document.querySelectorAll('.leaflet-container').forEach(function(el) {
+                        if (el._leaflet_map) {
+                            try { el._leaflet_map.invalidateSize(); } catch(e) {}
+                        }
+                    });
+                }
+            }, 300);
+        });
 
         // Anti-caching & BFCache invalidation for session security on Back button
         window.addEventListener('pageshow', function (event) {

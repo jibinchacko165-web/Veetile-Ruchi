@@ -719,7 +719,9 @@ class StartNavigationCoordinateTests(TestCase):
         self.assertIn('initLeafletMap()', content)
         self.assertIn('btn-zoom-customer', content)
         self.assertIn('btn-locate-courier', content)
-        self.assertIn('btn-view-both', content)
+        # User requested deletion of Zoom Courier and View Both buttons
+        self.assertNotIn('btn-zoom-courier', content)
+        self.assertNotIn('btn-view-both', content)
 
     def test_notification_api_clean_nav_url(self):
         """Courier notification API returns internal tracking nav_url without OpenStreetMap."""
@@ -1230,7 +1232,7 @@ class LiveDeliveryMapVisibilityTests(TestCase):
         )
 
     def test_active_order_shows_map_and_controls(self):
-        """Active in-transit order displays ETA card and does not include OpenStreetMap or map controls."""
+        """Active in-transit order displays ETA card and professional Leaflet map controls."""
         self.client.force_login(self.customer)
         response = self.client.get(reverse('order_tracking', kwargs={'order_id': self.active_order.order_id}))
         self.assertEqual(response.status_code, 200)
@@ -1241,12 +1243,13 @@ class LiveDeliveryMapVisibilityTests(TestCase):
         self.assertIn('id="eta-status-pill"', content)
         self.assertIn('Expected by', content)
 
-        # OpenStreetMap, map container, and map buttons completely removed
-        self.assertNotIn('id="live-order-map-section"', content)
-        self.assertNotIn('id="live-delivery-map"', content)
-        self.assertNotIn('Locate Me', content)
-        self.assertNotIn('Re-center Map', content)
+        # Professional Leaflet map container and controls are rendered for active order
+        self.assertIn('id="live-order-map-section"', content)
+        self.assertIn('id="live-delivery-map"', content)
+        self.assertIn('Locate Me', content)
+        self.assertIn('Re-center Map', content)
         self.assertNotIn('OpenStreetMap Navigation', content)
+        self.assertNotIn('id="external-nav-link"', content)
 
     def test_delivered_order_hides_entire_map_section(self):
         """Delivered order completely removes the Live Map section and controls from HTML."""
@@ -1345,10 +1348,10 @@ class LiveDeliveryMapVisibilityTests(TestCase):
         self.assertNotIn('id="live-order-map-section"', r_del.content.decode('utf-8'))
         self.assertIn('id="delivery-feedback-section"', r_del.content.decode('utf-8'))
 
-        # 2. Active order: ETA card present, map containers absent
+        # 2. Active order: ETA card present, map section rendered
         r_act = self.client.get(reverse('order_tracking', kwargs={'order_id': self.active_order.order_id}))
         self.assertEqual(r_act.status_code, 200)
-        self.assertNotIn('id="live-order-map-section"', r_act.content.decode('utf-8'))
+        self.assertIn('id="live-order-map-section"', r_act.content.decode('utf-8'))
         self.assertIn('id="eta-arrival-time"', r_act.content.decode('utf-8'))
 
     def test_api_order_status_returns_show_map_flag(self):
@@ -1378,7 +1381,7 @@ class LiveDeliveryMapVisibilityTests(TestCase):
         self.assertEqual(d_del['order_status'], 'delivered')
 
     def test_preparing_and_pickup_orders_keep_map_visible(self):
-        """Orders in preparing or ready_pickup workflow stages display progress and ETA card cleanly."""
+        """Orders in preparing or ready_pickup workflow stages display progress, ETA card, and map cleanly."""
         self.client.force_login(self.customer)
 
         # 1. Preparing stage
@@ -1386,7 +1389,7 @@ class LiveDeliveryMapVisibilityTests(TestCase):
         self.active_order.save()
         r_prep = self.client.get(reverse('order_tracking', kwargs={'order_id': self.active_order.order_id}))
         self.assertEqual(r_prep.status_code, 200)
-        self.assertNotIn('id="live-order-map-section"', r_prep.content.decode('utf-8'))
+        self.assertIn('id="live-order-map-section"', r_prep.content.decode('utf-8'))
         self.assertIn('id="eta-arrival-time"', r_prep.content.decode('utf-8'))
 
         # 2. Ready for pickup stage
@@ -1394,7 +1397,7 @@ class LiveDeliveryMapVisibilityTests(TestCase):
         self.active_order.save()
         r_ready = self.client.get(reverse('order_tracking', kwargs={'order_id': self.active_order.order_id}))
         self.assertEqual(r_ready.status_code, 200)
-        self.assertNotIn('id="live-order-map-section"', r_ready.content.decode('utf-8'))
+        self.assertIn('id="live-order-map-section"', r_ready.content.decode('utf-8'))
         self.assertIn('id="eta-arrival-time"', r_ready.content.decode('utf-8'))
 
 
@@ -1963,6 +1966,58 @@ class OrderLifecycleAndCourierWorkflowTests(TestCase):
         self.assertIsNotNone(data['timestamps']['assigned_time'])
         self.assertIsNone(data['timestamps']['picked_up_time'])
         self.assertIsNone(data['timestamps']['delivered_time'])
+
+    def test_courier_buttons_deleted_and_customer_details_visible(self):
+        """Verifies Zoom Courier & View Both buttons are deleted, and customer details are visible to assigned courier."""
+        assign = DeliveryAssignment.objects.create(
+            order=self.order,
+            delivery_boy=self.courier_profile,
+            status='assigned'
+        )
+        self.client.force_login(self.courier_user)
+        response = self.client.get(reverse('delivery_boy_track', kwargs={'assignment_id': assign.id}))
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+
+        # Deleted buttons must NOT exist
+        self.assertNotIn('btn-zoom-courier', content)
+        self.assertNotIn('btn-view-both', content)
+        self.assertNotIn('🛵 Zoom Courier', content)
+        self.assertNotIn('🔄 View Both', content)
+
+        # Kept buttons MUST exist
+        self.assertIn('btn-zoom-customer', content)
+        self.assertIn('btn-locate-courier', content)
+
+        # Customer name and address must be visible
+        cust_name = self.customer.get_full_name() or self.customer.username.title()
+        self.assertIn(cust_name, content)
+        self.assertIn(self.order.formatted_delivery_address, content)
+
+    def test_courier_dashboard_privacy_and_customer_info(self):
+        """Verifies courier cannot switch vehicles, cannot see other couriers' data, and sees assigned customer details."""
+        assign = DeliveryAssignment.objects.create(
+            order=self.order,
+            delivery_boy=self.courier_profile,
+            status='assigned'
+        )
+        self.client.force_login(self.courier_user)
+        response = self.client.get(reverse('delivery_boy_dashboard'))
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+
+        # Vehicle switcher is available so courier boys can switch between vehicle assignments
+        self.assertIn('name="vehicle_number"', content)
+
+        # View Both button in modal must be deleted
+        self.assertNotIn('modalBtnViewBoth', content)
+        self.assertNotIn('🔄 View Both', content)
+
+        # Assigned customer name & address must be visible on the card
+        cust_name = self.order.customer_name
+        self.assertIn(cust_name, content)
+        self.assertIn(self.order.formatted_delivery_address, content)
+
 
 
 

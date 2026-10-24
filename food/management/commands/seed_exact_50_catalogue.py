@@ -169,7 +169,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": True,
         "contains_egg": False,
         "price": 70.00,
-        "image": "/media/food_photos/new/breakfast/cherupayar_dosa_pesarattu.jpg",
+        "image": "/media/food_photos/green gram dosa.jpg",
         "nutrition": {
             "calories": 220.0, "protein": 11.2, "carbohydrates": 36.0, "total_sugars": 1.4,
             "added_sugars": 0.0, "total_fat": 3.5, "saturated_fat": 0.8, "trans_fat": 0.0,
@@ -232,7 +232,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": True,
         "contains_egg": False,
         "price": 65.00,
-        "image": "/media/food_photos/new/breakfast/broken_wheat_upma.jpg",
+        "image": "/media/food_photos/broken uppumavu.jpg",
         "nutrition": {
             "calories": 205.0, "protein": 6.8, "carbohydrates": 39.0, "total_sugars": 1.4,
             "added_sugars": 0.0, "total_fat": 2.8, "saturated_fat": 0.6, "trans_fat": 0.0,
@@ -253,7 +253,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": True,
         "contains_egg": False,
         "price": 60.00,
-        "image": "/media/food_photos/new/dinner/matta_rice_kanji_green_gram.jpg",
+        "image": "/media/food_photos/Green Gram Rice Porridge.jpg",
         "nutrition": {
             "calories": 210.0, "protein": 8.2, "carbohydrates": 41.0, "total_sugars": 1.2,
             "added_sugars": 0.0, "total_fat": 2.0, "saturated_fat": 1.0, "trans_fat": 0.0,
@@ -274,7 +274,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": False,
         "contains_egg": True,
         "price": 90.00,
-        "image": "/media/food_photos/new/dinner/chapati_with_egg_bhurji.jpg",
+        "image": "/media/food_photos/egg roast.jpg",
         "nutrition": {
             "calories": 320.0, "protein": 14.5, "carbohydrates": 38.0, "total_sugars": 2.8,
             "added_sugars": 0.0, "total_fat": 11.2, "saturated_fat": 2.8, "trans_fat": 0.0,
@@ -341,7 +341,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": False,
         "contains_egg": False,
         "price": 95.00,
-        "image": "/media/food_photos/new/lunch/kerala_vegetable_avial_brown_rice.jpg",
+        "image": "/media/food_photos/Matta Rice with Avial and Thoran.jpg",
         "nutrition": {
             "calories": 360.0, "protein": 7.8, "carbohydrates": 64.0, "total_sugars": 3.5,
             "added_sugars": 0.0, "total_fat": 7.8, "saturated_fat": 5.2, "trans_fat": 0.0,
@@ -362,7 +362,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": False,
         "contains_egg": False,
         "price": 85.00,
-        "image": "/media/food_photos/new/lunch/matta_rice_kumbalanga_moru.jpg",
+        "image": "/media/food_photos/Matta Rice with Moru Curry.jpg",
         "nutrition": {
             "calories": 310.0, "protein": 6.8, "carbohydrates": 58.0, "total_sugars": 3.0,
             "added_sugars": 0.0, "total_fat": 4.5, "saturated_fat": 2.5, "trans_fat": 0.0,
@@ -446,7 +446,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": True,
         "contains_egg": False,
         "price": 85.00,
-        "image": "/media/food_photos/new/lunch/brown_rice_cherupayar_parippu.jpg",
+        "image": "/media/food_photos/Matta Rice with Green Gram Curry.jpg",
         "nutrition": {
             "calories": 335.0, "protein": 10.2, "carbohydrates": 61.0, "total_sugars": 1.8,
             "added_sugars": 0.0, "total_fat": 4.2, "saturated_fat": 1.5, "trans_fat": 0.0,
@@ -467,7 +467,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": True,
         "contains_egg": False,
         "price": 90.00,
-        "image": "/media/food_photos/new/lunch/matta_rice_erissery.jpg",
+        "image": "/media/food_photos/Matta Rice with Black Chickpea Curry.jpg",
         "nutrition": {
             "calories": 355.0, "protein": 10.8, "carbohydrates": 63.0, "total_sugars": 2.0,
             "added_sugars": 0.0, "total_fat": 5.8, "saturated_fat": 2.8, "trans_fat": 0.0,
@@ -488,7 +488,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": False,
         "contains_egg": False,
         "price": 120.00,
-        "image": "/media/food_photos/new/lunch/mathi_sardine_mulakittathu.jpg",
+        "image": "/media/food_photos/Matta Rice with Sardine Curry.jpg",
         "nutrition": {
             "calories": 375.0, "protein": 22.5, "carbohydrates": 54.0, "total_sugars": 1.5,
             "added_sugars": 0.0, "total_fat": 8.8, "saturated_fat": 2.2, "trans_fat": 0.0,
@@ -509,7 +509,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": False,
         "contains_egg": False,
         "price": 140.00,
-        "image": "/media/food_photos/new/lunch/grilled_ayakoora_vegetables.jpg",
+        "image": "/media/food_photos/Matta Rice with Grilled Fish.jpg",
         "nutrition": {
             "calories": 390.0, "protein": 26.0, "carbohydrates": 52.0, "total_sugars": 1.2,
             "added_sugars": 0.0, "total_fat": 8.0, "saturated_fat": 1.8, "trans_fat": 0.0,
@@ -551,7 +551,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": False,
         "contains_egg": False,
         "price": 130.00,
-        "image": "/media/food_photos/new/lunch/kerala_herb_grilled_chicken.jpg",
+        "image": "/media/food_photos/Matta Rice with Light Chicken Curry.jpg",
         "nutrition": {
             "calories": 410.0, "protein": 25.5, "carbohydrates": 55.0, "total_sugars": 1.9,
             "added_sugars": 0.0, "total_fat": 9.0, "saturated_fat": 2.4, "trans_fat": 0.0,
@@ -614,7 +614,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": False,
         "contains_egg": False,
         "price": 100.00,
-        "image": "/media/food_photos/new/lunch/matta_rice_olan_beetroot_thoran.jpg",
+        "image": "/media/food_photos/Matta Rice with Olan and Avial.jpg",
         "nutrition": {
             "calories": 345.0, "protein": 8.2, "carbohydrates": 62.0, "total_sugars": 3.2,
             "added_sugars": 0.0, "total_fat": 7.0, "saturated_fat": 4.8, "trans_fat": 0.0,
@@ -635,7 +635,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": True,
         "contains_egg": False,
         "price": 105.00,
-        "image": "/media/food_photos/new/lunch/millet_sadya_meal_pulissery.jpg",
+        "image": "/media/food_photos/Vegetable Millet and Lentil Bowl.jpg",
         "nutrition": {
             "calories": 310.0, "protein": 11.5, "carbohydrates": 54.0, "total_sugars": 1.5,
             "added_sugars": 0.0, "total_fat": 4.5, "saturated_fat": 0.9, "trans_fat": 0.0,
@@ -660,7 +660,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": True,
         "contains_egg": False,
         "price": 40.00,
-        "image": "/media/food_photos/kozhukatta.jpg",
+        "image": "/media/food_photos/kerala_24/kozhukatta_green_gram.jpg",
         "nutrition": {
             "calories": 160.0, "protein": 2.8, "carbohydrates": 32.0, "total_sugars": 7.5,
             "added_sugars": 5.0, "total_fat": 2.5, "saturated_fat": 1.8, "trans_fat": 0.0,
@@ -702,7 +702,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": True,
         "contains_egg": False,
         "price": 35.00,
-        "image": "/media/food_photos/new/snacks/dry_roasted_chana_snack.jpg",
+        "image": "/media/food_photos/Roasted Black Chickpeas.jpg",
         "nutrition": {
             "calories": 150.0, "protein": 7.5, "carbohydrates": 24.0, "total_sugars": 1.2,
             "added_sugars": 0.0, "total_fat": 2.2, "saturated_fat": 0.4, "trans_fat": 0.0,
@@ -744,7 +744,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": True,
         "contains_egg": False,
         "price": 40.00,
-        "image": "/media/food_photos/new/snacks/sweet_potato_steamed_slices.jpg",
+        "image": "/media/food_photos/Steamed Sweet Potato.jpg",
         "nutrition": {
             "calories": 130.0, "protein": 2.2, "carbohydrates": 30.0, "total_sugars": 6.2,
             "added_sugars": 0.0, "total_fat": 0.2, "saturated_fat": 0.0, "trans_fat": 0.0,
@@ -765,7 +765,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": False,
         "contains_egg": False,
         "price": 50.00,
-        "image": "/media/food_photos/new/snacks/cucumber_carrot_sticks_dip.jpg",
+        "image": "/media/food_photos/Cucumber and Carrot with Yogurt Dip.jpg",
         "nutrition": {
             "calories": 95.0, "protein": 4.2, "carbohydrates": 12.0, "total_sugars": 4.5,
             "added_sugars": 0.0, "total_fat": 2.8, "saturated_fat": 1.6, "trans_fat": 0.0,
@@ -786,7 +786,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": True,
         "contains_egg": False,
         "price": 35.00,
-        "image": "/media/food_photos/new/snacks/boiled_peanut_sundal.jpg",
+        "image": "/media/food_photos/Dry-Roasted Peanuts.jpg",
         "nutrition": {
             "calories": 165.0, "protein": 7.4, "carbohydrates": 6.5, "total_sugars": 1.2,
             "added_sugars": 0.0, "total_fat": 13.5, "saturated_fat": 2.0, "trans_fat": 0.0,
@@ -807,7 +807,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": True,
         "contains_egg": False,
         "price": 35.00,
-        "image": "/media/food_photos/new/snacks/steamed_ethakka_nendran_banana.jpg",
+        "image": "/media/food_photos/Steamed Nendran Banana.jpg",
         "nutrition": {
             "calories": 145.0, "protein": 1.6, "carbohydrates": 35.0, "total_sugars": 14.0,
             "added_sugars": 0.0, "total_fat": 0.4, "saturated_fat": 0.1, "trans_fat": 0.0,
@@ -874,7 +874,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": True,
         "contains_egg": False,
         "price": 80.00,
-        "image": "/media/food_photos/new/dinner/multi_millet_chapati_veg_kurma.jpg",
+        "image": "/media/food_photos/Whole-Wheat Chapati with Vegetable Kurma.jpg",
         "nutrition": {
             "calories": 270.0, "protein": 7.2, "carbohydrates": 44.0, "total_sugars": 2.8,
             "added_sugars": 0.0, "total_fat": 6.5, "saturated_fat": 3.5, "trans_fat": 0.0,
@@ -937,7 +937,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": False,
         "contains_egg": False,
         "price": 85.00,
-        "image": "/media/food_photos/new/dinner/broken_wheat_vegetable_khichdi.jpg",
+        "image": "/media/food_photos/Vegetable Broken Wheat Khichdi.jpg",
         "nutrition": {
             "calories": 240.0, "protein": 8.5, "carbohydrates": 42.0, "total_sugars": 1.8,
             "added_sugars": 0.0, "total_fat": 4.0, "saturated_fat": 1.8, "trans_fat": 0.0,
@@ -979,7 +979,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": False,
         "contains_egg": False,
         "price": 150.00,
-        "image": "/media/food_photos/new/dinner/grilled_seer_fish_steamed_veg.jpg",
+        "image": "/media/food_photos/Grilled Fish with Steamed Vegetables.jpg",
         "nutrition": {
             "calories": 260.0, "protein": 28.0, "carbohydrates": 10.5, "total_sugars": 2.0,
             "added_sugars": 0.0, "total_fat": 8.5, "saturated_fat": 1.6, "trans_fat": 0.0,
@@ -1000,7 +1000,7 @@ EXACT_50_FOOD_CATALOGUE = [
         "is_vegan": False,
         "contains_egg": False,
         "price": 120.00,
-        "image": "/media/food_photos/new/dinner/chicken_breast_stew_with_chapati.jpg",
+        "image": "/media/food_photos/Light Chicken Stew with Whole-Wheat Chapati.jpg",
         "nutrition": {
             "calories": 340.0, "protein": 22.0, "carbohydrates": 38.0, "total_sugars": 2.2,
             "added_sugars": 0.0, "total_fat": 9.2, "saturated_fat": 3.8, "trans_fat": 0.0,

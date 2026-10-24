@@ -123,6 +123,23 @@
                                 {% endif %}
                             </p>
                         </div>
+
+                        <div>
+                            <p style="margin-bottom: 0.3rem;"><strong>Payment Status:</strong></p>
+                            {% if assign.order.payment %}
+                                {% if assign.order.payment.payment_method == 'upi' %}
+                                    <span style="color: #059669; font-weight: 700; font-size: 0.85rem;">💳 Paid Online (₹{{ assign.order.payment.amount }})</span>
+                                {% elif assign.order.payment.payment_method == 'cod' and assign.order.payment.status == 'cash_collected' %}
+                                    <span style="color: #059669; font-weight: 700; font-size: 0.85rem;">💵 Cash Collected Successfully (₹{{ assign.order.payment.amount }} received by {{ assign.delivery_boy.courier_name }})</span>
+                                {% elif assign.order.payment.payment_method == 'cod' and assign.order.payment.status == 'success' %}
+                                    <span style="color: #15803D; font-weight: 700; font-size: 0.85rem;">✅ Cash Collected & Verified (₹{{ assign.order.payment.amount }})</span>
+                                {% elif assign.order.payment.payment_method == 'cod' %}
+                                    <span style="color: #D97706; font-weight: 700; font-size: 0.85rem;">⚠️ Cash on Delivery (₹{{ assign.order.total_amount }})</span>
+                                {% endif %}
+                            {% else %}
+                                <span style="color: var(--text-muted); font-size: 0.85rem;">No payment record</span>
+                            {% endif %}
+                        </div>
                     </div>
 
                     <!-- Live Tracking Link -->
@@ -141,24 +158,62 @@
     </div>
 
     <!-- Active Courier Fleet Panel -->
-    <div class="card" style="grid-column: span 2; margin-top: 1.5rem;">
-        <h3 class="mb-2" style="color: var(--primary-brown); font-weight: 700;">🚚 Registered Delivery Fleet</h3>
-        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1.25rem;">
-            Overview of registered delivery boys and their current availability status.
-        </p>
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;">
+    <div class="card" style="grid-column: span 2; margin-top: 1.5rem; background: #ffffff; border: 1.5px solid var(--border-light); border-radius: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; border-bottom: 1px solid var(--border-light); padding-bottom: 0.75rem;">
+            <div>
+                <h3 style="color: var(--primary-brown); font-weight: 800; margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>🚚</span> Registered Courier Fleet & Real-Time Availability (9 Couriers)
+                </h3>
+                <p style="font-size: 0.88rem; color: var(--text-muted); margin: 0.2rem 0 0 0;">
+                    Live availability statuses: Available, Busy (currently delivering an order), or Offline.
+                </p>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                <span class="badge" style="background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; font-weight: 700; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.8rem;">
+                    🟢 Available: <strong>{{ available_couriers_count }}</strong>
+                </span>
+                <span class="badge" style="background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; font-weight: 700; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.8rem;">
+                    🟡 Busy: <strong>{{ busy_couriers_count }}</strong>
+                </span>
+                <span class="badge" style="background: #F3F4F6; color: #4B5563; border: 1px solid #E5E7EB; font-weight: 700; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.8rem;">
+                    ⚪ Offline: <strong>{{ offline_couriers_count }}</strong>
+                </span>
+            </div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.9rem;">
             {% for c in all_couriers %}
-                <div style="background-color: var(--accent-warm); border: 1.5px solid var(--border-light); border-radius: 12px; padding: 0.85rem; text-align: center;">
-                    <span style="font-size: 1.4rem; display: block; margin-bottom: 0.25rem;">🚚</span>
-                    <strong style="color: var(--primary-brown); font-size: 0.95rem; display: block;">{{ c.courier_name }}</strong>
-                    <div style="font-size: 0.82rem; color: var(--primary-orange); font-family: monospace; font-weight: 700; margin-top: 0.1rem;">👤 {{ c.courier_username }}</div>
-                    <div style="font-size: 0.8rem; color: var(--primary-green); font-weight: 600; margin-top: 0.15rem;">📞 {% if c.user.phone %}<a href="tel:{{ c.user.phone }}" style="color: inherit; text-decoration: none;">{{ c.user.phone }}</a>{% else %}No Phone{% endif %}</div>
-                    {% if c.vehicle_number %}
-                        <div style="font-size: 0.78rem; color: var(--text-muted); font-family: monospace; margin-top: 0.1rem;">🛵 {{ c.vehicle_number }}</div>
-                    {% endif %}
-                    <span class="badge {% if c.status == 'available' %}badge-success{% else %}badge-warning{% endif %}" style="font-size: 0.72rem; margin-top: 0.4rem; padding: 0.2rem 0.6rem;">
-                        {% if c.status == 'available' %}🟢 Available{% else %}🟡 {{ c.get_status_display }}{% endif %}
-                    </span>
+                <div style="background-color: var(--accent-warm); border: 1.5px solid {% if c.realtime_status == 'Available' %}#A7F3D0{% elif c.realtime_status == 'Busy (currently delivering an order)' %}#FDE68A{% else %}var(--border-light){% endif %}; border-radius: 12px; padding: 0.85rem; text-align: center; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <span style="font-size: 1.3rem; display: block; margin-bottom: 0.2rem;">🚚</span>
+                        <strong style="color: var(--primary-brown); font-size: 0.95rem; display: block;">{{ c.courier_name }}</strong>
+                        <div style="font-size: 0.82rem; color: var(--primary-orange); font-family: monospace; font-weight: 700; margin-top: 0.1rem;">👤 {{ c.courier_username }}</div>
+                        <div style="font-size: 0.82rem; color: var(--primary-green); font-weight: 700; margin-top: 0.15rem;">
+                            📞 {% if c.user.phone %}<a href="tel:{{ c.user.phone }}" style="color: inherit; text-decoration: none;">{{ c.user.phone }}</a>{% else %}No Phone{% endif %}
+                        </div>
+                        {% if c.vehicle_number %}
+                            <div style="font-size: 0.78rem; color: var(--text-muted); font-family: monospace; margin-top: 0.1rem;">🛵 {{ c.vehicle_number }}</div>
+                        {% endif %}
+                    </div>
+                    <div style="margin-top: 0.5rem; border-top: 1px dashed var(--border-light); padding-top: 0.4rem;">
+                        {% if c.realtime_status == 'Available' %}
+                            <span class="badge" style="background: #10B981; color: white; font-size: 0.72rem; padding: 0.25rem 0.6rem; border-radius: 20px; font-weight: 700;">
+                                🟢 Available
+                            </span>
+                        {% elif c.realtime_status == 'Busy (currently delivering an order)' %}
+                            <span class="badge" style="background: #F59E0B; color: #78350F; font-size: 0.72rem; padding: 0.25rem 0.6rem; border-radius: 20px; font-weight: 700;">
+                                🟡 Busy (currently delivering an order)
+                            </span>
+                            {% if c.active_assignment %}
+                                <div style="font-size: 0.72rem; color: #92400E; font-weight: 700; margin-top: 0.25rem;">
+                                    Delivering #{{ c.active_assignment.order.order_id }}
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <span class="badge" style="background: #9CA3AF; color: white; font-size: 0.72rem; padding: 0.25rem 0.6rem; border-radius: 20px; font-weight: 700;">
+                                ⚪ Offline
+                            </span>
+                        {% endif %}
+                    </div>
                 </div>
             {% empty %}
                 <p style="color: var(--text-muted); grid-column: 1/-1;">No delivery personnel registered.</p>
@@ -171,6 +226,89 @@
 <!-- =========================================================
      TAB 1: CUSTOMER FOOD ORDERS MANAGEMENT
      ========================================================= -->
+
+<!-- Courier Fleet & Real-Time Availability (9 Couriers) Section -->
+<div class="card mb-4" style="background: #ffffff; border: 1.5px solid var(--border-light); border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.04);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; border-bottom: 1px solid var(--border-light); padding-bottom: 0.85rem;">
+        <div>
+            <h3 style="color: var(--primary-brown); font-weight: 800; margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span>🚚</span> Courier Fleet & Real-Time Availability (9 Couriers)
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.88rem; margin: 0.25rem 0 0 0;">
+                Real-time statuses of all 9 courier boys with mobile numbers. Automatically updated with assignments and completions.
+            </p>
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+            <span class="badge" style="background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; font-weight: 700; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.82rem;">
+                🟢 Available: <strong>{{ available_couriers_count }}</strong>
+            </span>
+            <span class="badge" style="background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; font-weight: 700; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.82rem;">
+                🟡 Busy (delivering): <strong>{{ busy_couriers_count }}</strong>
+            </span>
+            <span class="badge" style="background: #F3F4F6; color: #4B5563; border: 1px solid #E5E7EB; font-weight: 700; padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.82rem;">
+                ⚪ Offline: <strong>{{ offline_couriers_count }}</strong>
+            </span>
+        </div>
+    </div>
+
+    <!-- 9 Couriers Fleet Grid -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0.9rem;">
+        {% for c in all_couriers %}
+            <div style="background-color: var(--accent-warm); border: 1.5px solid {% if c.realtime_status == 'Available' %}#A7F3D0{% elif c.realtime_status == 'Busy (currently delivering an order)' %}#FDE68A{% else %}var(--border-light){% endif %}; border-radius: 14px; padding: 0.95rem; display: flex; flex-direction: column; justify-content: space-between; gap: 0.5rem; transition: var(--transition);">
+                <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                        <strong style="color: var(--primary-brown); font-size: 0.98rem; display: flex; align-items: center; gap: 0.35rem;">
+                            <span>🚚</span> {{ c.courier_name }}
+                        </strong>
+                        <span style="font-family: monospace; font-size: 0.78rem; color: var(--primary-orange); font-weight: 700;">
+                            {{ c.courier_username }}
+                        </span>
+                    </div>
+
+                    <div style="font-size: 0.85rem; color: #065F46; font-weight: 700; margin-bottom: 0.2rem;">
+                        📞 {% if c.user.phone %}<a href="tel:{{ c.user.phone }}" style="color: #047857; text-decoration: none;">{{ c.user.phone }}</a>{% else %}<span style="color: var(--text-muted);">No Mobile</span>{% endif %}
+                    </div>
+
+                    {% if c.vehicle_number %}
+                        <div style="font-size: 0.78rem; color: var(--text-muted); font-family: monospace; margin-bottom: 0.35rem;">
+                            🛵 {{ c.vehicle_number }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div style="border-top: 1px dashed var(--border-light); padding-top: 0.45rem;">
+                    {% if c.realtime_status == 'Available' %}
+                        <span class="badge" style="background: #10B981; color: #ffffff; font-weight: 700; font-size: 0.74rem; padding: 0.25rem 0.65rem; border-radius: 20px; display: inline-block;">
+                            🟢 Available
+                        </span>
+                        <div style="font-size: 0.75rem; color: #059669; font-weight: 600; margin-top: 0.25rem;">
+                            ✓ Ready for assignment
+                        </div>
+                    {% elif c.realtime_status == 'Busy (currently delivering an order)' %}
+                        <span class="badge" style="background: #F59E0B; color: #78350F; font-weight: 700; font-size: 0.74rem; padding: 0.25rem 0.65rem; border-radius: 20px; display: inline-block;">
+                            🟡 Busy (currently delivering an order)
+                        </span>
+                        {% if c.active_assignment %}
+                            <div style="font-size: 0.75rem; color: #92400E; font-weight: 700; margin-top: 0.25rem;">
+                                📦 Order #{{ c.active_assignment.order.order_id }} ({{ c.active_assignment.get_status_display }})
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge" style="background: #9CA3AF; color: #ffffff; font-weight: 700; font-size: 0.74rem; padding: 0.25rem 0.65rem; border-radius: 20px; display: inline-block;">
+                            ⚪ Offline
+                        </span>
+                        <div style="font-size: 0.75rem; color: #6B7280; font-weight: 600; margin-top: 0.25rem;">
+                            Currently unavailable
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% empty %}
+            <p style="color: var(--text-muted); grid-column: 1/-1;">No delivery personnel registered.</p>
+        {% endfor %}
+    </div>
+</div>
+
 <div class="card">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.5rem;">
         <div>
@@ -183,6 +321,26 @@
             Total Orders: {{ orders|length }}
         </span>
     </div>
+
+    {% if cash_collected_orders_count %}
+        <!-- Cash Collected Successfully Staff Alert Banner -->
+        <div style="background: #ECFDF5; border: 1.5px solid #10B981; border-radius: 12px; padding: 0.9rem 1.25rem; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <span style="font-size: 1.5rem;">💵</span>
+                <div>
+                    <strong style="color: #065F46; font-size: 0.95rem; display: block;">
+                        Cash Collected Successfully ({{ cash_collected_orders_count }} Order{{ cash_collected_orders_count|pluralize }})
+                    </strong>
+                    <span style="color: #047857; font-size: 0.84rem;">
+                        Courier boy has received payment from customer. Please verify and confirm cash deposited to register below.
+                    </span>
+                </div>
+            </div>
+            <span class="badge" style="background: #059669; color: #fff; font-weight: 800; padding: 0.45rem 0.9rem; border-radius: 8px; font-size: 0.85rem;">
+                ✓ Cash Collected Successfully
+            </span>
+        </div>
+    {% endif %}
 
     <div style="display: flex; flex-direction: column; gap: 1.25rem;">
         {% for order in orders %}
@@ -276,14 +434,104 @@
                         
                         <div style="margin-top: 0.75rem; padding-top: 0.5rem; border-top: 1px solid var(--border-light);">
                             {% if order.payment %}
-                                <span style="font-size: 0.85rem;">
-                                    Payment Method: <strong>{{ order.payment.get_payment_method_display }}</strong> | Status: 
-                                    {% if order.payment.status == 'success' %}
-                                        <span style="color: var(--success); font-weight: 700;">Verified</span>
-                                    {% else %}
-                                        <span style="color: var(--danger); font-weight: 700;">Pending</span>
-                                    {% endif %}
-                                </span>
+                                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.4rem; font-size: 0.88rem;">
+                                    <span>
+                                        Payment Method: <strong>{{ order.payment.get_payment_method_display }}</strong> | Status: 
+                                        {% if order.payment.payment_method == 'upi' and order.payment.status in 'success,paid_online' %}
+                                            <strong style="color: #059669;">Paid Online</strong>
+                                        {% elif order.payment.payment_method == 'cod' and order.payment.status == 'cash_collected' %}
+                                            <strong style="color: #059669;">Cash Collected Successfully</strong>
+                                        {% elif order.payment.payment_method == 'cod' and order.payment.status == 'success' %}
+                                            <strong style="color: #059669;">Cash Collected (Verified)</strong>
+                                        {% elif order.payment.payment_method == 'cod' and order.payment.status == 'pending' %}
+                                            <strong style="color: #D97706;">Cash on Delivery</strong>
+                                        {% else %}
+                                            <strong style="color: var(--danger);">{{ order.payment.get_status_display }}</strong>
+                                        {% endif %}
+                                    </span>
+                                </div>
+
+                                {% if order.payment.payment_method == 'upi' and order.payment.status in 'success,paid_online' %}
+                                    <!-- Online Payment Clear Status -->
+                                    <div style="margin-top: 0.6rem; background: #ECFDF5; border: 1.5px solid #10B981; border-radius: 8px; padding: 0.6rem 0.85rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                                        <div style="display: flex; align-items: center; gap: 0.45rem;">
+                                            <span style="font-size: 1.15rem;">💳</span>
+                                            <div>
+                                                <strong style="color: #065F46; font-size: 0.9rem; display: block;">Paid Online</strong>
+                                                <span style="color: #047857; font-size: 0.8rem;">Amount: <strong>₹{{ order.payment.amount }}</strong> • Ref: {{ order.payment.transaction_id|default:"UPI" }}</span>
+                                            </div>
+                                        </div>
+                                        <span class="badge" style="background: #10B981; color: white; font-weight: 700; padding: 0.3rem 0.7rem; border-radius: 6px; font-size: 0.82rem;">
+                                            Paid Online
+                                        </span>
+                                    </div>
+
+                                {% elif order.payment.payment_method == 'cod' and order.payment.status == 'pending' %}
+                                    <!-- Cash on Delivery Reminder -->
+                                    <div style="margin-top: 0.6rem; background: #FFFBEB; border: 1.5px solid #F59E0B; border-radius: 8px; padding: 0.65rem 0.85rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                                        <div style="display: flex; align-items: center; gap: 0.45rem;">
+                                            <span style="font-size: 1.25rem;">⚠️</span>
+                                            <div>
+                                                <strong style="color: #92400E; font-size: 0.9rem; display: block;">Cash on Delivery Reminder</strong>
+                                                <span style="color: #B45309; font-size: 0.82rem;">Requires cash collection upon delivery: <strong>₹{{ order.total_amount }}</strong></span>
+                                            </div>
+                                        </div>
+                                        <span class="badge" style="background: #F59E0B; color: #78350F; font-weight: 800; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.82rem;">
+                                            Cash on Delivery
+                                        </span>
+                                    </div>
+
+                                {% elif order.payment.payment_method == 'cod' and order.payment.status == 'cash_collected' %}
+                                    <!-- Courier Cash Collected Successfully Notice -->
+                                    <div style="margin-top: 0.6rem; background: #ECFDF5; border: 1.5px solid #10B981; border-radius: 8px; padding: 0.65rem 0.85rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                                        <div style="display: flex; align-items: center; gap: 0.45rem;">
+                                            <span style="font-size: 1.25rem;">💵</span>
+                                            <div>
+                                                <strong style="color: #065F46; font-size: 0.92rem; display: block;">
+                                                    Cash Collected Successfully &bull; Cash Received by Courier Boy
+                                                </strong>
+                                                <span style="color: #047857; font-size: 0.82rem;">
+                                                    Cash of <strong>₹{{ order.payment.amount }}</strong> has been collected successfully from customer by courier 
+                                                    <strong>
+                                                        {% if order.payment.cash_collected_by %}
+                                                            {{ order.payment.cash_collected_by.get_full_name|default:order.payment.cash_collected_by.username|title }}
+                                                        {% elif order.delivery_assignment and order.delivery_assignment.delivery_boy %}
+                                                            {{ order.delivery_assignment.delivery_boy.courier_name }}
+                                                        {% else %}
+                                                            Courier Boy
+                                                        {% endif %}
+                                                    </strong>
+                                                    {% if order.payment.cash_collected_at %}
+                                                        ({{ order.payment.cash_collected_at|date:"h:i A" }})
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+                                            <span class="badge badge-success" style="background: #059669; color: white; font-weight: 800; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.82rem;">
+                                                ✓ Cash Collected Successfully
+                                            </span>
+                                            <span class="badge" style="background: #E0E7FF; color: #3730A3; font-weight: 700; padding: 0.35rem 0.65rem; border-radius: 6px; font-size: 0.78rem;">
+                                                Cash Received by Courier
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                {% elif order.payment.payment_method == 'cod' and order.payment.status == 'success' %}
+                                    <!-- Staff Confirmed Receipt -->
+                                    <div style="margin-top: 0.6rem; background: #F0FDF4; border: 1.5px solid #22C55E; border-radius: 8px; padding: 0.6rem 0.85rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                                        <div style="display: flex; align-items: center; gap: 0.45rem;">
+                                            <span style="font-size: 1.15rem;">✅</span>
+                                            <div>
+                                                <strong style="color: #15803D; font-size: 0.9rem; display: block;">Cash Received & Confirmed by Staff</strong>
+                                                <span style="color: #166534; font-size: 0.8rem;">Amount: <strong>₹{{ order.payment.amount }}</strong> &bull; Cash collected and deposited to register</span>
+                                            </div>
+                                        </div>
+                                        <span class="badge badge-success" style="background: #16A34A; color: white; font-weight: 700; padding: 0.3rem 0.65rem; border-radius: 6px; font-size: 0.82rem;">
+                                            Cash Collected & Verified
+                                        </span>
+                                    </div>
+                                {% endif %}
                             {% endif %}
                         </div>
                     </div>
@@ -353,28 +601,24 @@
     <form method="POST" action="{% url 'staff_assign_delivery' order.order_id %}" style="display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; flex: 1; max-width: 520px;">
         {% csrf_token %}
         <select name="delivery_boy_id" class="form-control" style="padding: 0.55rem 0.85rem; font-size: 0.88rem; flex: 1; min-width: 220px; font-weight: 600;" required {% if available_couriers_count == 0 %}disabled{% endif %}>
-            <option value="" disabled selected>-- Select Courier --</option>
-            <optgroup label="🟢 Available Couriers (At Hotel)">
+            <option value="" disabled selected>-- Select Available Courier --</option>
+            <optgroup label="🟢 Available Couriers (Ready to Assign)">
             {% for db in delivery_boys %}
-                {% if db.status == 'available' %}
+                {% if db.realtime_status == 'Available' %}
                     <option value="{{ db.id }}">
-                        {{ db.courier_name }} — {{ db.courier_username }} — {{ db.user.phone|default:"No Phone" }} [Vehicle #{{ db.vehicle_number }}]
+                        {{ db.courier_name }} — 📞 {{ db.user.phone|default:"No Phone" }} [{{ db.vehicle_number }}] — Available
                     </option>
                 {% endif %}
             {% endfor %}
             </optgroup>
             
-            <optgroup label="🟡 Busy / Offline Couriers">
+            <optgroup label="🟡 Busy / Offline Couriers (Unavailable)">
             {% for db in delivery_boys %}
-                {% if db.status != 'available' %}
+                {% if db.realtime_status != 'Available' %}
                     <option value="{{ db.id }}" disabled>
-                        {{ db.courier_name }} — {{ db.get_status_display }}
-                        {% if db.status == 'on_delivery' %}
-                            {% for assignment in db.assignments.all %}
-                                {% if assignment.is_active %}
-                                    (Order #{{ assignment.order.order_id }})
-                                {% endif %}
-                            {% endfor %}
+                        {{ db.courier_name }} — 📞 {{ db.user.phone|default:"No Phone" }} [{{ db.realtime_status }}]
+                        {% if db.active_assignment %}
+                            (Delivering Order #{{ db.active_assignment.order.order_id }})
                         {% endif %}
                     </option>
                 {% endif %}
@@ -415,13 +659,23 @@
                             </form>
                         {% endif %}
 
-                        {% if order.payment and order.payment.status == 'pending' %}
-                            <form method="POST" action="{% url 'staff_confirm_payment' order.order_id %}">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-outline" style="padding: 0.4rem 0.9rem; font-size: 0.82rem;">
-                                    Confirm COD Payment
-                                </button>
-                            </form>
+                        {% if order.payment and order.payment.payment_method == 'cod' %}
+                            {% if order.payment.status == 'cash_collected' %}
+                                <form method="POST" action="{% url 'staff_confirm_payment' order.order_id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; background: #059669; color: #ffffff; font-weight: 700; border: none; border-radius: 6px;">
+                                        ✓ Confirm Cash Deposited to Register
+                                    </button>
+                                </form>
+                            {% elif order.payment.status == 'success' %}
+                                <span style="font-size: 0.82rem; color: #059669; font-weight: 700; display: inline-flex; align-items: center; gap: 0.25rem;">
+                                    ✓ Cash Collected & Verified
+                                </span>
+                            {% endif %}
+                        {% elif order.payment and order.payment.payment_method == 'upi' and order.payment.status in 'success,paid_online' %}
+                            <span style="font-size: 0.82rem; color: #059669; font-weight: 700; display: inline-flex; align-items: center; gap: 0.25rem;">
+                                ✓ Paid Online
+                            </span>
                         {% endif %}
                         
                         <a href="{% url 'order_tracking' order.order_id %}" class="btn btn-outline" style="padding: 0.4rem 0.9rem; font-size: 0.82rem;">

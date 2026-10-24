@@ -459,6 +459,9 @@
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
             if (!AudioCtx) return;
             const ctx = new AudioCtx();
+            if (ctx.state === 'suspended') {
+                ctx.resume();
+            }
             const now = ctx.currentTime;
 
             // Tone 1: High crisp ding (D5)
@@ -487,6 +490,26 @@
         } catch(e) {
             console.log("Audio notification skipped or blocked by browser autoplay policy:", e);
         }
+    }
+
+    function unlockChefAudio() {
+        if (window._chefAudioUnlocked) return;
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+                const dummyCtx = new AudioCtx();
+                dummyCtx.resume().then(() => {
+                    dummyCtx.close();
+                    window._chefAudioUnlocked = true;
+                });
+            }
+        } catch(e) {}
+    }
+    document.addEventListener('click', unlockChefAudio, { once: true });
+    document.addEventListener('touchstart', unlockChefAudio, { once: true });
+
+    if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission().catch(() => {});
     }
 
     // Modal Control Functions
@@ -664,6 +687,14 @@
                                     if (!isInitialLoad) {
                                         playNotificationSound();
                                         openNewOrderModal(pOrder);
+                                        if ("Notification" in window && Notification.permission === "granted") {
+                                            try {
+                                                new Notification("Veetile-Ruchi Chef: New Order!", {
+                                                    body: `Order #${pOrder.order_id} • ${pOrder.items_summary || 'New dishes to prepare'}`,
+                                                    icon: '/static/img/logo.png'
+                                                });
+                                            } catch(e) {}
+                                        }
                                     }
                                 }
                             });

@@ -94,30 +94,20 @@ class ChefProfile(models.Model):
 class DeliveryBoyProfile(models.Model):
     STATUS_CHOICES = (
         ('available', 'Available'),
-        ('on_delivery', 'On Delivery'),
+        ('on_delivery', 'Busy (currently delivering an order)'),
+        ('busy', 'Busy (currently delivering an order)'),
         ('offline', 'Offline'),
     )
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='delivery_boy_profile')
     vehicle_number = models.CharField(max_length=30, blank=True, null=True)
-    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='available', db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available', db_index=True)
     rating = models.FloatField(default=5.0)
     current_latitude = models.FloatField(default=9.5564)
     current_longitude = models.FloatField(default=76.7909)
 
     @property
     def courier_number(self):
-        """Returns 'Courier X' for the profile based on user phone or username."""
-        PHONE_MAP = {
-            '7510672352': 'Courier 1',
-            '7510672351': 'Courier 2',
-            '7510672353': 'Courier 3',
-            '7510672354': 'Courier 4',
-            '7510672355': 'Courier 5',
-            '7510672356': 'Courier 6',
-            '7510672357': 'Courier 7',
-            '7510672358': 'Courier 8',
-            '7510672359': 'Courier 9',
-        }
+        """Returns 'Courier X' for the profile based on user username or phone."""
         USER_MAP = {
             'courier1': 'Courier 1',
             'courier2': 'Courier 2',
@@ -130,13 +120,24 @@ class DeliveryBoyProfile(models.Model):
             'courier8': 'Courier 8',
             'courier9': 'Courier 9',
         }
+        PHONE_MAP = {
+            '7510672351': 'Courier 1',
+            '7510672352': 'Courier 2',
+            '7510672353': 'Courier 3',
+            '7510672354': 'Courier 4',
+            '7510672355': 'Courier 5',
+            '7510672356': 'Courier 6',
+            '7510672357': 'Courier 7',
+            '7510672358': 'Courier 8',
+            '7510672359': 'Courier 9',
+        }
         if not self.user:
             return "Courier"
-        if self.user.phone in PHONE_MAP:
-            return PHONE_MAP[self.user.phone]
         u = self.user.username.lower()
         if u in USER_MAP:
             return USER_MAP[u]
+        if self.user.phone in PHONE_MAP:
+            return PHONE_MAP[self.user.phone]
         full = self.user.get_full_name().strip()
         if "Courier" in full:
             return full
@@ -160,8 +161,53 @@ class DeliveryBoyProfile(models.Model):
             return 'courier5'
         return self.user.username
 
+    @property
+    def realtime_status(self):
+        """
+        Returns one of the 3 real-time statuses required by prompt:
+        - 'Offline'
+        - 'Busy (currently delivering an order)'
+        - 'Available'
+        """
+        if self.status == 'offline':
+            return 'Offline'
+        
+        # Check if courier has any active delivery assignment in progress
+        has_active = hasattr(self, 'assignments') and self.assignments.filter(
+            status__in=['assigned', 'picked_up', 'in_transit'],
+            is_active=True
+        ).exists()
+        if self.status in ['on_delivery', 'busy'] or has_active:
+            return 'Busy (currently delivering an order)'
+        return 'Available'
+
+    @property
+    def realtime_status_display(self):
+        return self.realtime_status
+
+    @property
+    def is_available(self):
+        return self.realtime_status == 'Available'
+
+    @property
+    def is_busy(self):
+        return self.realtime_status == 'Busy (currently delivering an order)'
+
+    @property
+    def is_offline(self):
+        return self.realtime_status == 'Offline'
+
+    @property
+    def active_assignment(self):
+        if hasattr(self, 'assignments'):
+            return self.assignments.filter(
+                status__in=['assigned', 'picked_up', 'in_transit'],
+                is_active=True
+            ).select_related('order').first()
+        return None
+
     def __str__(self):
-        return f"{self.courier_name} ({self.user.username}): {self.get_status_display()}"
+        return f"{self.courier_name} ({self.user.username}): {self.realtime_status}"
 
 class PasswordResetOTP(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_reset_otps')

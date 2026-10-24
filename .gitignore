@@ -22,3 +22,8 @@ generate_pdf.py
 *.backup
 # initial_data_backup.json is preserved for deployment and database synchronization
 lib/
+backups_verified/
+db_dump_*.json
+db_pre_supabase_backup.*
+MCA_Academic_Report_Toolkit/
+

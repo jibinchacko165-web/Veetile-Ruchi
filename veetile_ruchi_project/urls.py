@@ -44,6 +44,7 @@ urlpatterns = [
     path('orders/', include('orders.urls')),
     path('health/', include('health.urls')),
     path('ai/', include('ai_models.urls')),
+    path('food/', include('food.urls')),
     path('', include('food.urls')),  # Homepage & Catalog
 ]
 

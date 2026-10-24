@@ -70,8 +70,9 @@ class MapTest(BaseSeleniumTest):
         map_dragging_enabled = self.driver.execute_script("return typeof leafletMap !== 'undefined' && leafletMap.dragging.enabled();")
         self.assertTrue(map_dragging_enabled)
 
-        marker_dragging_enabled = self.driver.execute_script("return typeof leafletMarker !== 'undefined' && leafletMarker.dragging.enabled();")
-        self.assertTrue(marker_dragging_enabled)
+        # Verify marker dragging is disabled to prevent accidental movement (fixed pin requirement)
+        marker_dragging_enabled = self.driver.execute_script("return typeof leafletMarker !== 'undefined' && leafletMarker.dragging && leafletMarker.dragging.enabled();")
+        self.assertFalse(marker_dragging_enabled)
 
         # Verify panning the map does NOT alter the saved coordinates
         initial_lat = self.driver.find_element(By.ID, 'loc_lat').get_attribute('value')
@@ -83,10 +84,14 @@ class MapTest(BaseSeleniumTest):
         self.assertEqual(initial_lat, post_pan_lat)
         self.assertEqual(initial_lon, post_pan_lon)
 
-        # Verify intentional marker drag updates coordinates
+        # Verify intentional selection updates coordinates (via preset, map click or syncProfileCoordinates)
+        time.sleep(0.5)
         self.driver.execute_script("""
-            leafletMarker.setLatLng([9.5800, 76.8000]);
-            leafletMarker.fire('dragend');
+            if (typeof syncProfileCoordinates === 'function') {
+                syncProfileCoordinates(9.5800, 76.8000);
+            } else {
+                leafletMap.fire('click', {latlng: L.latLng(9.5800, 76.8000)});
+            }
         """)
         updated_lat = self.driver.find_element(By.ID, 'loc_lat').get_attribute('value')
         updated_lon = self.driver.find_element(By.ID, 'loc_lon').get_attribute('value')

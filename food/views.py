@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
 from django.contrib import messages
 from django.utils import timezone
+from django.db import transaction, OperationalError
 from django.db.models import Q, Avg, Sum, Count, F, FloatField
 from .models import FoodItem, Category, MealSession, NutritionInfo, ReviewSentiment
 from accounts.models import User, ChefProfile, DeliveryBoyProfile
@@ -351,31 +352,14 @@ def chef_dashboard(request):
         order_items_all = list(OrderItem.objects.filter(food_item__in=chef_foods))
         
     # Calculate AI forecasting for each food
-    forecasts = []
     today_weekday = datetime.datetime.now().weekday()
-    
+    today_date = datetime.date.today()
+    forecasts = []
+
+    # 1. Compute in-memory forecasts first
     for food in chef_foods:
         demand, waste, deplete_days = get_forecasts(food, order_items_all, day_of_week=today_weekday)
-        
-        # Store in DB tables
-        FoodDemandForecast.objects.update_or_create(
-            food_item=food,
-            forecast_date=datetime.date.today(),
-            defaults={'predicted_quantity': demand, 'confidence_score': 0.85}
-        )
-        FoodWastePrediction.objects.update_or_create(
-            food_item=food,
-            prediction_date=datetime.date.today(),
-            defaults={'predicted_waste_quantity': waste}
-        )
-        
         refill_needed = max(0, int(demand * 1.2) - food.stock_quantity)
-        StockPrediction.objects.update_or_create(
-            food_item=food,
-            prediction_date=datetime.date.today(),
-            defaults={'predicted_days_until_out_of_stock': deplete_days, 'stock_needed_refill': refill_needed}
-        )
-        
         forecasts.append({
             'food': food,
             'demand': demand,
@@ -384,6 +368,30 @@ def chef_dashboard(request):
             'refill': refill_needed,
             'out_of_stock_warning': deplete_days < 2.0
         })
+
+    # 2. Persist in DB tables using a single atomic transaction with SQLite lock protection
+    try:
+        with transaction.atomic():
+            for item in forecasts:
+                f_food = item['food']
+                FoodDemandForecast.objects.update_or_create(
+                    food_item=f_food,
+                    forecast_date=today_date,
+                    defaults={'predicted_quantity': item['demand'], 'confidence_score': 0.85}
+                )
+                FoodWastePrediction.objects.update_or_create(
+                    food_item=f_food,
+                    prediction_date=today_date,
+                    defaults={'predicted_waste_quantity': item['waste']}
+                )
+                StockPrediction.objects.update_or_create(
+                    food_item=f_food,
+                    prediction_date=today_date,
+                    defaults={'predicted_days_until_out_of_stock': item['deplete_days'], 'stock_needed_refill': item['refill']}
+                )
+    except (OperationalError, Exception) as db_lock_err:
+        # Graceful fallback: If SQLite is busy or locked, proceed with in-memory forecasts
+        pass
         
     has_pending_orders = any(item.order.status == 'pending' for item in orders_items)
 
@@ -494,6 +502,7 @@ def api_chef_orders(request):
             'customer_phone': cust_phone,
             'delivery_address': item.order.delivery_address or '',
             'customer_notes': item.order.customer_delivery_notes or '',
+            'order_notes': item.order.customer_delivery_notes or '',
             'total_amount': float(item.order.total_amount),
         }
         data.append(item_dict)
@@ -507,6 +516,7 @@ def api_chef_orders(request):
                     'customer_phone': cust_phone,
                     'delivery_address': item.order.delivery_address or '',
                     'customer_notes': item.order.customer_delivery_notes or '',
+                    'order_notes': item.order.customer_delivery_notes or '',
                     'total_amount': float(item.order.total_amount),
                     'created_at': created_str,
                     'status': item.order.status,

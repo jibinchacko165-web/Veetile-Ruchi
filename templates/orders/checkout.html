@@ -51,10 +51,15 @@
         justify-content: space-between;
         align-items: center;
     }
+    .custom-dest-pin-icon, .custom-hub-icon {
+        background: transparent !important;
+        border: none !important;
+    }
 </style>
 <script>
     const CENTRAL_HUB_LAT = 9.5564;
     const CENTRAL_HUB_LON = 76.7909;
+    let leafletMap, leafletMarker, leafletHubMarker, leafletCircle;
     
     let currentBranchLat = parseFloat("{{ hub_lat|default:9.5564 }}");
     let currentBranchLon = parseFloat("{{ hub_lon|default:76.7909 }}");
@@ -118,6 +123,14 @@
         const hubRadiusDisplay = document.getElementById('hub-radius-display');
         if (hubRadiusDisplay) hubRadiusDisplay.textContent = `${currentBranchRadiusKm} km`;
         
+        if (leafletMap && leafletHubMarker && leafletCircle) {
+            leafletHubMarker.setLatLng([currentBranchLat, currentBranchLon]);
+            leafletHubMarker.bindPopup(`<strong>🏨 ${currentBranchName}</strong><br>${branch.address}<br>Max Delivery Radius: ${currentBranchRadiusKm} km`);
+            leafletCircle.setLatLng([currentBranchLat, currentBranchLon]);
+            leafletCircle.setRadius(currentBranchRadiusKm * 1000);
+            leafletMap.panTo([currentBranchLat, currentBranchLon]);
+        }
+
         const curLat = parseFloat(document.getElementById('latitude').value) || currentBranchLat;
         const curLon = parseFloat(document.getElementById('longitude').value) || currentBranchLon;
         updatePerimeterStatus(curLat, curLon);
@@ -166,6 +179,39 @@
         return true;
     }
 
+    function updateMapMarker(lat, lon, zoom = 15) {
+        let latNum = parseFloat(lat);
+        let lonNum = parseFloat(lon);
+        if (isNaN(latNum) || isNaN(lonNum)) return;
+
+        // Auto-correct reversed coordinates if needed
+        if (latNum >= 70 && latNum <= 80 && lonNum >= 8 && lonNum <= 13) {
+            const temp = latNum;
+            latNum = lonNum;
+            lonNum = temp;
+        }
+
+        const customerLatLng = L.latLng(Number(latNum), Number(lonNum));
+        if (
+            !Number.isFinite(customerLatLng.lat) ||
+            !Number.isFinite(customerLatLng.lng) ||
+            Math.abs(customerLatLng.lat) > 90 ||
+            Math.abs(customerLatLng.lng) > 180
+        ) {
+            console.error("Invalid customer GPS coordinates:", lat, lon);
+            return;
+        }
+
+        if (leafletMap) {
+            if (leafletMarker) {
+                leafletMarker.setLatLng(customerLatLng);
+            }
+            leafletMap.setView(customerLatLng, zoom || leafletMap.getZoom() || 15);
+            leafletMap.invalidateSize();
+        }
+    }
+    const updateMapCenter = updateMapMarker;
+
     function selectSavedLocation(locId, lat, lon, name, landmark, desc) {
         document.querySelectorAll('.location-option-card').forEach(el => el.classList.remove('selected'));
         const card = document.getElementById('loc_card_' + locId);
@@ -179,6 +225,7 @@
         const customDiv = document.getElementById('custom_location_container');
         if (customDiv) customDiv.style.display = 'none';
 
+        updateMapMarker(lat, lon);
         syncDestinationCoordinates(lat, lon, null, 'saved');
         updatePerimeterStatus(lat, lon);
     }
@@ -191,6 +238,24 @@
         const customDiv = document.getElementById('custom_location_container');
         if (customDiv) {
             customDiv.style.display = 'block';
+            
+            const currentLat = parseFloat(document.getElementById('latitude').value) || currentBranchLat || CENTRAL_HUB_LAT;
+            const currentLng = parseFloat(document.getElementById('longitude').value) || currentBranchLon || CENTRAL_HUB_LON;
+
+            if (leafletMap) {
+                leafletMap.invalidateSize();
+                leafletMap.setView([currentLat, currentLng], 15);
+            } else {
+                initLeafletMap();
+            }
+
+            [50, 150, 350, 600].forEach(delay => {
+                setTimeout(() => {
+                    if (leafletMap) {
+                        leafletMap.invalidateSize();
+                    }
+                }, delay);
+            });
         }
     }
 
@@ -207,6 +272,7 @@
         const searchInput = document.getElementById('kerala_search_input');
         if (searchInput) searchInput.value = name;
 
+        updateMapMarker(lat, lon);
         syncDestinationCoordinates(lat, lon, null, 'preset');
         updatePerimeterStatus(lat, lon);
     }
@@ -295,6 +361,7 @@
                 }
 
                 syncDestinationCoordinates(lat, lon, acc, 'gps');
+                updateMapMarker(lat, lon, 16);
             },
             function(error) {
                 let msg = error.message || 'Unable to retrieve location.';
@@ -361,10 +428,176 @@
         }
     }
 
+    function initLeafletMap() {
+        const mapContainer = document.getElementById('checkout-map-picker');
+        if (!mapContainer || typeof L === 'undefined') return;
+
+        // Prevent duplicate initialization
+        if (leafletMap) {
+            try {
+                leafletMap.off();
+                leafletMap.remove();
+            } catch(e) {}
+            leafletMap = null;
+        }
+        if (mapContainer._leaflet_id) {
+            delete mapContainer._leaflet_id;
+        }
+        mapContainer.innerHTML = '';
+
+        const latInput = document.getElementById('latitude');
+        const lonInput = document.getElementById('longitude');
+        const initLat = (latInput && parseFloat(latInput.value)) || currentBranchLat || CENTRAL_HUB_LAT;
+        const initLng = (lonInput && parseFloat(lonInput.value)) || currentBranchLon || CENTRAL_HUB_LON;
+
+        leafletMap = L.map(mapContainer, {
+            center: [initLat, initLng],
+            zoom: 14,
+            zoomControl: true,
+            scrollWheelZoom: true,
+            dragging: true,
+            tap: false,
+            touchZoom: true,
+            bounceAtZoomLimits: false
+        });
+
+        const primaryTileUrl = window.MAP_TILE_URL || "{{ MAP_TILE_URL|default:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'|escapejs }}";
+        const primaryTileAttr = window.MAP_TILE_ATTRIBUTION || '{{ MAP_TILE_ATTRIBUTION|default:"&copy; OpenStreetMap contributors"|safe }}';
+        const primaryTileSubdomains = window.MAP_TILE_SUBDOMAINS || "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
+        const fallbackTileUrl = window.MAP_TILE_FALLBACK_URL || "{{ MAP_TILE_FALLBACK_URL|default:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'|escapejs }}";
+
+        const tileLayer = L.tileLayer(primaryTileUrl, {
+            subdomains: primaryTileSubdomains,
+            maxZoom: 19,
+            attribution: primaryTileAttr
+        });
+        tileLayer.addTo(leafletMap);
+
+        let tileErrCount = 0;
+        tileLayer.on('tileerror', function() {
+            tileErrCount++;
+            if (tileErrCount > 3 && fallbackTileUrl && fallbackTileUrl !== primaryTileUrl) {
+                tileLayer.setUrl(fallbackTileUrl);
+            }
+        });
+
+        // Fixed Customer Destination Marker (Blue Pin, draggable: false to prevent accidental movement)
+        const custIcon = L.divIcon({
+            className: 'custom-dest-pin-icon',
+            html: `
+                <div style="position: relative; width: 34px; height: 46px; display: flex; align-items: center; justify-content: center;">
+                    <svg width="34" height="46" viewBox="0 0 34 46" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.4));">
+                        <path d="M17 0C7.61 0 0 7.61 0 17C0 28.5 14.5 44.5 16.1 46.2C16.6 46.7 17.4 46.7 17.9 46.2C19.5 44.5 34 28.5 34 17C34 7.61 26.39 0 17 0Z" fill="#1E40AF"/>
+                        <path d="M17 1.8C25.39 1.8 32.2 8.61 32.2 17C32.2 26.8 19.4 41.2 17 43.8C14.6 41.2 1.8 26.8 1.8 17C1.8 8.61 8.61 1.8 17 1.8Z" fill="#2563EB"/>
+                        <circle cx="17" cy="17" r="6" fill="#FFFFFF"/>
+                        <circle cx="17" cy="17" r="3.2" fill="#1D4ED8"/>
+                    </svg>
+                </div>
+            `,
+            iconSize: [34, 46],
+            iconAnchor: [17, 46],
+            popupAnchor: [0, -46]
+        });
+
+        let validInitLat = Number(initLat);
+        let validInitLng = Number(initLng);
+        if (validInitLat >= 70 && validInitLat <= 80 && validInitLng >= 8 && validInitLng <= 13) {
+            const t = validInitLat; validInitLat = validInitLng; validInitLng = t;
+        }
+
+        const customerLatLng = L.latLng(validInitLat, validInitLng);
+        leafletMarker = L.marker(customerLatLng, {
+            icon: custIcon,
+            draggable: false, // Pin remains strictly fixed, cannot be dragged accidentally
+            autoPan: false,
+            title: "Delivery Destination"
+        }).addTo(leafletMap);
+
+        // Serving Kitchen Hub Marker (Green 🏠, draggable: false)
+        const hubIcon = L.divIcon({
+            className: 'custom-hub-icon',
+            html: `<div style="background:#1B4D3E; width:32px; height:32px; border-radius:50%; border:2.5px solid white; box-shadow:0 2px 6px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; font-size:15px;">🏠</div>`,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16]
+        });
+
+        leafletHubMarker = L.marker([currentBranchLat, currentBranchLon], {
+            icon: hubIcon,
+            draggable: false,
+            autoPan: false,
+            title: currentBranchName
+        }).addTo(leafletMap).bindPopup(`<strong>🏨 ${currentBranchName}</strong><br>Serving kitchen hub. Max radius: ${currentBranchRadiusKm} km`);
+
+        // Delivery Perimeter Circle (30 km)
+        leafletCircle = L.circle([currentBranchLat, currentBranchLon], {
+            radius: currentBranchRadiusKm * 1000,
+            color: '#10B981',
+            fillColor: '#10B981',
+            fillOpacity: 0.08,
+            weight: 2,
+            dashArray: '5, 8',
+            interactive: false
+        }).addTo(leafletMap);
+
+        // Map pan/drag tracking: dragging pans the map view smoothly without altering marker coordinates
+        let checkoutDragOccurred = false;
+        let checkoutLastDragEndTime = 0;
+        let checkoutDownPos = null;
+
+        mapContainer.addEventListener('mousedown', function(e) {
+            checkoutDownPos = { x: e.clientX, y: e.clientY };
+            checkoutDragOccurred = false;
+        }, { passive: true });
+
+        mapContainer.addEventListener('touchstart', function(e) {
+            if (e.touches && e.touches[0]) {
+                checkoutDownPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                checkoutDragOccurred = false;
+            }
+        }, { passive: true });
+
+        leafletMap.on('movestart dragstart', function() { checkoutDragOccurred = true; });
+        leafletMap.on('move drag', function() { checkoutDragOccurred = true; });
+        leafletMap.on('moveend dragend', function() {
+            checkoutLastDragEndTime = Date.now();
+            setTimeout(() => { checkoutDragOccurred = false; }, 350);
+        });
+
+        // Intentional click/tap on map moves the destination marker to the explicitly selected location
+        leafletMap.on('click', function(e) {
+            if (checkoutDragOccurred || (Date.now() - checkoutLastDragEndTime < 350)) return;
+            if (e.originalEvent) {
+                const orig = e.originalEvent;
+                const clientX = orig.clientX !== undefined ? orig.clientX : (orig.touches && orig.touches[0] ? orig.touches[0].clientX : null);
+                const clientY = orig.clientY !== undefined ? orig.clientY : (orig.touches && orig.touches[0] ? orig.touches[0].clientY : null);
+                if (checkoutDownPos && clientX !== null && clientY !== null) {
+                    const distMoved = Math.hypot(clientX - checkoutDownPos.x, clientY - checkoutDownPos.y);
+                    if (distMoved > 6) return; // Ignore drag/swipe
+                }
+            }
+            leafletMarker.setLatLng(e.latlng);
+            syncDestinationCoordinates(e.latlng.lat, e.latlng.lng, null, 'click');
+        });
+
+        if (window.ResizeObserver && mapContainer) {
+            const ro = new ResizeObserver(() => {
+                if (leafletMap && mapContainer.offsetWidth > 0 && mapContainer.offsetHeight > 0) {
+                    leafletMap.invalidateSize();
+                }
+            });
+            ro.observe(mapContainer);
+        }
+
+        [60, 200, 500].forEach(d => {
+            setTimeout(() => { if (leafletMap) leafletMap.invalidateSize(); }, d);
+        });
+    }
+
     document.addEventListener("DOMContentLoaded", function() {
         const curLat = parseFloat(document.getElementById('latitude').value) || currentBranchLat;
         const curLon = parseFloat(document.getElementById('longitude').value) || currentBranchLon;
         updatePerimeterStatus(curLat, curLon);
+        initLeafletMap();
     });
 </script>
 {% endblock %}
@@ -548,6 +781,24 @@
                                     </option>
                                 {% endfor %}
                             </select>
+                        </div>
+
+                        <!-- Interactive Leaflet Map for Pinning Exact Delivery Destination -->
+                        <div class="form-group mb-3" style="position: relative;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; flex-wrap: wrap; gap: 0.4rem;">
+                                <label class="form-label" style="font-weight: 600; color: var(--primary-brown); margin: 0; font-size: 0.88rem;">
+                                    🗺️ Exact Delivery Location Pin:
+                                </label>
+                                <span style="font-size: 0.78rem; color: var(--primary-green); font-weight: 600;">
+                                    Tap anywhere on map to pin destination (Fixed Pin)
+                                </span>
+                            </div>
+
+                            <!-- Map Container -->
+                            <div id="checkout-map-picker" style="height: 300px; width: 100%; border-radius: 10px; border: 1.5px solid var(--border-warm); overflow: hidden; position: relative; z-index: 1; background: #e2e8f0;"></div>
+                            <p style="font-size: 0.78rem; color: var(--text-muted); margin: 0.35rem 0 0 0;">
+                                📍 Blue Pin: Your Delivery Destination &bull; 🏠 Green Marker: Serving Kitchen Hub &bull; Dashed Circle: 30 km Delivery Limit
+                            </p>
                         </div>
 
                         <!-- 4. Selected Location & Service Area Details -->

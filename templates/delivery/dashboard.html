@@ -36,6 +36,7 @@
                 <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0.25rem 0 0.5rem 0;">
                     Vehicle: <strong style="font-family: monospace; color: var(--primary-orange);">{{ active_vehicle_number }}</strong>
                 </p>
+                {% if all_profiles %}
                 <form method="GET" action="{% url 'delivery_boy_dashboard' %}" style="margin: 0.5rem 0;">
                     <input type="hidden" name="tab" value="{{ tab }}">
                     <select name="vehicle_number" onchange="this.form.submit()" style="width: 100%; padding: 0.35rem 0.5rem; border-radius: 8px; border: 1.5px solid var(--primary-orange); font-size: 0.82rem; font-weight: 700; font-family: monospace; color: var(--primary-brown); background: #FFF8F5; cursor: pointer;">
@@ -46,6 +47,7 @@
                         {% endfor %}
                     </select>
                 </form>
+                {% endif %}
                 <span class="badge {% if profile.status == 'available' %}badge-success{% else %}badge-warning{% endif %}" style="font-size: 0.75rem; padding: 0.35rem 0.85rem;">
                     {% if profile.status == 'available' %}🟢 Ready for Dispatch{% else %}🟡 On Active Delivery{% endif %}
                 </span>
@@ -142,10 +144,14 @@
                                 <p style="margin: 0; font-size: 0.88rem; color: var(--text-main); font-weight: 600;">
                                     {% if notif.order %}
                                         Order ID: <span style="font-family: monospace; color: #E63946; font-weight: 800; font-size: 0.95rem;">#{{ notif.order.order_id }}</span>
-                                        | Customer: <strong>👤 {{ notif.order.user.get_full_name|default:notif.order.user.username|title }}</strong>
-                                        {% if notif.order.user.phone %}
-                                            (<a href="tel:{{ notif.order.user.phone }}" style="color: #2563eb; text-decoration: none; font-weight: 700;">📞 {{ notif.order.user.phone }}</a>)
+                                        | Customer: <strong>👤 {{ notif.order.customer_name }}</strong>
+                                        {% if notif.order.customer_phone %}
+                                            (<a href="tel:{{ notif.order.customer_phone }}" style="color: #2563eb; text-decoration: none; font-weight: 700;">📞 {{ notif.order.customer_phone }}</a>)
                                         {% endif %}
+                                        <br>
+                                        <span style="font-size: 0.84rem; color: #475569; display: inline-block; margin-top: 0.25rem;">
+                                            🏠 <strong>Delivery Address:</strong> {{ notif.order.formatted_delivery_address }}
+                                        </span>
                                     {% else %}
                                         {{ notif.message }}
                                     {% endif %}
@@ -464,9 +470,9 @@
                                         </span>
                                     </div>
                                     <div style="font-size: 0.92rem; color: var(--primary-brown); font-weight: 700; margin-top: 0.25rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                                        <span>👤 Customer: <strong>{{ assign.order.user.get_full_name|default:assign.order.user.username|title }}</strong></span>
-                                        {% if assign.order.user.phone %}
-                                            <span>| 📞 Phone: <a href="tel:{{ assign.order.user.phone }}" style="color: #2563eb; text-decoration: none; font-weight: 800; background: #eff6ff; padding: 0.15rem 0.55rem; border-radius: 6px; border: 1px solid #bfdbfe;">{{ assign.order.user.phone }}</a></span>
+                                        <span>👤 Customer: <strong>{{ assign.order.customer_name }}</strong></span>
+                                        {% if assign.order.customer_phone %}
+                                            <span>| 📞 Phone: <a href="tel:{{ assign.order.customer_phone }}" style="color: #2563eb; text-decoration: none; font-weight: 800; background: #eff6ff; padding: 0.15rem 0.55rem; border-radius: 6px; border: 1px solid #bfdbfe;">{{ assign.order.customer_phone }}</a></span>
                                         {% else %}
                                             <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">(Phone not provided)</span>
                                         {% endif %}
@@ -528,38 +534,87 @@
                                         <span style="color: var(--primary-orange); font-size: 1.05rem;">₹{{ assign.order.total_amount }}</span>
                                     </div>
                                     {% if assign.order.payment %}
-                                        <div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dashed var(--border-light); font-size: 0.82rem; color: var(--text-muted);">
-                                            💳 <strong>Payment Method:</strong> {{ assign.order.payment.get_payment_method_display }} | Status: 
-                                            {% if assign.order.payment.status == 'success' %}
-                                                <strong style="color: var(--success);">Verified</strong>
-                                            {% else %}
-                                                <strong style="color: var(--danger);">Pending</strong>
+                                        <div style="margin-top: 0.65rem; padding-top: 0.65rem; border-top: 1px dashed var(--border-light); font-size: 0.85rem;">
+                                            {% if assign.order.payment.payment_method == 'upi' %}
+                                                <div style="display: flex; justify-content: space-between; align-items: center; background: #ECFDF5; padding: 0.45rem 0.75rem; border-radius: 6px; border: 1px solid #A7F3D0;">
+                                                    <span style="color: #065F46; font-weight: 700;">💳 Paid Online (UPI)</span>
+                                                    <span class="badge" style="background: #10B981; color: white; font-weight: 700; font-size: 0.78rem;">Paid Online</span>
+                                                </div>
+                                                <span style="display: block; font-size: 0.78rem; color: #047857; margin-top: 0.25rem;">(Customer paid online. Do NOT collect cash.)</span>
+                                            {% elif assign.order.payment.payment_method == 'cod' %}
+                                                {% if assign.order.payment.status in 'cash_collected,success' %}
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; background: #ECFDF5; padding: 0.45rem 0.75rem; border-radius: 6px; border: 1px solid #A7F3D0;">
+                                                        <span style="color: #065F46; font-weight: 700;">💵 Cash on Delivery</span>
+                                                        <span class="badge" style="background: #059669; color: white; font-weight: 700; font-size: 0.8rem; border-radius: 6px; padding: 0.3rem 0.65rem;">✓ Cash Collected</span>
+                                                    </div>
+                                                    <span style="display: block; font-size: 0.78rem; color: #047857; margin-top: 0.25rem;">✓ Cash of ₹{{ assign.order.total_amount }} collected from customer.</span>
+                                                {% else %}
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; background: #FFFBEB; padding: 0.45rem 0.75rem; border-radius: 6px; border: 1px solid #FDE68A;">
+                                                        <span style="color: #92400E; font-weight: 700;">💵 Cash on Delivery</span>
+                                                        <span class="badge" style="background: #F59E0B; color: #78350F; font-weight: 700; font-size: 0.78rem;">Cash on Delivery</span>
+                                                    </div>
+                                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.45rem; flex-wrap: wrap; gap: 0.4rem;">
+                                                        <span style="font-size: 0.82rem; color: #B45309; font-weight: 600;">Collect <strong>₹{{ assign.order.total_amount }}</strong> cash</span>
+                                                        {% if assign.status == 'delivered' or assign.order.status == 'delivered' %}
+                                                            <form method="POST" action="{% url 'courier_collect_cash' assign.id %}" style="display: inline-block; margin: 0;">
+                                                                {% csrf_token %}
+                                                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                                <button type="submit" class="btn" style="padding: 0.4rem 1.1rem; font-size: 0.84rem; font-weight: 800; background: #059669; color: #fff; border: none; border-radius: 8px; box-shadow: 0 2px 5px rgba(5, 150, 105, 0.3); cursor: pointer;">
+                                                                    Cash Collected
+                                                                </button>
+                                                            </form>
+                                                        {% else %}
+                                                            <button type="button" class="btn" disabled style="padding: 0.4rem 0.95rem; font-size: 0.82rem; font-weight: 700; background: #9ca3af; color: #fff; border: none; border-radius: 8px; cursor: not-allowed; opacity: 0.7;" title="Disabled until food handover to customer is completed">
+                                                                🔒 Cash Collected (Disabled until handover)
+                                                            </button>
+                                                        {% endif %}
+                                                    </div>
+                                                    {% if assign.status == 'delivered' or assign.order.status == 'delivered' %}
+                                                        <span style="display: block; font-size: 0.75rem; color: #047857; margin-top: 0.25rem; font-weight: 600;">
+                                                            ✓ Food handed over! Click "Cash Collected" above to record payment.
+                                                        </span>
+                                                    {% else %}
+                                                        <span style="display: block; font-size: 0.75rem; color: #B45309; margin-top: 0.25rem; font-weight: 600;">
+                                                            ⏳ COD button will unlock once food is handed over and marked delivered.
+                                                        </span>
+                                                    {% endif %}
+                                                {% endif %}
                                             {% endif %}
                                         </div>
                                     {% endif %}
                                 </div>
 
                                 <!-- Customer Contact & Delivery Location (GPS & Address) -->
-                                <div style="background: #ffffff; padding: 1rem; border-radius: 12px; border: 1px solid var(--border-light);">
-                                    <h4 style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.6rem; letter-spacing: 0.05em;">
+                                <div style="background: #ffffff; padding: 1.1rem; border-radius: 12px; border: 1.5px solid var(--border-light);">
+                                    <h4 style="font-size: 0.88rem; color: var(--primary-brown); font-weight: 800; text-transform: uppercase; margin-bottom: 0.75rem; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.4rem;">
                                         👤 Customer Contact & Delivery Details
                                     </h4>
                                     
                                     <!-- Customer Profile Contact Card -->
-                                    <div style="background: var(--accent-warm); padding: 0.75rem 0.9rem; border-radius: 10px; margin-bottom: 0.75rem; border: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                                    <div style="background: var(--accent-warm); padding: 0.85rem 1rem; border-radius: 10px; margin-bottom: 0.75rem; border: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
                                         <div>
-                                            <strong style="font-size: 0.98rem; color: var(--primary-brown); display: block;">
-                                                👤 {{ assign.order.user.get_full_name|default:assign.order.user.username|title }}
+                                            <strong style="font-size: 1.05rem; color: var(--primary-brown); display: block;">
+                                                👤 {{ assign.order.customer_name }}
                                             </strong>
-                                            <span style="font-size: 0.76rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Customer Contact</span>
+                                            <span style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">Customer Recipient</span>
                                         </div>
-                                        {% if assign.order.user.phone %}
-                                            <a href="tel:{{ assign.order.user.phone }}" class="btn" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 800; background: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; display: inline-flex; align-items: center; gap: 0.35rem; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);">
-                                                📞 {{ assign.order.user.phone }}
+                                        {% if assign.order.customer_phone %}
+                                            <a href="tel:{{ assign.order.customer_phone }}" class="btn" style="padding: 0.4rem 0.95rem; font-size: 0.85rem; font-weight: 800; background: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.35rem; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);">
+                                                📞 {{ assign.order.customer_phone }}
                                             </a>
                                         {% else %}
-                                            <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Phone not provided</span>
+                                            <span style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600;">Phone not provided</span>
                                         {% endif %}
+                                    </div>
+
+                                    <!-- Customer Address Box (Always clearly displayed) -->
+                                    <div style="background: #f8fafc; padding: 0.75rem 0.9rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 0.6rem;">
+                                        <span style="font-size: 0.76rem; color: #64748b; text-transform: uppercase; font-weight: 800; display: block; margin-bottom: 0.25rem;">
+                                            🏠 Delivery Address
+                                        </span>
+                                        <strong style="font-size: 0.95rem; color: #1e293b; line-height: 1.45; display: block;">
+                                            {{ assign.order.formatted_delivery_address|default:assign.order.delivery_address|default:assign.order.user.address|default:"Kanjirappally Service Area" }}
+                                        </strong>
                                     </div>
 
                                     {% if assign.order.latitude and assign.order.longitude %}
@@ -570,11 +625,6 @@
                                         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.4rem;">
                                             Customer GPS location unavailable.
                                         </p>
-                                    {% endif %}
-                                    {% if assign.order.delivery_address %}
-                                        <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-main);">
-                                            🏠 <strong>Address Notes:</strong> {{ assign.order.formatted_delivery_address }}
-                                        </div>
                                     {% endif %}
                                     <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-muted); border-top: 1px dashed var(--border-light); padding-top: 0.5rem;">
                                         ⏱️ Assigned: <strong>{{ assign.assigned_at|date:"N j, h:i A" }}</strong>
@@ -594,7 +644,7 @@
                             <!-- Footer Action Bar: Prominent Navigation, View Location & Delivery Actions -->
                             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; background: #ffffff; padding: 1rem; border-radius: 12px; border: 1px solid var(--border-light);">
                                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                    <button type="button" class="btn btn-outline" onclick="openOrderMapModal('{{ assign.order.order_id }}', '{{ assign.order.latitude|default:'' }}', '{{ assign.order.longitude|default:'' }}', '{{ assign.order.formatted_delivery_address|escapejs }}', '{% url 'delivery_boy_track' assign.id %}')" style="padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 700; background: #ffffff; color: var(--primary-brown); display: inline-flex; align-items: center; gap: 0.4rem;">
+                                    <button type="button" class="btn btn-outline" onclick="openOrderMapModal('{{ assign.order.order_id }}', '{{ assign.order.latitude|default:'' }}', '{{ assign.order.longitude|default:'' }}', '{{ assign.order.formatted_delivery_address|escapejs }}', '{% url 'delivery_boy_track' assign.id %}', '{{ assign.order.customer_name|escapejs }}', '{{ assign.order.customer_phone|escapejs }}')" style="padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 700; background: #ffffff; color: var(--primary-brown); display: inline-flex; align-items: center; gap: 0.4rem;">
                                         🗺️ View Customer Map
                                     </button>
                                     <a href="{% url 'delivery_boy_track' assign.id %}" class="btn" style="padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 700; text-decoration: none; background: #2563eb; color: #fff;">
@@ -620,14 +670,30 @@
                                     {% elif assign.status == 'in_transit' or assign.order.status == 'in_transit' %}
                                         <form method="POST" action="{% url 'complete_delivery' assign.id %}" onsubmit="return confirm('Are you sure you want to mark Order #{{ assign.order.order_id }} as Delivered?');">
                                             {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                             <button type="submit" class="btn badge-success" style="padding: 0.55rem 1.4rem; font-weight: 700; background: #10b981; color: #fff;">
                                                 ✅ Mark as Delivered
                                             </button>
                                         </form>
                                     {% else %}
-                                        <span style="font-size: 0.85rem; color: var(--success); font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
-                                            ✅ Delivery Completed
-                                        </span>
+                                        <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                                            <span style="font-size: 0.85rem; color: var(--success); font-weight: 700; display: flex; align-items: center; gap: 0.4rem;">
+                                                ✅ Delivery Completed
+                                            </span>
+                                            {% if assign.order.payment and assign.order.payment.payment_method == 'cod' and assign.order.payment.status == 'pending' %}
+                                                <form method="POST" action="{% url 'courier_collect_cash' assign.id %}" style="display: inline-block; margin: 0;">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                    <button type="submit" class="btn" style="padding: 0.45rem 1.15rem; font-size: 0.85rem; font-weight: 800; background: #059669; color: #fff; border: none; border-radius: 8px; box-shadow: 0 2px 5px rgba(5, 150, 105, 0.3); cursor: pointer;">
+                                                        Cash Collected
+                                                    </button>
+                                                </form>
+                                            {% elif assign.order.payment and assign.order.payment.payment_method == 'cod' and assign.order.payment.status in 'cash_collected,success' %}
+                                                <span class="badge badge-success" style="background: #059669; color: #fff; font-size: 0.85rem; font-weight: 700; padding: 0.35rem 0.85rem; border-radius: 8px;">
+                                                    ✓ Cash Collected
+                                                </span>
+                                            {% endif %}
+                                        </div>
                                     {% endif %}
                                 </div>
                             </div>
@@ -749,20 +815,266 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 3000);
 
-    // Auto-display login notifications popup modal if unread notifications exist
-    {% if unread_notif_count > 0 %}
-        openCourierNotifModal();
-    {% endif %}
+    // Auto-display login notifications popup modal if genuinely new unshown notifications exist
+    initCourierNotificationPopup();
+
+    // Request browser notification permission gracefully
+    if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission().catch(() => {});
+    }
+
+    // Courier notification polling to alert for new assignments in real time
+    setInterval(checkCourierNotifications, 4000);
 });
+
+// Courier Sound Notification via Web Audio API
+function playCourierAlarmSound() {
+    if (localStorage.getItem('courier_sound_alerts') === 'off') {
+        return;
+    }
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+        const now = ctx.currentTime;
+        
+        // Tone 1: Energetic alert (659.25 Hz - E5)
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'triangle';
+        osc1.frequency.setValueAtTime(659.25, now);
+        gain1.gain.setValueAtTime(0.4, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.3);
+
+        // Tone 2: Ascending dispatch chime (987.77 Hz - B5)
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(987.77, now + 0.12);
+        gain2.gain.setValueAtTime(0.45, now + 0.12);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.12);
+        osc2.stop(now + 0.55);
+
+        // Tone 3: Bright delivery arrival chime (1318.51 Hz - E6)
+        const osc3 = ctx.createOscillator();
+        const gain3 = ctx.createGain();
+        osc3.type = 'sine';
+        osc3.frequency.setValueAtTime(1318.51, now + 0.25);
+        gain3.gain.setValueAtTime(0.35, now + 0.25);
+        gain3.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+        osc3.connect(gain3);
+        gain3.connect(ctx.destination);
+        osc3.start(now + 0.25);
+        osc3.stop(now + 0.75);
+    } catch(e) {
+        console.log("Audio notification skipped or blocked:", e);
+    }
+}
+
+// Global user gesture unlock for audio
+function unlockCourierAudio() {
+    if (window._courierAudioUnlocked) return;
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+            const dummyCtx = new AudioCtx();
+            dummyCtx.resume().then(() => {
+                dummyCtx.close();
+                window._courierAudioUnlocked = true;
+            });
+        }
+    } catch(e) {}
+}
+document.addEventListener('click', unlockCourierAudio, { once: true });
+document.addEventListener('touchstart', unlockCourierAudio, { once: true });
+
+const COURIER_USER_ID = {{ request.user.id }};
+const SEEN_DELIVERIES_STORAGE_KEY = 'courier_seen_delivery_popups_' + COURIER_USER_ID;
+
+function getSeenDeliveries() {
+    try {
+        const raw = localStorage.getItem(SEEN_DELIVERIES_STORAGE_KEY);
+        return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch(e) {
+        return new Set();
+    }
+}
+
+function saveSeenDelivery(deliveryId) {
+    if (!deliveryId) return;
+    try {
+        const seen = getSeenDeliveries();
+        seen.add(String(deliveryId));
+        localStorage.setItem(SEEN_DELIVERIES_STORAGE_KEY, JSON.stringify(Array.from(seen)));
+    } catch(e) {}
+}
+
+function markAllShownPopupsRead() {
+    const cards = document.querySelectorAll('#courierNotifList > div[id^="popup-notif-"]');
+    cards.forEach(card => {
+        const notifId = card.getAttribute('data-notif-id');
+        if (notifId) {
+            fetch('/delivery/notifications/dismiss/' + notifId + '/', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            }).catch(() => {});
+        }
+    });
+}
+
+function openDeliveryNavigation(notifId, trackUrl) {
+    if (notifId) {
+        fetch('/delivery/notifications/dismiss/' + notifId + '/', {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).finally(() => {
+            window.location.href = trackUrl;
+        });
+    } else {
+        window.location.href = trackUrl;
+    }
+}
+
+function initCourierNotificationPopup() {
+    const notifCards = document.querySelectorAll('#courierNotifList > div[id^="popup-notif-"]');
+    if (notifCards.length > 0) {
+        setTimeout(() => {
+            openCourierNotifModal();
+        }, 100);
+    }
+}
 
 function openCourierNotifModal() {
     const modal = document.getElementById('courierNotificationModal');
-    if (modal) modal.style.display = 'flex';
+    if (modal) {
+        modal.style.display = 'flex';
+        playCourierAlarmSound();
+    }
 }
 
 function closeCourierNotifModal() {
     const modal = document.getElementById('courierNotificationModal');
     if (modal) modal.style.display = 'none';
+    markAllShownPopupsRead();
+}
+
+function toggleCourierSound() {
+    const current = localStorage.getItem('courier_sound_alerts');
+    const textEl = document.getElementById('courierSoundStatusText');
+    if (current === 'off') {
+        localStorage.setItem('courier_sound_alerts', 'on');
+        if (textEl) textEl.textContent = '🔔 Sound: ON';
+        playCourierAlarmSound();
+    } else {
+        localStorage.setItem('courier_sound_alerts', 'off');
+        if (textEl) textEl.textContent = '🔕 Sound: OFF';
+    }
+}
+
+function checkCourierNotifications() {
+    fetch('/delivery/api/notifications/')
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success' && data.notifications && data.notifications.length > 0) {
+                let hasNew = false;
+                const list = document.getElementById('courierNotifList');
+                const seenDeliveries = getSeenDeliveries();
+
+                data.notifications.forEach(n => {
+                    const deliveryId = String(n.order_id || n.id);
+                    if (!seenDeliveries.has(deliveryId)) {
+                        // Genuinely new delivery assigned to this courier!
+                        seenDeliveries.add(deliveryId);
+                        saveSeenDelivery(deliveryId);
+                        hasNew = true;
+                        if (list) {
+                            const newCard = document.createElement('div');
+                            newCard.id = 'popup-notif-' + n.id;
+                            newCard.setAttribute('data-delivery-id', deliveryId);
+                            newCard.setAttribute('data-notif-id', n.id);
+                            newCard.style = 'background: var(--bg-cream); border: 1.5px solid var(--border-warm); border-left: 5px solid #E11D48; border-radius: 12px; padding: 1rem;';
+                            newCard.innerHTML = `
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 0.4rem;">
+                                    <strong style="color: var(--primary-brown); font-size: 0.98rem;">${n.title}</strong>
+                                    <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 500;">${n.created_at}</span>
+                                </div>
+                                <p style="font-size: 0.86rem; color: var(--text-main); margin: 0 0 0.6rem 0; line-height: 1.4;">
+                                    ${n.message}
+                                </p>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; font-size: 0.82rem; margin-bottom: 0.75rem; background: #ffffff; padding: 0.6rem 0.75rem; border-radius: 8px; border: 1px solid var(--border-light);">
+                                    <div>
+                                        <span style="color: var(--text-muted);">Order ID:</span>
+                                        <strong style="color: var(--primary-brown); font-family: monospace;">#${n.order_id}</strong>
+                                    </div>
+                                    <div>
+                                        <span style="color: var(--text-muted);">Status:</span>
+                                        <span class="badge badge-warning" style="font-size: 0.72rem;">${n.status}</span>
+                                    </div>
+                                    <div style="grid-column: 1 / -1;">
+                                        <span style="color: var(--text-muted);">Pickup:</span>
+                                        <strong style="color: var(--primary-green);">${n.pickup_location}</strong>
+                                    </div>
+                                    <div style="grid-column: 1 / -1; margin-top: 0.2rem;">
+                                        <span style="color: var(--text-muted);">📍 Delivery Address:</span>
+                                        <strong style="color: var(--text-main); display: block; line-height: 1.35;">${n.delivery_address}</strong>
+                                    </div>
+                                    ${n.items_summary ? `
+                                    <div style="grid-column: 1 / -1; margin-top: 0.2rem;">
+                                        <span style="color: var(--text-muted);">🍲 Dishes:</span>
+                                        <span style="color: var(--primary-orange); font-weight: 600;">${n.items_summary}</span>
+                                    </div>` : ''}
+                                    ${n.customer_name ? `
+                                    <div style="grid-column: 1 / -1; margin-top: 0.2rem; display: flex; justify-content: space-between; align-items: center;">
+                                        <span>👤 ${n.customer_name}</span>
+                                        ${n.customer_phone ? `<a href="tel:${n.customer_phone}" style="color: #2563EB; font-weight: 700; text-decoration: none;">📞 ${n.customer_phone}</a>` : ''}
+                                    </div>` : ''}
+                                </div>
+                                <div style="display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap;">
+                                    <button type="button" onclick="dismissPopupNotification(${n.id})" class="btn btn-outline btn-sm" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; border-color: var(--border-light); color: var(--text-muted);">
+                                        Dismiss
+                                    </button>
+                                    ${n.assignment_id ? `
+                                    <a href="/delivery/track/${n.assignment_id}/" onclick="openDeliveryNavigation(${n.id}, this.href); return false;" class="btn btn-sm" style="padding: 0.35rem 1rem; font-size: 0.82rem; background: #2563EB; color: white;">
+                                        Open Navigation &rarr;
+                                    </a>` : `
+                                    <a href="${n.track_url}" class="btn btn-sm" style="padding: 0.35rem 1rem; font-size: 0.82rem; background: var(--primary-orange); color: white;">
+                                        View Details &rarr;
+                                    </a>`}
+                                </div>
+                            `;
+                            list.prepend(newCard);
+                        }
+                    } else {
+                        // Already shown popup for this delivery before -> silently mark read
+                        fetch('/delivery/notifications/dismiss/' + n.id + '/', {
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        }).catch(() => {});
+                    }
+                });
+
+                if (hasNew) {
+                    playCourierAlarmSound();
+                    openCourierNotifModal();
+                    if ("Notification" in window && Notification.permission === "granted") {
+                        try {
+                            new Notification("Veetile-Ruchi: New Delivery Assignment!", {
+                                body: `Order #${data.notifications[0].order_id} - ${data.notifications[0].delivery_address}`,
+                                icon: '/static/img/logo.png'
+                            });
+                        } catch(e) {}
+                    }
+                }
+            }
+        })
+        .catch(() => {});
 }
 
 function dismissPopupNotification(notifId) {
@@ -789,6 +1101,16 @@ window.addEventListener('click', function(e) {
     const modal = document.getElementById('courierNotificationModal');
     if (e.target === modal) closeCourierNotifModal();
 });
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+        initCourierNotificationPopup();
+        setInterval(checkCourierNotifications, 15000);
+    });
+} else {
+    initCourierNotificationPopup();
+    setInterval(checkCourierNotifications, 15000);
+}
 </script>
 
 <!-- Courier Login Unread Notification Alert Modal -->
@@ -796,23 +1118,28 @@ window.addEventListener('click', function(e) {
     <div style="background: #ffffff; border-radius: 18px; max-width: 580px; width: 100%; max-height: 88vh; overflow-y: auto; padding: 1.75rem; box-shadow: 0 16px 40px rgba(0,0,0,0.25); position: relative; border-top: 5px solid #E11D48;">
         <button type="button" onclick="closeCourierNotifModal()" style="position: absolute; top: 1.25rem; right: 1.25rem; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);">&times;</button>
         
-        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
-            <div style="width: 44px; height: 44px; border-radius: 50%; background: #FFF1F2; color: #E11D48; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
-                🔔
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                <div style="width: 44px; height: 44px; border-radius: 50%; background: #FFF1F2; color: #E11D48; display: flex; align-items: center; justify-content: center; font-size: 1.4rem;">
+                    🔔
+                </div>
+                <div>
+                    <h3 style="margin: 0; color: var(--primary-brown); font-size: 1.3rem; font-weight: 800;">
+                        Delivery Assignment Alerts
+                    </h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0.15rem 0 0 0;">
+                        You have active alerts awaiting your attention
+                    </p>
+                </div>
             </div>
-            <div>
-                <h3 style="margin: 0; color: var(--primary-brown); font-size: 1.3rem; font-weight: 800;">
-                    Delivery Assignment Alerts
-                </h3>
-                <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0.15rem 0 0 0;">
-                    You have active alerts awaiting your attention
-                </p>
-            </div>
+            <button type="button" onclick="toggleCourierSound()" class="btn btn-outline btn-sm" style="font-size: 0.78rem; padding: 0.25rem 0.6rem; border-color: var(--border-warm);">
+                <span id="courierSoundStatusText">🔔 Sound: ON</span>
+            </button>
         </div>
 
         <div id="courierNotifList" style="display: flex; flex-direction: column; gap: 0.85rem; margin: 1.25rem 0;">
             {% for notif in unread_notifications %}
-                <div id="popup-notif-{{ notif.id }}" style="background: var(--bg-cream); border: 1.5px solid var(--border-warm); border-left: 5px solid #E11D48; border-radius: 12px; padding: 1rem;">
+                <div id="popup-notif-{{ notif.id }}" data-delivery-id="{{ notif.order.order_id|default:notif.id }}" data-notif-id="{{ notif.id }}" style="background: var(--bg-cream); border: 1.5px solid var(--border-warm); border-left: 5px solid #E11D48; border-radius: 12px; padding: 1rem;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 0.4rem;">
                         <strong style="color: var(--primary-brown); font-size: 0.98rem;">{{ notif.title }}</strong>
                         <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 500;">{{ notif.created_at|date:"N j, Y • h:i A" }} (IST)</span>
@@ -836,15 +1163,41 @@ window.addEventListener('click', function(e) {
                                 <span style="color: var(--text-muted);">Pickup:</span>
                                 <strong style="color: var(--primary-green);">{{ notif.order.branch.name|default:'Central Kitchen Hub (Kanjirappally)' }}</strong>
                             </div>
+                            <div style="grid-column: 1 / -1; margin-top: 0.2rem;">
+                                <span style="color: var(--text-muted);">📍 Delivery Address:</span>
+                                <strong style="color: var(--text-main); display: block; line-height: 1.35;">{{ notif.order.formatted_delivery_address|default:notif.order.delivery_address }}</strong>
+                            </div>
+                            {% if notif.order.items.exists %}
+                            <div style="grid-column: 1 / -1; margin-top: 0.2rem;">
+                                <span style="color: var(--text-muted);">🍲 Dishes:</span>
+                                <span style="color: var(--primary-orange); font-weight: 600;">
+                                    {% for it in notif.order.items.all %}{{ it.food_item.name }} x{{ it.quantity }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                </span>
+                            </div>
+                            {% endif %}
+                            {% if notif.order.user %}
+                            <div style="grid-column: 1 / -1; margin-top: 0.2rem; display: flex; justify-content: space-between; align-items: center;">
+                                <span>👤 {{ notif.order.user.get_full_name|default:notif.order.user.username }}</span>
+                                {% if notif.order.user.phone %}
+                                    <a href="tel:{{ notif.order.user.phone }}" style="color: #2563EB; font-weight: 700; text-decoration: none;">📞 {{ notif.order.user.phone }}</a>
+                                {% endif %}
+                            </div>
+                            {% endif %}
                         </div>
 
-                        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                        <div style="display: flex; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap;">
                             <button type="button" onclick="dismissPopupNotification({{ notif.id }})" class="btn btn-outline btn-sm" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; border-color: var(--border-light); color: var(--text-muted);">
                                 Dismiss
                             </button>
-                            <a href="{% url 'mark_notification_read' notif.id %}" class="btn btn-sm" style="padding: 0.35rem 1rem; font-size: 0.82rem; background: var(--primary-orange); color: white;">
-                                View Order Details &rarr;
-                            </a>
+                            {% if notif.order.delivery_assignment %}
+                                <a href="{% url 'delivery_boy_track' notif.order.delivery_assignment.id %}" onclick="openDeliveryNavigation({{ notif.id }}, this.href); return false;" class="btn btn-sm" style="padding: 0.35rem 1rem; font-size: 0.82rem; background: #2563EB; color: white;">
+                                    Open Navigation &rarr;
+                                </a>
+                            {% else %}
+                                <a href="{% url 'mark_notification_read' notif.id %}" class="btn btn-sm" style="padding: 0.35rem 1rem; font-size: 0.82rem; background: var(--primary-orange); color: white;">
+                                    View Order Details &rarr;
+                                </a>
+                            {% endif %}
                         </div>
                     {% else %}
                         <div style="text-align: right;">
@@ -895,9 +1248,6 @@ window.addEventListener('click', function(e) {
                 <button type="button" id="modalBtnZoomCustomer" onclick="modalZoomCustomer()" class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.82rem; font-weight: 600; background: #fff;">
                     🎯 Zoom Customer
                 </button>
-                <button type="button" id="modalBtnViewBoth" onclick="modalViewBoth()" class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.82rem; font-weight: 600; background: #fff;">
-                    🔄 View Both
-                </button>
                 <button type="button" id="modalBtnGetGps" onclick="modalGetCourierGps()" class="btn" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 700; background: #2563eb; color: #fff;">
                     📡 Get My Location
                 </button>
@@ -927,16 +1277,29 @@ let modalCustLat = null;
 let modalCustLon = null;
 let modalCourierLat = null;
 let modalCourierLon = null;
+let modalCustomerName = '';
+let modalCustomerPhone = '';
 
-function openOrderMapModal(orderId, latStr, lonStr, address, trackUrl) {
+function openOrderMapModal(orderId, latStr, lonStr, address, trackUrl, customerName = '', customerPhone = '') {
     const modal = document.getElementById("orderMapModal");
     const title = document.getElementById("modalOrderTitle");
     const addr = document.getElementById("modalOrderAddress");
     const link = document.getElementById("modalTrackLink");
     const alertBox = document.getElementById("modalMissingAlert");
 
-    if (title) title.textContent = `📍 Delivery Location: Order #${orderId}`;
-    if (addr) addr.textContent = address || "Delivery Address";
+    modalCustomerName = customerName || '';
+    modalCustomerPhone = customerPhone || '';
+
+    if (title) {
+        title.innerHTML = `📍 Order #${orderId}${customerName ? ` &bull; 👤 ${customerName}` : ''}`;
+    }
+    if (addr) {
+        let metaHtml = '';
+        if (customerName) metaHtml += `<span>👤 <strong>${customerName}</strong></span>`;
+        if (customerPhone) metaHtml += ` &bull; <span>📞 <a href="tel:${customerPhone}" style="color: #2563EB; font-weight: 700; text-decoration: none;">${customerPhone}</a></span>`;
+        metaHtml += `<br><span style="margin-top: 0.25rem; display: inline-block;">🏠 <strong>Address:</strong> ${address || 'Kanjirappally Service Area'}</span>`;
+        addr.innerHTML = metaHtml;
+    }
     if (link) link.href = trackUrl || "#";
 
     modalCustLat = parseFloat(latStr);
@@ -1004,6 +1367,11 @@ function initModalMap(lat, lon, hasValidCoords, address) {
     }
 
     if (hasValidCoords) {
+        let popupHtml = `<b>Customer Delivery Destination</b><br>`;
+        if (modalCustomerName) popupHtml += `<b>👤 Customer:</b> ${modalCustomerName}<br>`;
+        if (modalCustomerPhone) popupHtml += `<b>📞 Phone:</b> ${modalCustomerPhone}<br>`;
+        popupHtml += `<b>🏠 Address:</b> ${address || 'Delivery Address'}<br><strong>Coordinates:</strong> Lat ${lat.toFixed(6)}, Lon ${lon.toFixed(6)}`;
+
         modalCustomerMarker = L.marker([lat, lon], {
             icon: L.divIcon({
                 className: 'custom-div-icon',
@@ -1012,7 +1380,7 @@ function initModalMap(lat, lon, hasValidCoords, address) {
                 iconAnchor: [16, 16],
                 popupAnchor: [0, -18]
             })
-        }).addTo(modalMap).bindPopup(`<b>Customer Delivery Location</b><br>${address || ''}<br>Lat: ${lat.toFixed(6)}, Lon: ${lon.toFixed(6)}`).openPopup();
+        }).addTo(modalMap).bindPopup(popupHtml).openPopup();
     }
 
     modalMap.invalidateSize();

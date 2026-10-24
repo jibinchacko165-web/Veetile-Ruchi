@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.utils import timezone
 from django.http import JsonResponse
 from .models import DeliveryAssignment, GPSLocationTracking, DeliveryFeedback
-from orders.models import Order, Notification
+from orders.models import Order, Notification, Payment
 from accounts.models import User, DeliveryBoyProfile
 from accounts.decorators import role_required
 from ai_models.ml_engine import optimize_delivery_route
@@ -22,20 +22,16 @@ def delivery_boy_dashboard(request):
     all_profiles = DeliveryBoyProfile.objects.select_related('user').all()
     user_profile = getattr(request.user, 'delivery_boy_profile', None)
 
-    if request.user.role == 'delivery_boy':
-        if not user_profile:
-            user_profile, _ = DeliveryBoyProfile.objects.get_or_create(user=request.user)
-        profile = user_profile
+    req_vehicle = request.GET.get('vehicle_number') or request.POST.get('vehicle_number')
+    req_courier_id = request.GET.get('courier_id')
+    if req_courier_id:
+        profile = all_profiles.filter(id=req_courier_id).first()
+    elif req_vehicle:
+        profile = all_profiles.filter(vehicle_number__iexact=req_vehicle.strip()).first()
     else:
-        # Staff or Admin inspecting courier dashboard
-        req_vehicle = request.GET.get('vehicle_number') or request.POST.get('vehicle_number')
-        req_courier_id = request.GET.get('courier_id')
-        if req_courier_id:
-            profile = all_profiles.filter(id=req_courier_id).first()
-        elif req_vehicle:
-            profile = all_profiles.filter(vehicle_number__iexact=req_vehicle.strip()).first()
-        else:
-            profile = user_profile or all_profiles.first()
+        profile = user_profile or all_profiles.first()
+
+    other_courier_assignments = DeliveryAssignment.objects.none()
 
     active_vehicle_number = profile.vehicle_number if profile else ''
     if profile:
@@ -46,19 +42,9 @@ def delivery_boy_dashboard(request):
         delivery_boy=profile
     ).select_related('order', 'order__user', 'delivery_boy__user').prefetch_related('order__items__food_item').order_by('-assigned_at')
 
-    
     # Active tab parameter (Defaults to 'new')
     tab = request.GET.get('tab', 'new')
     today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    # Other active vehicle assignments across fleet
-    other_courier_assignments = DeliveryAssignment.objects.exclude(
-        delivery_boy=profile
-    ).exclude(
-        status__in=['delivered', 'cancelled']
-    ).exclude(
-        order__status__in=['delivered', 'cancelled']
-    ).select_related('order', 'delivery_boy__user')
     
     # 1. Current / Active Orders for selected vehicle number
     current_assignments = all_assignments.exclude(
@@ -519,12 +505,30 @@ def complete_delivery(request, assignment_id):
         order.delivered_at = now
         order.save(update_fields=['status', 'delivered_at', 'updated_at'])
 
+        # Handle Cash on Delivery collection upon delivery completion if requested
+        payment = getattr(order, 'payment', None) or Payment.objects.filter(order=order).first()
+        collect_cash_param = request.POST.get('collect_cash') or request.POST.get('cash_collected')
+        if collect_cash_param == '1' and payment and payment.payment_method == 'cod' and payment.status not in ['cash_collected', 'success']:
+            payment.status = 'cash_collected'
+            payment.cash_collected_at = now
+            payment.cash_collected_by = request.user
+            payment.save(update_fields=['status', 'cash_collected_at', 'cash_collected_by'])
+            for staff in User.objects.filter(role__in=['staff', 'admin']):
+                Notification.objects.create(
+                    user=staff,
+                    order=order,
+                    title=f"Cash Collected for Order #{order.order_id}",
+                    message=f"Courier {profile.courier_name} collected cash of ₹{payment.amount} upon delivering Order #{order.order_id}.",
+                    notification_type='staff_delivery_alert'
+                )
+
         # Check if courier has other active tasks
         other_active = DeliveryAssignment.objects.filter(
             delivery_boy=profile,
-            status__in=['assigned', 'picked_up', 'in_transit']
+            status__in=['assigned', 'picked_up', 'in_transit'],
+            is_active=True
         ).exclude(id=assignment.id).exists()
-        if not other_active:
+        if not other_active and profile.status != 'offline':
             profile.status = 'available'
             profile.save(update_fields=['status'])
 
@@ -548,13 +552,133 @@ def complete_delivery(request, assignment_id):
         )
 
     messages.success(request, f"Order #{order.order_id} marked as Delivered successfully! Delivery completed.")
+    next_url = request.POST.get('next')
+    if next_url:
+        return redirect(next_url)
+    referer = request.META.get('HTTP_REFERER', '')
+    if 'track' in referer:
+        return redirect('delivery_boy_track', assignment_id=assignment.id)
+    return redirect('delivery_boy_dashboard')
+
+
+@login_required
+@role_required('delivery_boy', 'staff', 'admin')
+def courier_collect_cash(request, assignment_id):
+    """
+    Courier boy marks payment status as 'Cash Collected' for Cash on Delivery (COD) orders.
+    Enforces security:
+    - Delivery boy can only collect cash for their own assigned delivery (staff/admin can manage any).
+    - Can ONLY be performed on Cash on Delivery (COD) orders. Online orders cannot be marked as cash collected.
+    - Idempotent and prevents invalid transitions.
+    """
+    if request.method != 'POST':
+        return redirect('delivery_boy_dashboard')
+
+    assignment = get_assignment_by_id_or_order_id(assignment_id)
+    if not assignment:
+        messages.error(request, "Delivery assignment not found.")
+        return redirect('delivery_boy_dashboard')
+
+    # Security: Delivery boy can only collect cash for their own assignment
+    if request.user.role == 'delivery_boy' and assignment.delivery_boy.user != request.user:
+        messages.error(request, "Access Denied: You cannot update payment for an order assigned to another courier.")
+        return redirect('delivery_boy_dashboard')
+
+    order = assignment.order
+    payment = getattr(order, 'payment', None) or Payment.objects.filter(order=order).first()
+
+    if not payment:
+        messages.error(request, f"No payment record found for Order #{order.order_id}.")
+        return redirect('delivery_boy_dashboard')
+
+    # Prevent incorrect payment updates: Online payments cannot be collected as cash
+    if payment.payment_method != 'cod':
+        messages.error(request, f"Order #{order.order_id} was paid online ({payment.get_payment_method_display()}). Cash collection is not applicable.")
+        return redirect('delivery_boy_dashboard')
+
+    # For COD orders, keep COD confirmation disabled until food is handed over to the customer
+    if order.status != 'delivered' and assignment.status != 'delivered':
+        messages.error(
+            request,
+            f"Cash collection for Order #{order.order_id} cannot be confirmed before reaching the customer and handing over the food."
+        )
+        next_url = request.POST.get('next')
+        if next_url:
+            return redirect(next_url)
+        referer = request.META.get('HTTP_REFERER', '')
+        if 'track' in referer:
+            return redirect('delivery_boy_track', assignment_id=assignment.id)
+        return redirect('delivery_boy_dashboard')
+
+    # If already marked as cash collected or verified
+    if payment.status in ['cash_collected', 'success']:
+        messages.info(request, f"Payment for Order #{order.order_id} is already marked as {payment.display_status}.")
+        next_url = request.POST.get('next')
+        if next_url:
+            return redirect(next_url)
+        return redirect('delivery_boy_dashboard')
+
+    with transaction.atomic():
+        now = timezone.now()
+        payment.status = 'cash_collected'
+        payment.cash_collected_at = now
+        payment.cash_collected_by = request.user
+        payment.save(update_fields=['status', 'cash_collected_at', 'cash_collected_by'])
+
+        courier_name = assignment.delivery_boy.courier_name
+        # Notify staff console that cash has been received by courier boy
+        for staff in User.objects.filter(role__in=['staff', 'admin']):
+            Notification.objects.create(
+                user=staff,
+                order=order,
+                title=f"Cash Collected Successfully for Order #{order.order_id}",
+                message=f"Cash Collected Successfully: Courier {courier_name} has collected cash of ₹{payment.amount} for Order #{order.order_id}.",
+                notification_type='staff_delivery_alert'
+            )
+
+        # Notify customer
+        Notification.objects.create(
+            user=order.user,
+            order=order,
+            title="Cash Payment Received",
+            message=f"Courier {courier_name} has received your cash payment of ₹{payment.amount} for Order #{order.order_id}. Thank you!",
+            notification_type='general'
+        )
+
+        # After delivery completion and cash confirmation, ensure courier availability status updates to Available if no other active delivery
+        profile = assignment.delivery_boy
+        other_active = DeliveryAssignment.objects.filter(
+            delivery_boy=profile,
+            status__in=['assigned', 'picked_up', 'in_transit'],
+            is_active=True
+        ).exclude(id=assignment.id).exists()
+        if not other_active and profile.status != 'offline':
+            profile.status = 'available'
+            profile.save(update_fields=['status'])
+
+    messages.success(request, f"Payment for Order #{order.order_id} successfully marked as Cash Collected (₹{payment.amount}).")
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+        return JsonResponse({
+            'status': 'success',
+            'message': f"Payment for Order #{order.order_id} marked as Cash Collected.",
+            'amount': float(payment.amount),
+            'order_id': order.order_id
+        })
+
+    next_url = request.POST.get('next')
+    if next_url:
+        return redirect(next_url)
+    referer = request.META.get('HTTP_REFERER', '')
+    if 'track' in referer:
+        return redirect('delivery_boy_track', assignment_id=assignment.id)
     return redirect('delivery_boy_dashboard')
 
 
 @login_required
 @role_required('delivery_boy', 'admin')
 def delivery_boy_update_status(request, assignment_id):
-    """Unified handler for courier status transitions (picked_up, in_transit, delivered)."""
+    """Unified handler for courier status transitions (picked_up, in_transit, delivered, cash_collected)."""
     if request.method != 'POST':
         return redirect('delivery_boy_dashboard')
 
@@ -565,6 +689,8 @@ def delivery_boy_update_status(request, assignment_id):
         return start_delivery(request, assignment_id)
     elif new_status == 'delivered':
         return complete_delivery(request, assignment_id)
+    elif new_status == 'cash_collected':
+        return courier_collect_cash(request, assignment_id)
 
     messages.error(request, "Invalid delivery status update requested.")
     return redirect('delivery_boy_dashboard')
@@ -822,6 +948,11 @@ def get_live_gps_location(request, order_id):
         road_distance_km=dist_km
     )
 
+    payment = getattr(order, 'payment', None) or Payment.objects.filter(order=order).first()
+    payment_method = payment.payment_method if payment else 'cod'
+    payment_status = payment.status if payment else 'pending'
+    payment_display = payment.display_status if payment else ('Paid Online' if payment_method == 'upi' else 'Cash on Delivery')
+
     return JsonResponse({
         'order_id': order.order_id,
         'status': order.status,
@@ -843,7 +974,10 @@ def get_live_gps_location(request, order_id):
         'vehicle_number': assignment.delivery_boy.vehicle_number,
         'driver_name': assignment.delivery_boy.user.username.title(),
         'driver_phone': assignment.delivery_boy.user.phone or '',
-        'updated_at': last_update_str or timezone.localtime().strftime("%I:%M:%S %p")
+        'updated_at': last_update_str or timezone.localtime().strftime("%I:%M:%S %p"),
+        'payment_method': payment_method,
+        'payment_status': payment_status,
+        'payment_display_status': payment_display,
     })
 
 
@@ -965,9 +1099,26 @@ def dismiss_courier_notification(request, notif_id):
     notif = get_object_or_404(Notification, id=notif_id, user=request.user)
     notif.is_read = True
     notif.save(update_fields=['is_read'])
+    # Mark any redundant notifications for the same order as read to avoid repeated alerts
+    if notif.order:
+        Notification.objects.filter(user=request.user, order=notif.order, is_read=False).update(is_read=True)
     if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
         return JsonResponse({'status': 'success', 'message': 'Notification dismissed'})
     messages.info(request, "Notification dismissed.")
+    return redirect('delivery_boy_dashboard')
+
+
+@login_required
+@role_required('delivery_boy')
+def dismiss_delivery_notifications(request, order_id):
+    """Marks all notifications for this delivery/order as read for the logged-in courier."""
+    updated = Notification.objects.filter(
+        user=request.user,
+        order__order_id=order_id,
+        is_read=False
+    ).update(is_read=True)
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
+        return JsonResponse({'status': 'success', 'updated': updated})
     return redirect('delivery_boy_dashboard')
 
 
@@ -999,17 +1150,22 @@ def get_courier_notifications(request):
         if notif.order:
             lat = notif.order.latitude
             lon = notif.order.longitude
-            delivery_address = f"Lat {lat}, Lon {lon}"
+            delivery_address = notif.order.formatted_delivery_address or notif.order.delivery_address or f"Lat {lat}, Lon {lon}"
             order_dt = to_kolkata_datetime(notif.order.created_at)
             order_date = order_dt.strftime("%b %d, %Y • %I:%M %p") if order_dt else ""
             if notif.order.branch:
                 pickup_location = f"{notif.order.branch.name} ({notif.order.branch.address})"
             
-            first_item = notif.order.items.first()
+            items_list = list(notif.order.items.select_related('food_item'))
+            items_summary = ", ".join(f"{it.food_item.name} x{it.quantity}" for it in items_list) if items_list else "Food Items"
+            first_item = items_list[0] if items_list else None
             if first_item:
                 food_id = f"FOOD{first_item.food_item.id:04d}"
                 food_name = first_item.food_item.name
                 quantity = first_item.quantity
+
+            customer_name = notif.order.customer_name
+            customer_phone = notif.order.customer_phone
                 
             if hasattr(notif.order, 'delivery_assignment'):
                 assignment_id = notif.order.delivery_assignment.id
@@ -1024,6 +1180,10 @@ def get_courier_notifications(request):
                     status_display = "Delivered"
                 else:
                     status_display = notif.order.delivery_assignment.get_status_display()
+        else:
+            customer_name = "Customer"
+            customer_phone = ""
+            items_summary = ""
                 
         track_url = f"/orders/notifications/mark-read/{notif.id}/" if notif.id else '#'
         dismiss_url = f"/delivery/notifications/dismiss/{notif.id}/" if notif.id else '#'
@@ -1038,6 +1198,9 @@ def get_courier_notifications(request):
             'food_id': food_id,
             'food_name': food_name,
             'quantity': quantity,
+            'items_summary': items_summary,
+            'customer_name': customer_name,
+            'customer_phone': customer_phone,
             'latitude': lat,
             'longitude': lon,
             'delivery_address': delivery_address,

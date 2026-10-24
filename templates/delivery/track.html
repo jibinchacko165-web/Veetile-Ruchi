@@ -169,6 +169,7 @@
                     </button>
                 {% elif assignment.status == 'in_transit' %}
                     <input type="hidden" name="status" value="delivered">
+                    <input type="hidden" name="next" value="{% url 'delivery_boy_track' assignment.id %}">
                     <button type="submit" class="btn" style="width: 100%; padding: 0.75rem; font-weight: 800; background-color: var(--success); color: #fff; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);">
                         ✅ Handover Food & Mark as Delivered
                     </button>
@@ -178,6 +179,79 @@
                     </div>
                 {% endif %}
             </form>
+
+            <!-- Payment Collection Card for Courier -->
+            {% if assignment.order.payment %}
+                {% if assignment.order.payment.payment_method == 'upi' %}
+                    <div style="margin-top: 1rem; background: #ECFDF5; border: 1.5px solid #10B981; border-radius: 10px; padding: 0.85rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span style="font-size: 1.25rem;">💳</span>
+                            <div>
+                                <strong style="color: #065F46; font-size: 0.92rem; display: block;">Paid Online</strong>
+                                <span style="color: #047857; font-size: 0.82rem;">Amount: ₹{{ assignment.order.total_amount }} &bull; Do NOT collect cash from customer.</span>
+                            </div>
+                        </div>
+                        <span class="badge" style="background: #10B981; color: white; font-weight: 700; padding: 0.35rem 0.75rem; border-radius: 6px;">
+                            Paid Online
+                        </span>
+                    </div>
+                {% elif assignment.order.payment.payment_method == 'cod' %}
+                    {% if assignment.order.payment.status in 'cash_collected,success' %}
+                        <div style="margin-top: 1rem; background: #ECFDF5; border: 1.5px solid #10B981; border-radius: 10px; padding: 0.85rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-size: 1.25rem;">💵</span>
+                                <div>
+                                    <strong style="color: #065F46; font-size: 0.92rem; display: block;">Payment Status: Cash Collected</strong>
+                                    <span style="color: #047857; font-size: 0.82rem;">
+                                        Cash of <strong>₹{{ assignment.order.total_amount }}</strong> received and reported to staff console.
+                                    </span>
+                                </div>
+                            </div>
+                            <span class="badge badge-success" style="background: #059669; color: white; font-weight: 700; padding: 0.45rem 1rem; border-radius: 8px; font-size: 0.88rem; display: inline-flex; align-items: center; gap: 0.35rem;" title="Cash payment confirmed and recorded">
+                                ✓ Cash Collected
+                            </span>
+                        </div>
+                    {% else %}
+                        <div style="margin-top: 1rem; background: #FFFBEB; border: 1.5px solid #F59E0B; border-radius: 10px; padding: 0.95rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span style="font-size: 1.3rem;">⚠️</span>
+                                    <div>
+                                        <strong style="color: #92400E; font-size: 0.92rem; display: block;">Cash on Delivery (COD) Order</strong>
+                                        <span style="color: #B45309; font-size: 0.85rem;">
+                                            Collect <strong>₹{{ assignment.order.total_amount }}</strong> cash upon food handover.
+                                        </span>
+                                    </div>
+                                </div>
+                                {% if assignment.status == 'delivered' or assignment.order.status == 'delivered' %}
+                                    <!-- Enabled Cash Collected button after food handover -->
+                                    <form method="POST" action="{% url 'courier_collect_cash' assignment.id %}" style="margin: 0;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="next" value="{% url 'delivery_boy_track' assignment.id %}">
+                                        <button type="submit" id="btn-confirm-cod-cash" class="btn" style="padding: 0.55rem 1.35rem; font-weight: 800; font-size: 0.92rem; background: #059669; color: #ffffff; border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35); display: inline-flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+                                            Cash Collected
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <!-- Disabled COD confirmation button before food handover -->
+                                    <button type="button" id="btn-confirm-cod-cash-disabled" class="btn" disabled style="padding: 0.55rem 1.25rem; font-weight: 800; font-size: 0.88rem; background: #9ca3af; color: #ffffff; border: none; border-radius: 8px; cursor: not-allowed; opacity: 0.7; display: inline-flex; align-items: center; gap: 0.4rem;" title="Disabled until food handover to customer is completed">
+                                        🔒 Cash Collected (Disabled until handover)
+                                    </button>
+                                {% endif %}
+                            </div>
+                            {% if assignment.status == 'delivered' or assignment.order.status == 'delivered' %}
+                                <div style="font-size: 0.8rem; color: #047857; margin-top: 0.45rem; font-weight: 600;">
+                                    ✓ Food has been handed over to customer. Click the "Cash Collected" button above to confirm cash received.
+                                </div>
+                            {% else %}
+                                <div style="font-size: 0.8rem; color: #b45309; margin-top: 0.45rem; font-weight: 600;">
+                                    ⏳ Reached customer? Click "Handover Food & Mark as Delivered" above first. The "Cash Collected" button will unlock once food is handed over.
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                {% endif %}
+            {% endif %}
         </div>
 
         <!-- Ordered Food Items Card -->
@@ -208,30 +282,34 @@
         </div>
 
         <!-- Customer Contact Details Card -->
-        <div style="margin-top: 1.25rem; background: #ffffff; padding: 1.25rem; border-radius: 14px; border: 1px solid var(--border-light);">
+        <div style="margin-top: 1.25rem; background: #ffffff; padding: 1.25rem; border-radius: 14px; border: 1.5px solid var(--border-light); box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
             <h4 style="color: var(--primary-brown); font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.4rem;">
-                👤 Customer Contact Details
+                👤 Customer Contact Details & Address
             </h4>
-            <div style="background: var(--accent-warm); padding: 0.85rem; border-radius: 10px; border: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="background: var(--accent-warm); padding: 0.85rem 1rem; border-radius: 10px; border: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem;">
                 <div>
-                    <strong style="font-size: 1rem; color: var(--primary-brown); display: block;">
-                        👤 {{ assignment.order.user.get_full_name|default:assignment.order.user.username|title }}
+                    <strong style="font-size: 1.05rem; color: var(--primary-brown); display: block;">
+                        👤 {{ assignment.order.customer_name }}
                     </strong>
-                    <span style="font-size: 0.78rem; color: var(--text-muted);">Customer</span>
+                    <span style="font-size: 0.78rem; color: var(--text-muted);">Customer Recipient</span>
                 </div>
-                {% if assignment.order.user.phone %}
-                    <a href="tel:{{ assignment.order.user.phone }}" class="btn" style="padding: 0.45rem 1rem; font-size: 0.88rem; font-weight: 800; background: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.4rem; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
-                        📞 {{ assignment.order.user.phone }}
+                {% if assignment.order.customer_phone %}
+                    <a href="tel:{{ assignment.order.customer_phone }}" class="btn" style="padding: 0.45rem 1rem; font-size: 0.88rem; font-weight: 800; background: #2563eb; color: #ffffff; text-decoration: none; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.4rem; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);">
+                        📞 {{ assignment.order.customer_phone }}
                     </a>
                 {% else %}
                     <span style="font-size: 0.82rem; color: var(--text-muted); font-weight: 600;">Phone number not provided</span>
                 {% endif %}
             </div>
-            {% if assignment.order.delivery_address %}
-                <div style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-main);">
-                    🏠 <strong>Address Notes:</strong> {{ assignment.order.formatted_delivery_address }}
-                </div>
-            {% endif %}
+            
+            <div style="background: #f8fafc; padding: 0.75rem 0.9rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <span style="font-size: 0.76rem; color: #64748b; text-transform: uppercase; font-weight: 800; display: block; margin-bottom: 0.25rem;">
+                    🏠 Customer Delivery Address
+                </span>
+                <strong style="font-size: 0.95rem; color: #1e293b; line-height: 1.45; display: block;">
+                    {{ assignment.order.formatted_delivery_address|default:assignment.order.delivery_address|default:assignment.order.user.address|default:"Kanjirappally Service Area" }}
+                </strong>
+            </div>
         </div>
 
         <!-- AI Route & Delivery Time Predictions (Random Forest AI Model) -->
@@ -291,9 +369,6 @@
                 <button type="button" id="btn-zoom-customer" onclick="zoomToCustomerLocation()" class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.82rem; font-weight: 600; background: #ffffff;">
                     🎯 Zoom Customer
                 </button>
-                <button type="button" id="btn-view-both" onclick="viewBothLocations()" class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.82rem; font-weight: 600; background: #ffffff;">
-                    🔄 View Both
-                </button>
                 <button type="button" id="btn-locate-courier" onclick="locateCourierGps()" class="btn" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 700; background: #2563eb; color: #ffffff;">
                     📡 Get My Location
                 </button>
@@ -318,9 +393,6 @@
                     </button>
                     <button type="button" onclick="zoomToCustomerLocation()" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; font-weight: 600; background: #ffffff;">
                         🎯 Zoom Customer
-                    </button>
-                    <button type="button" onclick="viewBothLocations()" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.82rem; font-weight: 600; background: #ffffff;">
-                        🔄 View Both
                     </button>
                     <button type="button" onclick="locateCourierGps()" class="btn" style="padding: 0.4rem 0.85rem; font-size: 0.82rem; font-weight: 700; background: #2563eb; color: #ffffff; border: none; border-radius: 6px; cursor: pointer;">
                         📡 Get My Location
@@ -470,27 +542,30 @@
             }
         });
 
-        // 1. Kitchen Hub Base Marker
+        // 1. Kitchen Hub Base Marker (Fixed pin)
         kitchenMarker = L.marker([chefLat, chefLon], {
-            icon: createIcon('#10B981', '🏠')
+            icon: createIcon('#10B981', '🏠'),
+            draggable: false
         }).addTo(leafletMap).bindPopup("<b>Central Kitchen Hub</b><br>Kanjirappally, Kerala");
 
-        // 2. Customer Delivery Destination Marker
+        // 2. Customer Delivery Destination Marker (Fixed pin)
         if (hasValidCustCoords && custLat !== null && custLon !== null) {
             customerMarker = L.marker([custLat, custLon], {
-                icon: createIcon('#2563EB', '📍')
+                icon: createIcon('#2563EB', '📍'),
+                draggable: false
             }).addTo(leafletMap).bindPopup(
-                `<b>Customer Delivery Destination</b><br>{{ assignment.order.formatted_delivery_address|escapejs }}<br><strong>Coordinates:</strong> Lat ${custLat.toFixed(6)}, Lon ${custLon.toFixed(6)}`
+                `<b>👤 Customer:</b> {{ assignment.order.customer_name|escapejs }}<br>{% if assignment.order.customer_phone %}<b>📞 Phone:</b> {{ assignment.order.customer_phone|escapejs }}<br>{% endif %}<b>📍 Delivery Destination</b><br>{{ assignment.order.formatted_delivery_address|escapejs }}<br><strong>Coordinates:</strong> Lat ${custLat.toFixed(6)}, Lon ${custLon.toFixed(6)}`
             );
         } else {
             const warningElem = document.getElementById("missing-coords-alert");
             if (warningElem) warningElem.style.display = "block";
         }
 
-        // 3. Courier Live Marker (if courier GPS already present)
+        // 3. Courier Live Marker (Fixed pin)
         if (hasCourierGps && courierLat !== null && courierLon !== null && isValidLatLng(courierLat, courierLon)) {
             courierMarker = L.marker([courierLat, courierLon], {
-                icon: createIcon('#D97736', '🛵')
+                icon: createIcon('#D97736', '🛵'),
+                draggable: false
             }).addTo(leafletMap).bindPopup("<b>Your Current GPS Location</b><br>Lat: " + courierLat.toFixed(5) + ", Lon: " + courierLon.toFixed(5));
         }
 
@@ -518,6 +593,18 @@
             if (customerMarker) customerMarker.openPopup();
         } else {
             alert("Customer delivery coordinates are not available for this order.");
+        }
+    }
+
+    function zoomToCourierLocation() {
+        if (!leafletMap) return;
+        if (courierMarker) {
+            leafletMap.setView(courierMarker.getLatLng(), 16, { animate: true });
+            courierMarker.openPopup();
+        } else if (courierLat !== null && courierLon !== null && isValidLatLng(courierLat, courierLon)) {
+            leafletMap.setView([courierLat, courierLon], 16, { animate: true });
+        } else {
+            locateCourierGps();
         }
     }
 

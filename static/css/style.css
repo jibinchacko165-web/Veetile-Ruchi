@@ -137,19 +137,19 @@ a:hover {
 
 .grid-2 {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1.5rem;
 }
 
 .grid-3 {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.75rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: 1.5rem;
 }
 
 .grid-4 {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
     gap: 1.25rem;
 }
 
@@ -572,108 +572,631 @@ a:hover {
 }
 
 /* ==========================================================================
-   RESPONSIVE MEDIA QUERIES
+   MOBILE-FIRST RESPONSIVE DESIGN SYSTEM — 6 SPECIFIED BREAKPOINTS
+   1. Small mobile:               320px – 374px
+   2. Standard mobile:            375px – 479px
+   3. Large mobile:               480px – 767px
+   4. Tablet:                     768px – 1023px
+   5. Laptop:                     1024px – 1439px
+   6. Desktop and large screens:  1440px and above
+   + Landscape & Touch Accessibility Rules
    ========================================================================== */
-@media (max-width: 992px) {
-    .grid-2 {
-        grid-template-columns: 1fr;
-    }
-    .grid-3 {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    .grid-4 {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    h1 { font-size: 1.75rem; }
-    h2 { font-size: 1.35rem; }
-    h3 { font-size: 1.15rem; }
 
-    .container {
-        padding-left: 1.25rem;
-        padding-right: 1.25rem;
+/* --------------------------------------------------------------------------
+   GLOBAL FLUID UTILITIES (Mobile-First Foundation, 320px+)
+   -------------------------------------------------------------------------- */
+img, video, canvas, svg, picture, iframe {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Ensure no element forces horizontal overflow */
+.w-100 { width: 100% !important; }
+.max-w-100 { max-width: 100% !important; }
+.overflow-hidden { overflow: hidden !important; }
+.overflow-x-auto { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+
+/* Responsive table container */
+.table-responsive, [style*="overflow-x: auto"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+}
+
+/* Responsive maps container */
+.leaflet-container, #map, #checkout-map-picker, #live-delivery-map, #delivery-nav-map, #dashboard-modal-map {
+    width: 100% !important;
+    max-width: 100% !important;
+    position: relative;
+    z-index: 5;
+    box-sizing: border-box;
+}
+
+/* Touch controls minimum target size (WCAG 2.1 AAA Target Size: 44x44px) */
+.btn, button, .form-control, select, .nav-item-link, .user-pill, .mobile-toggle {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Prevent iOS input auto-zoom on mobile */
+@media (max-width: 767px) {
+    input, select, textarea, .form-control {
+        font-size: 16px !important;
     }
 }
 
-@media (max-width: 768px) {
-    body {
-        padding-top: 68px;
+/* --------------------------------------------------------------------------
+   BREAKPOINT 1: SMALL MOBILE (320px – 374px)
+   Ultra-compact devices (e.g., iPhone SE 1st gen, Galaxy Fold outer screen)
+   -------------------------------------------------------------------------- */
+@media (min-width: 320px) and (max-width: 374px) {
+    :root {
+        --nav-height: 60px;
     }
+    body {
+        padding-top: 60px;
+    }
+
+    /* Container Spacing */
+    .container {
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+
+    /* Typography Hierarchy */
+    h1 { font-size: 1.35rem !important; line-height: 1.25 !important; }
+    h2 { font-size: 1.18rem !important; line-height: 1.3 !important; }
+    h3 { font-size: 1.05rem !important; }
+    h4 { font-size: 0.95rem !important; }
+    p, span, li { font-size: 0.88rem; }
+
+    /* Navigation Bar */
+    .navbar-inner {
+        padding: 0 0.5rem !important;
+        gap: 0.35rem !important;
+    }
+    .brand-emblem {
+        width: 34px !important;
+        height: 34px !important;
+        font-size: 1rem !important;
+        border-radius: 8px !important;
+    }
+    .brand-text h1 {
+        font-size: 0.92rem !important;
+    }
+    .brand-text .malayalam-sub {
+        display: none !important; /* Hide tiny subtitle to prevent brand wrapping */
+    }
+    .nav-actions {
+        gap: 0.35rem !important;
+    }
+    .user-pill {
+        padding: 0.25rem 0.45rem !important;
+        font-size: 0.75rem !important;
+    }
+    .user-pill span:not(.user-avatar-sm) {
+        display: none !important; /* Show avatar icon only on ultra-compact mobile */
+    }
+    .mobile-toggle {
+        padding: 0.35rem 0.55rem !important;
+        font-size: 1.05rem !important;
+        min-height: 38px;
+        min-width: 38px;
+    }
+
+    /* Grids & Columns */
+    .grid-2, .grid-3, .grid-4 {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+    }
+    .footer-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1.5rem !important;
+    }
+
+    /* Cards & Components */
+    .card {
+        padding: 0.75rem !important;
+        border-radius: 10px !important;
+        margin-bottom: 0.75rem !important;
+    }
+
+    /* Food Cards */
+    .food-card-media {
+        aspect-ratio: 16 / 9;
+        min-height: 150px !important;
+    }
+    .food-card-body {
+        padding: 0.75rem !important;
+    }
+    .food-card-title {
+        font-size: 1rem !important;
+    }
+    .food-card-price {
+        font-size: 1.15rem !important;
+    }
+
+    /* Buttons: Full width for easy tapability */
+    .btn {
+        width: 100% !important;
+        justify-content: center !important;
+        padding: 0.6rem 0.9rem !important;
+        font-size: 0.88rem !important;
+        min-height: 44px !important;
+    }
+    .btn-sm {
+        min-height: 38px !important;
+        padding: 0.4rem 0.75rem !important;
+        font-size: 0.82rem !important;
+    }
+
+    /* Flex Containers Stack */
+    .flex-mobile-stack,
+    div[style*="display: flex; justify-content: space-between"] {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0.6rem !important;
+    }
+
+    /* Stepper & Quantity */
+    .quantity-stepper {
+        padding: 0.2rem 0.4rem !important;
+        gap: 0.25rem !important;
+    }
+    .quantity-stepper button {
+        width: 34px !important;
+        height: 34px !important;
+        font-size: 1rem !important;
+    }
+    .quantity-stepper .qty-val {
+        min-width: 28px !important;
+        font-size: 0.95rem !important;
+    }
+
+    /* Dashboards & Portals (Chef, Courier, Staff) */
+    div[style*="flex: 0 0 260px"],
+    div[style*="min-width: 240px"],
+    div[style*="min-width: 300px"] {
+        flex: 1 1 100% !important;
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+
+    /* Map container height */
+    .leaflet-container, #map, #checkout-map-picker, #live-delivery-map, #delivery-nav-map, #dashboard-modal-map {
+        height: 260px !important;
+    }
+
+    /* Modals & Dialogs */
+    #new-order-modal-card, [id*="-modal-card"], .modal-content {
+        width: calc(100vw - 1rem) !important;
+        margin: 0.5rem !important;
+        padding: 0.85rem !important;
+        max-height: 90vh !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   BREAKPOINT 2: STANDARD MOBILE (375px – 479px)
+   Modern smartphones (e.g., iPhone 12/13/14/15, Pixel 7, Galaxy S22/S23)
+   -------------------------------------------------------------------------- */
+@media (min-width: 375px) and (max-width: 479px) {
+    :root {
+        --nav-height: 64px;
+    }
+    body {
+        padding-top: 64px;
+    }
+
+    /* Container Spacing */
+    .container {
+        padding-left: 0.85rem !important;
+        padding-right: 0.85rem !important;
+    }
+
+    /* Typography */
+    h1 { font-size: 1.5rem !important; line-height: 1.25 !important; }
+    h2 { font-size: 1.28rem !important; }
+    h3 { font-size: 1.12rem !important; }
+    h4 { font-size: 1rem !important; }
+    p, span, li { font-size: 0.92rem; }
+
+    /* Navigation Bar */
+    .navbar-inner {
+        padding: 0 0.85rem !important;
+        gap: 0.5rem !important;
+    }
+    .brand-emblem {
+        width: 38px !important;
+        height: 38px !important;
+        font-size: 1.15rem !important;
+    }
+    .brand-text h1 {
+        font-size: 1.05rem !important;
+    }
+    .brand-text .malayalam-sub {
+        font-size: 0.68rem !important;
+        display: block !important;
+    }
+    .nav-actions {
+        gap: 0.45rem !important;
+    }
+    .user-pill {
+        padding: 0.3rem 0.6rem !important;
+        font-size: 0.82rem !important;
+    }
+    .mobile-toggle {
+        padding: 0.4rem 0.65rem !important;
+        font-size: 1.15rem !important;
+    }
+
+    /* Grids & Layouts */
+    .grid-2, .grid-3, .grid-4 {
+        grid-template-columns: 1fr !important;
+        gap: 0.85rem !important;
+    }
+    .footer-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1.75rem !important;
+    }
+
+    /* Cards */
+    .card {
+        padding: 0.95rem !important;
+        border-radius: 12px !important;
+    }
+
+    /* Food Cards */
+    .food-card-media {
+        aspect-ratio: 16 / 10;
+        min-height: 180px !important;
+    }
+    .food-card-body {
+        padding: 1rem !important;
+    }
+
+    /* Buttons */
+    .btn {
+        min-height: 44px !important;
+        padding: 0.65rem 1.1rem !important;
+        font-size: 0.92rem !important;
+    }
+
+    /* Dashboards & Portals */
+    div[style*="flex: 0 0 260px"],
+    div[style*="min-width: 240px"],
+    div[style*="min-width: 300px"] {
+        flex: 1 1 100% !important;
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+
+    /* Maps */
+    .leaflet-container, #map, #checkout-map-picker, #live-delivery-map, #delivery-nav-map, #dashboard-modal-map {
+        height: 300px !important;
+    }
+
+    /* Modals */
+    #new-order-modal-card, [id*="-modal-card"], .modal-content {
+        width: calc(100vw - 1.5rem) !important;
+        margin: 0.75rem !important;
+        padding: 1rem !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   BREAKPOINT 3: LARGE MOBILE (480px – 767px)
+   Plus-sized phones & phablets (e.g., iPhone Plus/Pro Max, Galaxy Note/Ultra)
+   -------------------------------------------------------------------------- */
+@media (min-width: 480px) and (max-width: 767px) {
     :root {
         --nav-height: 68px;
     }
-
-    .grid-2, .grid-3, .grid-4 {
-        grid-template-columns: 1fr;
+    body {
+        padding-top: 68px;
     }
 
+    /* Container Spacing */
     .container {
-        padding-left: 0.85rem;
-        padding-right: 0.85rem;
+        padding-left: 1.15rem !important;
+        padding-right: 1.15rem !important;
     }
 
-    .card {
-        padding: 1rem;
-        border-radius: 12px;
+    /* Typography */
+    h1 { font-size: 1.7rem !important; }
+    h2 { font-size: 1.38rem !important; }
+    h3 { font-size: 1.2rem !important; }
+
+    /* Navigation */
+    .brand-emblem {
+        width: 42px !important;
+        height: 42px !important;
+        font-size: 1.25rem !important;
     }
-
-    .btn {
-        min-height: 46px;
-        padding: 0.65rem 1.1rem;
-        font-size: 0.92rem;
-    }
-
-    /* Stack flex containers on small screens */
-    .flex-mobile-stack {
-        flex-direction: column !important;
-        align-items: stretch !important;
-    }
-
-    /* Full width inputs on mobile */
-    .form-control, select.form-control, input[type="text"], input[type="email"], input[type="password"], input[type="number"], select {
-        font-size: 0.95rem;
-        padding: 0.7rem 0.9rem;
-    }
-
-    /* Quantity stepper touch target */
-    .quantity-stepper button {
-        width: 36px;
-        height: 36px;
-        font-size: 1.1rem;
-    }
-
-    .quantity-stepper .qty-val {
-        min-width: 38px;
-        font-size: 1rem;
-    }
-}
-
-@media (max-width: 480px) {
-    h1 { font-size: 1.5rem; }
-    h2 { font-size: 1.2rem; }
-
-    .grid-4 {
-        grid-template-columns: 1fr;
-    }
-
-    .card {
-        padding: 0.85rem;
-    }
-
-    .btn {
-        width: 100%;
-        justify-content: center;
-    }
-
     .brand-text h1 {
-        font-size: 1.05rem;
+        font-size: 1.18rem !important;
     }
     .brand-text .malayalam-sub {
-        font-size: 0.68rem;
+        font-size: 0.72rem !important;
     }
-    .brand-emblem {
-        width: 38px;
-        height: 38px;
-        font-size: 1.1rem;
+
+    /* Grids: 2-column food catalog & cards */
+    .grid-2 {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+    .grid-3 {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 1rem !important;
+    }
+    .grid-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 1rem !important;
+    }
+    .footer-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 2rem !important;
+    }
+
+    /* Food Cards */
+    .food-card-media {
+        min-height: 160px !important;
+    }
+    .food-card-body {
+        padding: 1rem !important;
+    }
+
+    /* Dashboards */
+    div[style*="flex: 0 0 260px"],
+    div[style*="min-width: 240px"],
+    div[style*="min-width: 300px"] {
+        flex: 1 1 100% !important;
+        min-width: 0 !important;
+        width: 100% !important;
+    }
+
+    /* Maps */
+    .leaflet-container, #map, #checkout-map-picker, #live-delivery-map, #delivery-nav-map, #dashboard-modal-map {
+        height: 350px !important;
     }
 }
+
+/* --------------------------------------------------------------------------
+   BREAKPOINT 4: TABLET (768px – 1023px)
+   Tablets in Portrait & Landscape (e.g., iPad Mini, iPad 10.2", Galaxy Tab)
+   -------------------------------------------------------------------------- */
+@media (min-width: 768px) and (max-width: 1023px) {
+    :root {
+        --nav-height: 72px;
+    }
+    body {
+        padding-top: 72px;
+    }
+
+    /* Container */
+    .container {
+        max-width: 960px;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+    }
+
+    /* Typography */
+    h1 { font-size: 1.95rem !important; }
+    h2 { font-size: 1.52rem !important; }
+    h3 { font-size: 1.25rem !important; }
+
+    /* Grids: Balanced Tablet Columns */
+    .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 1.25rem !important;
+    }
+    .grid-3 {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 1.25rem !important;
+    }
+    .grid-4 {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 1.25rem !important;
+    }
+    .footer-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 2.25rem !important;
+    }
+
+    /* Food Cards */
+    .food-card-media {
+        min-height: 180px !important;
+    }
+
+    /* Dashboards: Sidebar + Workspace side-by-side on tablet */
+    div[style*="flex: 0 0 260px"] {
+        flex: 0 0 220px !important;
+        min-width: 200px !important;
+    }
+    div[style*="min-width: 300px"] {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+
+    /* Maps */
+    .leaflet-container, #map, #checkout-map-picker, #live-delivery-map, #delivery-nav-map, #dashboard-modal-map {
+        height: 420px !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   BREAKPOINT 5: LAPTOP (1024px – 1439px)
+   Standard Laptops & Desktops (e.g., MacBook Air/Pro 13"/14", 1080p Laptops)
+   -------------------------------------------------------------------------- */
+@media (min-width: 1024px) and (max-width: 1439px) {
+    :root {
+        --nav-height: 76px;
+    }
+    body {
+        padding-top: 76px;
+    }
+
+    /* Container */
+    .container {
+        max-width: 1240px;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
+
+    /* Typography */
+    h1 { font-size: 2.25rem !important; }
+    h2 { font-size: 1.7rem !important; }
+    h3 { font-size: 1.35rem !important; }
+
+    /* Navigation */
+    .nav-links-desktop {
+        display: flex !important;
+    }
+    .mobile-toggle {
+        display: none !important;
+    }
+    .mobile-drawer {
+        display: none !important;
+    }
+
+    /* Grids: Full Desktop Experience */
+    .grid-2 {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 1.5rem !important;
+    }
+    .grid-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 1.75rem !important;
+    }
+    .grid-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 1.5rem !important;
+    }
+    .footer-grid {
+        grid-template-columns: 2fr 1fr 1.2fr 1.4fr !important;
+        gap: 2.5rem !important;
+    }
+
+    /* Maps */
+    .leaflet-container, #map, #checkout-map-picker, #live-delivery-map, #delivery-nav-map, #dashboard-modal-map {
+        height: 480px !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   BREAKPOINT 6: DESKTOP AND LARGE SCREENS (1440px and above)
+   QHD, 4K & Ultra-wide displays (e.g., 27" iMac, 34" Monitors, External Displays)
+   -------------------------------------------------------------------------- */
+@media (min-width: 1440px) {
+    :root {
+        --nav-height: 80px;
+        --container-max: 1420px;
+    }
+    body {
+        padding-top: 80px;
+    }
+
+    /* Container */
+    .container {
+        max-width: 1420px;
+        padding-left: 2.5rem !important;
+        padding-right: 2.5rem !important;
+    }
+
+    /* Typography */
+    h1 { font-size: 2.55rem !important; }
+    h2 { font-size: 1.88rem !important; }
+    h3 { font-size: 1.45rem !important; }
+
+    /* Navigation */
+    .nav-links-desktop {
+        display: flex !important;
+        gap: 0.85rem !important;
+    }
+    .mobile-toggle {
+        display: none !important;
+    }
+    .mobile-drawer {
+        display: none !important;
+    }
+
+    /* Grids */
+    .grid-2 {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 2rem !important;
+    }
+    .grid-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 2rem !important;
+    }
+    .grid-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 1.75rem !important;
+    }
+    .footer-grid {
+        grid-template-columns: 2.2fr 1.1fr 1.3fr 1.5fr !important;
+        gap: 3rem !important;
+    }
+
+    /* Maps */
+    .leaflet-container, #map, #checkout-map-picker, #live-delivery-map, #delivery-nav-map, #dashboard-modal-map {
+        height: 540px !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   LANDSCAPE ORIENTATION ADAPTATION (Mobile Landscape)
+   When device height is compact (max-height: 500px in landscape mode)
+   -------------------------------------------------------------------------- */
+@media (max-height: 500px) and (orientation: landscape) {
+    :root {
+        --nav-height: 52px !important;
+    }
+    body {
+        padding-top: 52px !important;
+    }
+
+    .kerala-navbar {
+        height: 52px !important;
+    }
+    .brand-emblem {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 0.95rem !important;
+    }
+    .brand-text h1 {
+        font-size: 0.95rem !important;
+    }
+    .brand-text .malayalam-sub {
+        display: none !important;
+    }
+
+    .mobile-drawer {
+        top: 52px !important;
+        max-height: calc(100vh - 52px) !important;
+        padding: 0.75rem 1.25rem !important;
+        overflow-y: auto !important;
+    }
+    .mobile-drawer-links {
+        gap: 0.4rem !important;
+    }
+    .mobile-drawer-links a {
+        padding: 0.55rem 0.85rem !important;
+        font-size: 0.9rem !important;
+    }
+
+    /* Compact Modals for Landscape */
+    #new-order-modal-card, [id*="-modal-card"], .modal-content {
+        max-height: 88vh !important;
+        overflow-y: auto !important;
+    }
+
+    /* Compact Map in Landscape */
+    .leaflet-container, #map, #checkout-map-picker, #live-delivery-map, #delivery-nav-map, #dashboard-modal-map {
+        height: 220px !important;
+    }
+}
+
 

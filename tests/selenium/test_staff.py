@@ -45,8 +45,12 @@ class StaffTest(BaseSeleniumTest):
         select = Select(select_element)
         select.select_by_index(1) 
         
-        assign_btn = self.driver.find_element(By.XPATH, "//button[contains(text(), 'Assign Delivery Boy')]")
-        assign_btn.click()
+        assign_btn = self.wait.until(EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Assign Delivery Boy')]")))
+        self.driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", assign_btn)
+        try:
+            assign_btn.click()
+        except Exception:
+            self.driver.execute_script("arguments[0].click();", assign_btn)
         
         self.wait.until(EC.presence_of_element_located((By.XPATH, "//div[contains(., 'Assigned Courier')]")))
         

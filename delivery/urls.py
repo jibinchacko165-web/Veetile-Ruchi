@@ -8,11 +8,13 @@ urlpatterns = [
     path('pickup/<int:assignment_id>/', views.pickup_order, name='pickup_order'),
     path('start/<int:assignment_id>/', views.start_delivery, name='start_delivery'),
     path('complete/<int:assignment_id>/', views.complete_delivery, name='complete_delivery'),
+    path('collect-cash/<int:assignment_id>/', views.courier_collect_cash, name='courier_collect_cash'),
     path('update-gps/<int:assignment_id>/', views.update_courier_gps, name='update_courier_gps'),
     path('api/update-profile-gps/', views.update_profile_gps, name='update_profile_gps'),
     path('api/live-gps/<str:order_id>/', views.get_live_gps_location, name='get_live_gps_location'),
     path('api/notifications/', views.get_courier_notifications, name='get_courier_notifications'),
     path('notifications/dismiss/<int:notif_id>/', views.dismiss_courier_notification, name='dismiss_courier_notification'),
+    path('notifications/dismiss-delivery/<str:order_id>/', views.dismiss_delivery_notifications, name='dismiss_delivery_notifications'),
     path('api/couriers/', views.api_list_couriers, name='api_list_couriers'),
     path('feedback/<str:order_id>/', views.submit_delivery_feedback, name='submit_delivery_feedback'),
 ]

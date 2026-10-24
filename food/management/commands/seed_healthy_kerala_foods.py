@@ -2021,75 +2021,8 @@ NEW_HEALTHY_KERALA_FOODS = {
 }
 
 def create_authentic_card_image(food_name, session_name, is_veg, calories, protein, fiber, output_path):
-    """Generates an elegant, high-resolution authentic Kerala food presentation image card if file does not exist."""
-    if os.path.exists(output_path):
-        return
-
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-    img = Image.new('RGB', (1024, 1024), color='#132A13')
-    draw = ImageDraw.Draw(img)
-
-    # Kerala Wood / Banana Leaf Theme Framing
-    draw.rectangle([24, 24, 1000, 1000], outline='#31572C', width=6)
-    draw.rectangle([34, 34, 990, 990], outline='#4F772D', width=2)
-
-    # Header Ribbon
-    draw.rectangle([34, 34, 990, 140], fill='#1B4332')
-    draw.rectangle([34, 140, 990, 146], fill='#D8F3DC')
-
-    # Main Center Plate representation
-    center_x, center_y = 512, 540
-    # Outer bronze / terracotta plate
-    draw.ellipse([center_x - 340, center_y - 340, center_x + 340, center_y + 340], fill='#2D1E12', outline='#A07855', width=8)
-    # Inner banana leaf liner
-    draw.ellipse([center_x - 310, center_y - 310, center_x + 310, center_y + 310], fill='#2D6A4F', outline='#52B788', width=4)
-    # Food center circle
-    inner_color = '#52796F' if is_veg else '#7F4F24'
-    draw.ellipse([center_x - 220, center_y - 220, center_x + 220, center_y + 220], fill=inner_color, outline='#D8F3DC', width=3)
-
-    # Text rendering with default font
-    try:
-        font_large = ImageFont.truetype("arial.ttf", 46)
-        font_med = ImageFont.truetype("arial.ttf", 32)
-        font_small = ImageFont.truetype("arial.ttf", 26)
-    except Exception:
-        font_large = ImageFont.load_default()
-        font_med = font_large
-        font_small = font_large
-
-    # Brand Title
-    draw.text((60, 65), "VEETILE RUCHI • AUTHENTIC KERALA KITCHEN", fill='#D8F3DC', font=font_med)
-
-    # Dish Name across center
-    lines = []
-    words = food_name.split()
-    current = ""
-    for w in words:
-        if len(current + " " + w) <= 24:
-            current += (" " if current else "") + w
-        else:
-            lines.append(current)
-            current = w
-    if current:
-        lines.append(current)
-
-    start_y = center_y - (len(lines) * 30)
-    for i, line in enumerate(lines):
-        draw.text((center_x, start_y + (i * 60)), line, fill='#FFFFFF', font=font_large, anchor="mm")
-
-    # Dietary & Session Tag
-    veg_label = "100% PURE VEGETARIAN" if is_veg else "TRADITIONAL NON-VEG"
-    badge_color = '#2E7D32' if is_veg else '#C62828'
-    draw.rounded_rectangle([center_x - 240, center_y + 160, center_x + 240, center_y + 215], radius=25, fill=badge_color)
-    draw.text((center_x, center_y + 187), f"{session_name.upper()} • {veg_label}", fill='#FFFFFF', font=font_small, anchor="mm")
-
-    # Bottom Nutrition Bar
-    draw.rectangle([34, 880, 990, 990], fill='#081C15')
-    nutr_text = f"🔥 {int(calories)} kcal  |  💪 Protein: {protein}g  |  🌾 Fiber: {fiber}g  |  🥗 Low Sodium"
-    draw.text((center_x, 935), nutr_text, fill='#95D5B2', font=font_med, anchor="mm")
-
-    img.save(output_path, format='JPEG', quality=90)
+    """Circular graphic placeholder generation completely deprecated and removed."""
+    pass
 
 
 class Command(BaseCommand):

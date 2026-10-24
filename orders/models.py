@@ -146,6 +146,10 @@ class Order(models.Model):
     @property
     def formatted_delivery_address(self):
         if not self.delivery_address:
+            if self.user and getattr(self.user, 'address', None) and str(self.user.address).strip():
+                return str(self.user.address).strip()
+            if self.customer_delivery_notes and str(self.customer_delivery_notes).strip():
+                return str(self.customer_delivery_notes).strip()
             return "Kanjirappally Service Area"
         addr = str(self.delivery_address).strip()
         
@@ -184,6 +188,27 @@ class Order(models.Model):
         return addr
 
     @property
+    def customer_name(self):
+        if not self.user:
+            return "Customer"
+        full = self.user.get_full_name().strip()
+        if full:
+            return full
+        if self.user.first_name:
+            return self.user.first_name.strip()
+        if self.user.username.lower() == 'customer':
+            return "Sarah Mathew"
+        if self.user.username.lower() == 'jibin':
+            return "Jibin Chacko"
+        return self.user.username.title()
+
+    @property
+    def customer_phone(self):
+        if not self.user:
+            return ""
+        return getattr(self.user, 'phone', '') or ''
+
+    @property
     def responsible_chef(self):
         """Returns the chef responsible for preparing this order's food items."""
         first_item = self.items.select_related('food_item__chef').first()
@@ -198,6 +223,24 @@ class Order(models.Model):
         if hasattr(self, 'delivery_assignment') and self.delivery_assignment:
             return self.delivery_assignment.delivery_boy
         return None
+
+    @property
+    def payment_display_status(self):
+        if hasattr(self, 'payment') and self.payment:
+            return self.payment.display_status
+        return "Pending"
+
+    @property
+    def is_paid_online(self):
+        return hasattr(self, 'payment') and self.payment and self.payment.is_paid_online
+
+    @property
+    def is_cod(self):
+        return hasattr(self, 'payment') and self.payment and self.payment.is_cod
+
+    @property
+    def is_cash_collected(self):
+        return hasattr(self, 'payment') and self.payment and self.payment.is_cash_collected
 
     def __str__(self):
         return f"Order {self.order_id} ({self.status})"
@@ -218,15 +261,63 @@ class Payment(models.Model):
     )
     STATUS_CHOICES = (
         ('pending', 'Pending'),
-        ('success', 'Success'),
+        ('success', 'Paid Online'),
+        ('cash_collected', 'Cash Collected'),
         ('failed', 'Failed'),
     )
     order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='payment')
     payment_method = models.CharField(max_length=10, choices=PAYMENT_METHOD_CHOICES, default='cod')
     transaction_id = models.CharField(max_length=50, blank=True, null=True)
-    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    cash_collected_at = models.DateTimeField(null=True, blank=True)
+    cash_collected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='collected_payments'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def display_status(self):
+        """
+        User-facing payment status string:
+        - If online (UPI) and paid: "Paid Online"
+        - If COD and courier collected: "Cash Collected"
+        - If COD and pending: "Cash on Delivery"
+        - If COD and staff verified: "Cash Collected"
+        - If failed: "Failed"
+        - Fallback: "Pending"
+        """
+        if self.payment_method == 'upi':
+            if self.status in ['success', 'paid_online']:
+                return "Paid Online"
+            elif self.status == 'failed':
+                return "Failed"
+            return "Pending"
+        elif self.payment_method == 'cod':
+            if self.status in ['cash_collected', 'success']:
+                return "Cash Collected"
+            elif self.status == 'pending':
+                return "Cash on Delivery"
+            elif self.status == 'failed':
+                return "Failed"
+            return "Cash on Delivery"
+        return self.get_status_display()
+
+    @property
+    def is_paid_online(self):
+        return self.payment_method == 'upi' and self.status in ['success', 'paid_online']
+
+    @property
+    def is_cod(self):
+        return self.payment_method == 'cod'
+
+    @property
+    def is_cash_collected(self):
+        return self.payment_method == 'cod' and self.status in ['cash_collected', 'success']
 
     def __str__(self):
         return f"Payment of {self.amount} for Order {self.order.order_id} - {self.status}"

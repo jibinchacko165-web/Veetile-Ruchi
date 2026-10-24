@@ -61,6 +61,17 @@
                             <span class="badge {% if order.status == 'delivered' %}badge-success{% elif order.status == 'cancelled' %}badge-danger{% elif order.status == 'in_transit' %}badge-warning{% else %}badge-primary{% endif %}" style="font-size: 0.85rem;">
                                 {{ order.get_status_display }}
                             </span>
+                            {% if order.payment %}
+                                <div style="margin-top: 0.3rem;">
+                                    {% if order.payment.payment_method == 'upi' and order.payment.status in 'success,paid_online' %}
+                                        <span style="font-size: 0.78rem; color: #059669; font-weight: 700;">💳 Paid Online</span>
+                                    {% elif order.payment.payment_method == 'cod' and order.payment.status in 'cash_collected,success' %}
+                                        <span style="font-size: 0.78rem; color: #059669; font-weight: 700;">💵 Cash Collected</span>
+                                    {% elif order.payment.payment_method == 'cod' %}
+                                        <span style="font-size: 0.78rem; color: #D97706; font-weight: 700;">💵 Cash on Delivery</span>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
                         </td>
                         <td style="padding: 1rem 0.75rem; color: var(--text-muted); font-size: 0.88rem; font-weight: 400;">
                             {{ order.created_at|date:"M d, Y • g:i A" }}
