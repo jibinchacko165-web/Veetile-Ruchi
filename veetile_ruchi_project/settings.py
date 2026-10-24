@@ -196,9 +196,20 @@ WSGI_APPLICATION = 'veetile_ruchi_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+import dj_database_url
+
+try:
+    import psycopg
+    has_psycopg = True
+except ImportError:
+    try:
+        import psycopg2
+        has_psycopg = True
+    except ImportError:
+        has_psycopg = False
+
 DATABASE_URL = os.getenv("DATABASE_URL")
-if DATABASE_URL:
-    import dj_database_url
+if DATABASE_URL and has_psycopg:
     DATABASES = {
         "default": dj_database_url.config(
             default=DATABASE_URL,
@@ -206,7 +217,7 @@ if DATABASE_URL:
             conn_health_checks=True,
         )
     }
-else:
+elif not IS_PRODUCTION and has_psycopg:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -215,6 +226,24 @@ else:
             "PASSWORD": os.getenv("DB_PASSWORD", ""),
             "HOST": os.getenv("DB_HOST", "127.0.0.1"),
             "PORT": os.getenv("DB_PORT", "5432"),
+        }
+    }
+elif os.getenv("DB_HOST") and has_psycopg and os.getenv("DB_HOST") not in ('', 'localhost', '127.0.0.1'):
+    DATABASES = {
+        "default": {
+            "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql"),
+            "NAME": os.getenv("DB_NAME", "veetile_ruchi"),
+            "USER": os.getenv("DB_USER", "postgres"),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+        }
+    }
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
         }
     }
 

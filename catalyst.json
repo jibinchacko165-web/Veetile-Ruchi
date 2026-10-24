@@ -15,7 +15,9 @@
         "scratch/**",
         ".codeatlas/**",
         ".pytest_cache/**",
-        "tests/selenium/screenshots/**"
+        "tests/selenium/screenshots/**",
+        "backups_verified/**",
+        "MCA_Academic_Report_Toolkit/**"
       ]
     }
   ]

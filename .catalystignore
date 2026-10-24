@@ -10,3 +10,6 @@ scratch
 tests/selenium/screenshots
 __pycache__
 *.pyc
+backups_verified
+MCA_Academic_Report_Toolkit
+
