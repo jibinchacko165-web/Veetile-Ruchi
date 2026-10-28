@@ -23,9 +23,10 @@ class OrderAdmin(admin.ModelAdmin):
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
-    list_display = ('order', 'payment_method', 'transaction_id', 'amount', 'status', 'created_at')
+    list_display = ('order', 'payment_method', 'transaction_id', 'razorpay_order_id', 'amount', 'status', 'created_at')
     list_filter = ('payment_method', 'status')
-    search_fields = ('transaction_id', 'order__order_id')
+    search_fields = ('transaction_id', 'razorpay_order_id', 'razorpay_payment_id', 'order__order_id')
+    readonly_fields = ('created_at',)
 
 @admin.register(Wishlist)
 class WishlistAdmin(admin.ModelAdmin):

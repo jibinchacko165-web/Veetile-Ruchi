@@ -12,4 +12,8 @@ __pycache__
 *.pyc
 backups_verified
 MCA_Academic_Report_Toolkit
+backups
+node_modules
+package.json
+package-lock.json
 

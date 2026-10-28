@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -41,14 +42,14 @@
     </script>
 
     <!-- Master Kerala Design System -->
-    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
 
     <!-- Leaflet Interactive Maps (Local Static Assets) -->
-    <link rel="stylesheet" href="/static/leaflet/leaflet.css">
-    <script src="/static/leaflet/leaflet.js"></script>
+    <link rel="stylesheet" href="{% static 'leaflet/leaflet.css' %}">
+    <script src="{% static 'leaflet/leaflet.js' %}"></script>
     <script>
         if (typeof L !== 'undefined') {
-            L.Icon.Default.imagePath = '/static/leaflet/images/';
+            L.Icon.Default.imagePath = '{% static "leaflet/images/" %}';
         }
     </script>
 
@@ -87,6 +88,8 @@
             align-items: center;
             gap: 0.75rem;
             text-decoration: none;
+            min-width: 0;
+            flex-shrink: 1;
         }
 
         .brand-emblem {
@@ -101,6 +104,15 @@
             font-size: 1.4rem;
             box-shadow: 0 3px 10px rgba(27, 77, 62, 0.25);
             border: 2px solid #FFFFFF;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+
+        .brand-text {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .brand-text h1 {
@@ -109,6 +121,7 @@
             color: var(--primary-green);
             line-height: 1.1;
             margin: 0;
+            white-space: nowrap;
         }
 
         .brand-text .malayalam-sub {
@@ -117,6 +130,7 @@
             font-weight: 500;
             display: block;
             margin-top: 0.15rem;
+            line-height: 1.2;
         }
 
         .nav-links-desktop {
@@ -236,6 +250,23 @@
             display: block;
         }
 
+        /* Mobile Drawer Backdrop Overlay */
+        .mobile-drawer-overlay {
+            display: none;
+            position: fixed;
+            top: var(--nav-height);
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.45);
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
+            z-index: 998;
+        }
+        .mobile-drawer-overlay.open {
+            display: block;
+        }
+
         .mobile-drawer-links {
             display: flex;
             flex-direction: column;
@@ -265,11 +296,147 @@
         @media (max-width: 1023px) {
             .nav-links-desktop { display: none !important; }
             .mobile-toggle { display: block !important; }
+            .navbar-inner {
+                padding: 0 1rem;
+                gap: 0.75rem;
+            }
+            .brand-link {
+                gap: 0.65rem;
+            }
+            .brand-emblem {
+                width: 42px;
+                height: 42px;
+                font-size: 1.3rem;
+                border-radius: 10px;
+            }
+            .brand-text h1 {
+                font-size: 1.18rem;
+            }
+            .brand-text .malayalam-sub {
+                font-size: 0.72rem;
+            }
         }
         @media (min-width: 1024px) {
             .nav-links-desktop { display: flex !important; }
             .mobile-toggle { display: none !important; }
             .mobile-drawer { display: none !important; }
+            .mobile-drawer-overlay { display: none !important; }
+        }
+
+        @media (max-width: 767px) {
+            .navbar-inner {
+                padding: 0 0.85rem;
+                gap: 0.5rem;
+            }
+            .brand-link {
+                gap: 0.55rem;
+                max-width: calc(100% - 95px);
+            }
+            .brand-emblem {
+                width: 38px;
+                height: 38px;
+                font-size: 1.15rem;
+                border-radius: 9px;
+            }
+            .brand-text h1 {
+                font-size: 1.1rem;
+            }
+            .brand-text .malayalam-sub {
+                font-size: 0.7rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 200px;
+            }
+            .nav-actions {
+                gap: 0.45rem;
+                flex-shrink: 0;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .navbar-inner {
+                padding: 0 0.65rem;
+                gap: 0.4rem;
+            }
+            .brand-link {
+                gap: 0.45rem;
+                max-width: calc(100% - 82px);
+            }
+            .brand-emblem {
+                width: 34px;
+                height: 34px;
+                font-size: 1.05rem;
+                border-radius: 8px;
+                border-width: 1.5px;
+                box-shadow: 0 2px 6px rgba(27, 77, 62, 0.2);
+            }
+            .brand-text h1 {
+                font-size: 1.02rem;
+                line-height: 1.1;
+            }
+            .brand-text .malayalam-sub {
+                font-size: 0.63rem;
+                line-height: 1.15;
+                margin-top: 0.1rem;
+                letter-spacing: -0.2px;
+                max-width: 175px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .nav-actions {
+                gap: 0.35rem;
+                flex-shrink: 0;
+            }
+            .mobile-toggle {
+                width: 38px !important;
+                height: 38px !important;
+                font-size: 1.1rem !important;
+            }
+            .nav-logout-btn {
+                display: none !important;
+            }
+            .user-pill span:not(.user-avatar-sm) {
+                display: none !important;
+            }
+            .user-pill {
+                padding: 0.2rem !important;
+                border: none !important;
+                background: transparent !important;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .navbar-inner {
+                padding: 0 0.45rem;
+                gap: 0.3rem;
+            }
+            .brand-link {
+                gap: 0.35rem;
+                max-width: calc(100% - 72px);
+            }
+            .brand-emblem {
+                width: 30px;
+                height: 30px;
+                font-size: 0.95rem;
+                border-radius: 7px;
+            }
+            .brand-text h1 {
+                font-size: 0.92rem;
+            }
+            .brand-text .malayalam-sub {
+                font-size: 0.56rem;
+                max-width: 130px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .mobile-toggle {
+                width: 34px !important;
+                height: 34px !important;
+                font-size: 1rem !important;
+            }
         }
 
         /* Kerala Heritage Footer */
@@ -372,35 +539,71 @@
                         </a>
                     </li>
 
-                    {% if user.is_authenticated and user.role == 'customer' %}
-                        <!-- 3. Cart -->
-                        <li>
-                            <a href="{% url 'cart_view' %}" class="nav-item-link {% if '/orders/cart/' in request.path %}active{% endif %}">
-                                <i class="fa-solid fa-cart-shopping"></i>
-                                <span>Cart</span>
-                                {% if cart_count and cart_count > 0 %}
-                                    <span class="nav-badge">{{ cart_count }}</span>
-                                {% endif %}
-                            </a>
-                        </li>
+                    {% if user.is_authenticated %}
+                        {% if user.role == 'customer' %}
+                            <!-- 3. Cart -->
+                            <li>
+                                <a href="{% url 'cart_view' %}" class="nav-item-link {% if '/orders/cart/' in request.path %}active{% endif %}">
+                                    <i class="fa-solid fa-cart-shopping"></i>
+                                    <span>Cart</span>
+                                    {% if cart_count and cart_count > 0 %}
+                                        <span class="nav-badge">{{ cart_count }}</span>
+                                    {% endif %}
+                                </a>
+                            </li>
 
-                        <!-- 4. Orders -->
-                        <li>
-                            <a href="{% url 'order_history' %}" class="nav-item-link {% if '/orders/history/' in request.path or '/orders/track/' in request.path %}active{% endif %}">
-                                <i class="fa-solid fa-clock-rotate-left"></i>
-                                <span>Orders</span>
-                            </a>
-                        </li>
+                            <!-- 4. Orders -->
+                            <li>
+                                <a href="{% url 'order_history' %}" class="nav-item-link {% if '/orders/history/' in request.path or '/orders/track/' in request.path %}active{% endif %}">
+                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                    <span>Orders</span>
+                                </a>
+                            </li>
 
-                        <!-- 5. Wishlist -->
-                        <li>
-                            <a href="{% url 'wishlist_view' %}" class="nav-item-link {% if '/wishlist/' in request.path %}active{% endif %}" id="nav-wishlist-link" data-count="{{ wishlist_count|default:0 }}">
-                                <i class="fa-solid fa-heart" style="color: #EF4444;"></i>
-                                <span id="nav-wishlist-label">Wishlist{% if wishlist_count and wishlist_count > 0 %} <span class="nav-badge" id="nav-wishlist-badge">{{ wishlist_count }}</span>{% else %}<span class="nav-badge" id="nav-wishlist-badge" style="display: none;">0</span>{% endif %}</span>
-                            </a>
-                        </li>
+                            <!-- 5. Wishlist -->
+                            <li>
+                                <a href="{% url 'wishlist_view' %}" class="nav-item-link {% if '/wishlist/' in request.path %}active{% endif %}" id="nav-wishlist-link" data-count="{{ wishlist_count|default:0 }}">
+                                    <i class="fa-solid fa-heart" style="color: #EF4444;"></i>
+                                    <span id="nav-wishlist-label">Wishlist{% if wishlist_count and wishlist_count > 0 %} <span class="nav-badge" id="nav-wishlist-badge">{{ wishlist_count }}</span>{% else %}<span class="nav-badge" id="nav-wishlist-badge" style="display: none;">0</span>{% endif %}</span>
+                                </a>
+                            </li>
+                        {% elif user.role == 'chef' %}
+                            <li>
+                                <a href="{% url 'chef_dashboard' %}" class="nav-item-link {% if '/chef/' in request.path and '/add/' not in request.path %}active{% endif %}">
+                                    <i class="fa-solid fa-kitchen-set"></i>
+                                    <span>Chef Dashboard</span>
+                                </a>
+                            </li>
+                        {% elif user.role == 'delivery_boy' %}
+                            <li>
+                                <a href="{% url 'delivery_boy_dashboard' %}" class="nav-item-link {% if '/delivery/' in request.path %}active{% endif %}">
+                                    <i class="fa-solid fa-motorcycle"></i>
+                                    <span>Courier Portal</span>
+                                </a>
+                            </li>
+                        {% elif user.role == 'staff' %}
+                            <li>
+                                <a href="{% url 'staff_dashboard' %}" class="nav-item-link {% if '/orders/staff/' in request.path %}active{% endif %}">
+                                    <i class="fa-solid fa-clipboard-check"></i>
+                                    <span>Staff Console</span>
+                                </a>
+                            </li>
+                        {% elif user.role == 'admin' %}
+                            <li>
+                                <a href="{% url 'admin_dashboard' %}" class="nav-item-link {% if '/admin-dashboard/' in request.path or '/dashboard/' in request.path %}active{% endif %}">
+                                    <i class="fa-solid fa-chart-line"></i>
+                                    <span>Admin Dashboard</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="{% url 'ai_analytics_dashboard' %}" class="nav-item-link {% if '/ai/analytics/' in request.path %}active{% endif %}">
+                                    <i class="fa-solid fa-brain"></i>
+                                    <span>AI Analytics</span>
+                                </a>
+                            </li>
+                        {% endif %}
 
-                        <!-- 6. Profile -->
+                        <!-- Profile Link (All authenticated roles) -->
                         <li>
                             <a href="{% url 'profile' %}" class="nav-item-link {% if '/accounts/profile/' in request.path %}active{% endif %}">
                                 <i class="fa-solid fa-user"></i>
@@ -414,12 +617,6 @@
             <!-- User Auth / Controls -->
             <div class="nav-actions">
                 {% if user.is_authenticated %}
-                    <!-- Role Portal Redirect for Non-Customer Roles -->
-                    {% if user.role != 'customer' %}
-                        <a href="{% url 'dashboard_redirect' %}" class="btn btn-sm">
-                            <i class="fa-solid fa-gauge"></i> {{ user.get_role_display }} Portal
-                        </a>
-                    {% endif %}
 
                     <!-- Customer Profile Pill -->
                     <a href="{% url 'profile' %}" class="user-pill" title="My Profile">
@@ -436,7 +633,7 @@
                     </a>
 
                     <!-- Logout Button -->
-                    <a href="{% url 'logout' %}" class="btn btn-outline btn-sm" style="padding: 0.4rem 0.8rem;" title="Sign Out">
+                    <a href="{% url 'logout' %}" class="btn btn-outline btn-sm nav-logout-btn" style="padding: 0.4rem 0.8rem;" title="Sign Out">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
                     </a>
                 {% else %}
@@ -456,21 +653,28 @@
         </div>
     </header>
 
-    <!-- Mobile Drawer Menu: Home | Food | Cart | Orders | Wishlist | Profile -->
+    <!-- Mobile Drawer Menu: Multi-Role Support -->
     <div id="mobile-drawer" class="mobile-drawer">
         <ul class="mobile-drawer-links">
             <li><a href="{% url 'food_catalog' %}" class="{% if request.path == '/' and not request.GET.session and not request.GET.category and not request.GET.q %}active{% endif %}"><span>🏠 Home</span> <i class="fa-solid fa-chevron-right"></i></a></li>
-            <li><a href="{% url 'food_catalog' %}?session=All" class="{% if request.GET.session or request.GET.category or request.GET.q %}active{% endif %}"><span>🍲 Food</span> <i class="fa-solid fa-chevron-right"></i></a></li>
+            <li><a href="{% url 'food_catalog' %}?session=All" class="{% if request.GET.session or request.GET.category or request.GET.q or '/food/' in request.path and '/chef/' not in request.path %}active{% endif %}"><span>🍲 Food Catalog</span> <i class="fa-solid fa-chevron-right"></i></a></li>
             {% if user.is_authenticated %}
-                {% if user.role != 'customer' %}
-                    <li><a href="{% url 'dashboard_redirect' %}" style="background: var(--primary-green); color: white;"><span>📊 {{ user.get_role_display }} Portal</span> <i class="fa-solid fa-gauge"></i></a></li>
-                {% endif %}
                 {% if user.role == 'customer' %}
-                    <li><a href="{% url 'cart_view' %}"><span>🧺 Cart</span> <span class="badge badge-green">{{ cart_count|default:0 }} items</span></a></li>
-                    <li><a href="{% url 'order_history' %}"><span>📦 Orders</span> <i class="fa-solid fa-chevron-right"></i></a></li>
-                    <li><a href="{% url 'wishlist_view' %}" id="mobile-nav-wishlist-link" data-count="{{ wishlist_count|default:0 }}"><span id="mobile-nav-wishlist-label">❤️ Wishlist{% if wishlist_count and wishlist_count > 0 %} <span class="badge badge-green" id="mobile-nav-wishlist-badge" style="margin-left: 0.35rem;">{{ wishlist_count }}</span>{% else %}<span class="badge badge-green" id="mobile-nav-wishlist-badge" style="display: none; margin-left: 0.35rem;">0</span>{% endif %}</span> <i class="fa-solid fa-chevron-right"></i></a></li>
+                    <li><a href="{% url 'cart_view' %}" class="{% if '/orders/cart/' in request.path %}active{% endif %}"><span>🧺 Cart</span> <span class="badge badge-green">{{ cart_count|default:0 }} items</span></a></li>
+                    <li><a href="{% url 'order_history' %}" class="{% if '/orders/history/' in request.path or '/orders/track/' in request.path %}active{% endif %}"><span>📦 My Orders</span> <i class="fa-solid fa-chevron-right"></i></a></li>
+                    <li><a href="{% url 'wishlist_view' %}" id="mobile-nav-wishlist-link" data-count="{{ wishlist_count|default:0 }}" class="{% if '/wishlist/' in request.path %}active{% endif %}"><span id="mobile-nav-wishlist-label">❤️ Wishlist{% if wishlist_count and wishlist_count > 0 %} <span class="badge badge-green" id="mobile-nav-wishlist-badge" style="margin-left: 0.35rem;">{{ wishlist_count }}</span>{% else %}<span class="badge badge-green" id="mobile-nav-wishlist-badge" style="display: none; margin-left: 0.35rem;">0</span>{% endif %}</span> <i class="fa-solid fa-chevron-right"></i></a></li>
+                {% elif user.role == 'chef' %}
+                    <li><a href="{% url 'chef_dashboard' %}" class="{% if '/chef/' in request.path and '/add/' not in request.path %}active{% endif %}"><span>👨‍🍳 Chef Dashboard</span> <i class="fa-solid fa-chevron-right"></i></a></li>
+                    <li><a href="{% url 'chef_food_add' %}" class="{% if '/chef/food/add/' in request.path %}active{% endif %}"><span>➕ Add New Dish</span> <i class="fa-solid fa-chevron-right"></i></a></li>
+                {% elif user.role == 'delivery_boy' %}
+                    <li><a href="{% url 'delivery_boy_dashboard' %}" class="{% if '/delivery/' in request.path %}active{% endif %}"><span>🛵 Courier Portal</span> <i class="fa-solid fa-chevron-right"></i></a></li>
+                {% elif user.role == 'staff' %}
+                    <li><a href="{% url 'staff_dashboard' %}" class="{% if '/orders/staff/' in request.path %}active{% endif %}"><span>📋 Staff Console</span> <i class="fa-solid fa-chevron-right"></i></a></li>
+                {% elif user.role == 'admin' %}
+                    <li><a href="{% url 'admin_dashboard' %}" class="{% if '/admin-dashboard/' in request.path or '/dashboard/' in request.path %}active{% endif %}"><span>📊 Admin Dashboard</span> <i class="fa-solid fa-chevron-right"></i></a></li>
+                    <li><a href="{% url 'ai_analytics_dashboard' %}" class="{% if '/ai/analytics/' in request.path %}active{% endif %}"><span>🧠 AI Analytics</span> <i class="fa-solid fa-chevron-right"></i></a></li>
                 {% endif %}
-                <li><a href="{% url 'profile' %}"><span>👤 Profile</span> <i class="fa-solid fa-chevron-right"></i></a></li>
+                <li><a href="{% url 'profile' %}" class="{% if '/accounts/profile/' in request.path %}active{% endif %}"><span>👤 My Profile</span> <i class="fa-solid fa-chevron-right"></i></a></li>
                 <li><a href="{% url 'logout' %}" style="color: var(--danger);"><span>🚪 Sign Out</span> <i class="fa-solid fa-arrow-right-from-bracket"></i></a></li>
             {% else %}
                 <li><a href="{% url 'login' %}"><span>🔑 Sign In</span> <i class="fa-solid fa-chevron-right"></i></a></li>
@@ -478,6 +682,9 @@
             {% endif %}
         </ul>
     </div>
+
+    <!-- Mobile Drawer Backdrop Overlay -->
+    <div id="mobile-drawer-overlay" class="mobile-drawer-overlay" onclick="toggleMobileMenu()"></div>
 
     <!-- =========================================================================
          GLOBAL DJANGO MESSAGES BANNER
@@ -489,14 +696,14 @@
                     {% if message.tags == 'error' or message.tags == 'danger' %}
                         background: var(--danger-bg); color: var(--danger); border: 1.5px solid rgba(185, 28, 28, 0.3);
                     {% elif message.tags == 'success' %}
-                        background: var(--success-bg); color: var(--success); border: 1.5px solid rgba(21, 128, 61, 0.3);
+                        background: #F8FAFC; color: #334155; border: 1.5px solid #CBD5E1;
                     {% elif message.tags == 'warning' %}
                         background: var(--warning-bg); color: var(--warning); border: 1.5px solid rgba(180, 83, 9, 0.3);
                     {% else %}
                         background: var(--primary-orange-light); color: var(--primary-orange-hover); border: 1.5px solid rgba(217, 119, 54, 0.3);
                     {% endif %}">
                     <span>
-                        {% if message.tags == 'error' or message.tags == 'danger' %}⚠️{% elif message.tags == 'success' %}✓{% else %}ℹ️{% endif %}
+                        {% if message.tags == 'error' or message.tags == 'danger' %}⚠️{% elif message.tags == 'warning' %}⚠️{% else %}ℹ️{% endif %}
                     </span>
                     <span>{{ message }}</span>
                 </div>
@@ -517,10 +724,33 @@
     <script>
         function toggleMobileMenu() {
             const drawer = document.getElementById('mobile-drawer');
+            const overlay = document.getElementById('mobile-drawer-overlay');
+            const toggleIcon = document.querySelector('.mobile-toggle i');
             if (drawer) {
-                drawer.classList.toggle('open');
+                const isOpen = drawer.classList.toggle('open');
+                if (overlay) overlay.classList.toggle('open', isOpen);
+                if (toggleIcon) {
+                    if (isOpen) {
+                        toggleIcon.classList.remove('fa-bars');
+                        toggleIcon.classList.add('fa-xmark');
+                    } else {
+                        toggleIcon.classList.remove('fa-xmark');
+                        toggleIcon.classList.add('fa-bars');
+                    }
+                }
+                document.body.style.overflow = isOpen ? 'hidden' : '';
             }
         }
+
+        // Close drawer on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const drawer = document.getElementById('mobile-drawer');
+                if (drawer && drawer.classList.contains('open')) {
+                    toggleMobileMenu();
+                }
+            }
+        });
 
         // Responsive Leaflet map invalidation on window resize & orientationchange
         window.addEventListener('resize', function () {
@@ -543,6 +773,7 @@
                 }
             }, 300);
         });
+
 
         // Anti-caching & BFCache invalidation for session security on Back button
         window.addEventListener('pageshow', function (event) {

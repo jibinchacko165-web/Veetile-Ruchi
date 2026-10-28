@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Razorpay Secure Payment - Veetile Ruchi{% endblock %}
+
+{% block extra_head %}
+<!-- Razorpay Official Standard Checkout Script -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 680px; margin: 2rem auto; padding: 0 1rem;">
+    <!-- Brand Breadcrumb / Back Link -->
+    <div style="margin-bottom: 1.5rem;">
+        <a href="{% url 'cart_view' %}" style="color: var(--primary-green); text-decoration: none; font-weight: 500; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 0.4rem;">
+            ← Return to Cart
+        </a>
+    </div>
+
+    <!-- Main Payment Card -->
+    <div class="card" style="background: #ffffff; border-radius: 16px; border: 1.5px solid var(--border-warm); padding: 2rem; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);">
+        <!-- Gateway Header with Razorpay Logo / Badge -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid var(--border-warm); padding-bottom: 1.25rem; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <span style="font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 600;">
+                    Secure Checkout
+                </span>
+                <h2 style="color: var(--text-heading); font-size: 1.4rem; font-weight: 700; margin: 0.25rem 0 0 0;">
+                    Razorpay Payment Gateway
+                </h2>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; background: #0C2340; padding: 0.45rem 0.9rem; border-radius: 8px;">
+                <span style="color: #3399CC; font-weight: 800; font-size: 1.1rem; letter-spacing: -0.5px;">Razorpay</span>
+                <span style="color: #ffffff; font-size: 0.75rem; background: #3399CC; padding: 0.15rem 0.4rem; border-radius: 4px; font-weight: 600;">TEST MODE</span>
+            </div>
+        </div>
+
+        <!-- Order Summary Box -->
+        <div style="background: #FDFBF7; border: 1px solid var(--border-warm); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+                <span style="color: var(--text-muted); font-size: 0.9rem;">Order Reference:</span>
+                <strong style="color: var(--text-heading); font-family: monospace; font-size: 1rem;">#{{ order.order_id }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+                <span style="color: var(--text-muted); font-size: 0.9rem;">Customer Name:</span>
+                <span style="color: var(--text-main); font-weight: 600;">{{ user_name }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+                <span style="color: var(--text-muted); font-size: 0.9rem;">Delivery Destination:</span>
+                <span style="color: var(--text-main); font-size: 0.88rem; max-width: 60%; text-align: right;">{{ order.delivery_address }}</span>
+            </div>
+            <div style="border-top: 1px dashed var(--border-warm); margin-top: 0.75rem; padding-top: 0.75rem; display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: var(--text-heading); font-weight: 700; font-size: 1.1rem;">Total Payable:</span>
+                <span style="color: var(--primary-green); font-weight: 800; font-size: 1.45rem;">₹{{ amount_in_rupees|floatformat:2 }}</span>
+            </div>
+        </div>
+
+
+        {% if not has_valid_key_id %}
+        <!-- Notice when Key ID is missing or placeholder -->
+        <div style="background: #FFFBEB; border: 1.5px solid #FCD34D; border-radius: 12px; padding: 1.1rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; gap: 0.6rem; align-items: flex-start;">
+                <span style="font-size: 1.3rem;">⚠️</span>
+                <div>
+                    <strong style="color: #92400E; font-size: 0.95rem; display: block; margin-bottom: 0.25rem;">
+                        Razorpay API Key Required
+                    </strong>
+                    <p style="color: #78350F; font-size: 0.85rem; margin: 0 0 0.4rem 0; line-height: 1.5;">
+                        Your project is currently using the placeholder key (<code>{{ razorpay_key_id|default:'your_test_key_id' }}</code>).
+                    </p>
+                    <p style="color: #78350F; font-size: 0.83rem; margin: 0; line-height: 1.5;">
+                        To open the interactive Razorpay checkout modal with test cards & UPI, set your test keys in <code>.env</code>:
+                        <br>
+                        <code>RAZORPAY_KEY_ID=rzp_test_...</code>
+                        <br>
+                        <code>RAZORPAY_KEY_SECRET=...</code>
+                        <br>
+                        (From <a href="https://dashboard.razorpay.com/app/keys" target="_blank" style="color: #B45309; font-weight: 600;">dashboard.razorpay.com/app/keys</a>).
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% elif not has_valid_secret %}
+        <!-- Notice when Key ID is set but Secret is missing -->
+        <div style="background: #EFF6FF; border: 1.5px solid #93C5FD; border-radius: 12px; padding: 1.1rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; gap: 0.6rem; align-items: flex-start;">
+                <span style="font-size: 1.3rem;">🔑</span>
+                <div>
+                    <strong style="color: #1E40AF; font-size: 0.95rem; display: block; margin-bottom: 0.25rem;">
+                        Almost Ready: Please Add Your Razorpay Key Secret
+                    </strong>
+                    <p style="color: #1E3A8A; font-size: 0.86rem; margin: 0 0 0.4rem 0; line-height: 1.5;">
+                        Your Key ID <code>{{ razorpay_key_id }}</code> is connected! However, Razorpay requires your <strong>Key Secret</strong> so the backend can create an order receipt token before checkout.
+                    </p>
+                    <p style="color: #1E3A8A; font-size: 0.82rem; margin: 0; line-height: 1.5;">
+                        In your Razorpay tab &rarr; <strong>Account & Settings</strong> &rarr; <strong>API Keys</strong> &rarr; Click <strong>Regenerate Test Key</strong> (or copy your secret) and add it to your <code>.env</code>:
+                        <br>
+                        <code>RAZORPAY_KEY_SECRET=your_actual_key_secret_here</code>
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if error_message %}
+        <div style="background: #FEF2F2; border: 1.5px solid #F87171; border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 1.25rem; color: #991B1B; font-size: 0.88rem;">
+            ⚠️ <strong>Gateway Notice:</strong> {{ error_message }}
+        </div>
+        {% endif %}
+
+        <!-- Hidden Verification Callback Form -->
+        <form method="POST" action="{% url 'razorpay_callback' %}" id="razorpay-form">
+            {% csrf_token %}
+            <input type="hidden" name="order_id" value="{{ order.order_id }}">
+            <input type="hidden" name="razorpay_payment_id" id="razorpay_payment_id">
+            <input type="hidden" name="razorpay_order_id" id="razorpay_order_id" value="{{ razorpay_order_id }}">
+            <input type="hidden" name="razorpay_signature" id="razorpay_signature">
+        </form>
+
+        <!-- Main CTA: Pay via Razorpay -->
+        <button id="rzp-button" type="button" class="btn" style="width: 100%; padding: 1rem; font-size: 1.15rem; font-weight: 700; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: #3399CC; border-color: #3399CC; color: #ffffff; cursor: pointer;">
+            🔒 Pay ₹{{ amount_in_rupees|floatformat:2 }} via Razorpay
+        </button>
+
+        {% if not has_valid_key_id or not has_valid_secret %}
+        <!-- Optional Sandbox Simulation Tool for Developers ONLY -->
+        <div style="margin-top: 1.25rem; padding: 0.9rem; background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 10px; text-align: center;">
+            <span style="font-size: 0.78rem; color: #64748B; font-weight: 600; display: block; margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.05em;">
+                🛠️ Developer Testing Tool
+            </span>
+            <p style="font-size: 0.8rem; color: #64748B; margin: 0 0 0.6rem 0;">
+                Test database status & live order tracking flow without Razorpay credentials:
+            </p>
+            <button type="button" onclick="confirmAndSimulate()" class="btn btn-outline" style="padding: 0.45rem 1rem; font-size: 0.84rem; font-weight: 600; border-color: #94A3B8; color: #475569; border-radius: 8px;">
+                ⚡ Simulate Test Payment Confirmation
+            </button>
+        </div>
+        {% endif %}
+
+        <!-- Fallback Options -->
+        <div style="border-top: 1px solid var(--border-warm); margin-top: 1.5rem; padding-top: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: gap; gap: 0.75rem;">
+            <a href="{% url 'razorpay_switch_to_cod' order.order_id %}" style="color: var(--primary-brown); font-size: 0.9rem; font-weight: 600; text-decoration: none;">
+                💵 Switch to Cash on Delivery (COD)
+            </a>
+            <a href="{% url 'cancel_order' order.order_id %}" onclick="return confirm('Are you sure you want to cancel this order?');" style="color: var(--danger); font-size: 0.88rem; text-decoration: none;">
+                ✕ Cancel Order
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+    var options = {
+        "key": "{{ razorpay_key_id }}",
+        "amount": "{{ amount_in_paise }}",
+        "currency": "INR",
+        "name": "Veetile Ruchi",
+        "description": "Homemade Food Order #{{ order.order_id }}",
+        {% if razorpay_order_id and has_valid_secret %}
+        "order_id": "{{ razorpay_order_id }}",
+        {% endif %}
+        "handler": function (response) {
+            // This ONLY executes when the customer successfully pays inside Razorpay popup
+            document.getElementById('razorpay_payment_id').value = response.razorpay_payment_id;
+            document.getElementById('razorpay_order_id').value = response.razorpay_order_id || '{{ razorpay_order_id }}';
+            document.getElementById('razorpay_signature').value = response.razorpay_signature || '';
+            document.getElementById('razorpay-form').submit();
+        },
+        "prefill": {
+            "name": "{{ user_name }}",
+            "email": "{{ user_email }}",
+            "contact": "{{ user_phone }}"
+        },
+        "notes": {
+            "order_id": "{{ order.order_id }}"
+        },
+        "theme": {
+            "color": "#1B4D3E"
+        },
+        "modal": {
+            "ondismiss": function() {
+                console.log('Customer dismissed Razorpay payment window');
+            }
+        }
+    };
+
+    var rzp1 = null;
+    {% if has_valid_key_id and has_valid_secret and razorpay_order_id %}
+    try {
+        rzp1 = new Razorpay(options);
+        rzp1.on('payment.failed', function (response){
+            alert("Payment Failed: " + (response.error ? response.error.description : "Transaction declined."));
+        });
+    } catch(e) {
+        console.warn("Razorpay standard script could not be initialized:", e);
+    }
+    {% endif %}
+
+    // When the customer clicks the primary Pay button
+    document.getElementById('rzp-button').onclick = function(e){
+        e.preventDefault();
+        if (rzp1) {
+            rzp1.open();
+        } else {
+            {% if not has_valid_key_id %}
+            alert("⚠️ Razorpay Key ID Required:\n\nYour .env file currently has a placeholder key ('your_test_key_id').\n\nPlease add your active Razorpay Test Key (starts with rzp_test_...) to your .env file.");
+            {% elif not has_valid_secret %}
+            alert("⚠️ Razorpay Key Secret Required:\n\nRazorpay requires both Key ID and Key Secret to process orders.\n\nPlease add your RAZORPAY_KEY_SECRET to your .env file.\n\nYou can find or regenerate it in your Razorpay Dashboard (dashboard.razorpay.com/app/keys).");
+            {% else %}
+            alert("Unable to open Razorpay payment gateway. Please check your internet connection or switch to Cash on Delivery.");
+            {% endif %}
+        }
+    };
+
+    // Manual developer testing only — requires explicit confirmation
+    function confirmAndSimulate() {
+        if (confirm("Simulate test payment confirmation for Order #{{ order.order_id }}?")) {
+            const mockPayId = "pay_test_" + Math.random().toString(36).substring(2, 12);
+            document.getElementById('razorpay_payment_id').value = mockPayId;
+            document.getElementById('razorpay_signature').value = "sig_simulated_success_" + Math.random().toString(36).substring(2, 10);
+            document.getElementById('razorpay-form').submit();
+        }
+    }
+</script>
+{% endblock %}

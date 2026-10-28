@@ -21,6 +21,8 @@ def global_settings(request):
         'MAP_TILE_SUBDOMAINS': subdomains,
         'MAP_TILE_FALLBACK_URL': fallback_url,
         'MAP_TILE_FALLBACK_ATTRIBUTION': fallback_attr,
+        'GST_RATE_PERCENT': getattr(settings, 'GST_RATE_PERCENT', 5.0),
+        'GST_MODE': getattr(settings, 'GST_MODE', 'inclusive'),
     }
 
 

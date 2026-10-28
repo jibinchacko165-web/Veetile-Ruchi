@@ -15,7 +15,7 @@
         </div>
         
         <!-- Quick Track Order Search Box -->
-        <form method="GET" onsubmit="event.preventDefault(); var id = document.getElementById('quick_track_id').value.toUpperCase().trim(); if(id) window.location.href='/orders/track/' + id + '/';" style="display: flex; gap: 0.5rem;">
+        <form method="GET" class="quick-track-form" onsubmit="event.preventDefault(); var id = document.getElementById('quick_track_id').value.toUpperCase().trim(); if(id) window.location.href='/orders/track/' + id + '/';" style="display: flex; gap: 0.5rem;">
             <input type="text" id="quick_track_id" placeholder="Enter Order ID (e.g. VR-XXXX)..." class="form-control" style="width: 230px; font-size: 0.9rem; font-weight: 500; text-transform: uppercase;" required>
             <button type="submit" class="btn btn-sm" style="padding: 0.5rem 1.25rem;">
                 🚚 Track

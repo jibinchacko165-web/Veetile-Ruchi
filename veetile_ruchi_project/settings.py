@@ -112,6 +112,9 @@ CSRF_FAILURE_VIEW = 'accounts.views.csrf_failure_view'
 # Reverse Proxy SSL Header Configuration for Zoho Catalyst
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# Cross-Origin Opener Policy: Allow payment gateway bank redirect popups (Razorpay Netbanking / 3D Secure)
+SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin-allow-popups'
+
 # Production Security & SSL Configuration
 if not DEBUG and IS_PRODUCTION:
     SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False').lower() in ('true', '1')
@@ -359,5 +362,15 @@ MAP_TILE_ATTRIBUTION = os.environ.get(
 MAP_TILE_SUBDOMAINS = os.environ.get('MAP_TILE_SUBDOMAINS', 'abc')
 MAP_TILE_FALLBACK_URL = os.environ.get('MAP_TILE_FALLBACK_URL', 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
 MAP_TILE_FALLBACK_ATTRIBUTION = os.environ.get('MAP_TILE_FALLBACK_ATTRIBUTION', MAP_TILE_ATTRIBUTION)
+
+# Razorpay Payment Gateway Configuration
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', '')
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', '')
+
+# Centralized GST & Tax Configuration
+# GST_MODE: 'inclusive' (Mode B: GST is included in displayed food price) or 'exclusive' (Mode A: GST is added on top)
+GST_RATE_PERCENT = float(os.environ.get('GST_RATE_PERCENT', 5.0))
+GST_MODE = os.environ.get('GST_MODE', 'inclusive')
+
 
 

@@ -38,8 +38,21 @@ class User(AbstractUser):
     def is_admin_user(self):
         return self.role == 'admin' or self.is_superuser
 
+    def clean(self):
+        super().clean()
+        if self.email:
+            from .validators import validate_custom_email
+            validate_custom_email(self.email)
+
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
+
+    @property
+    def has_valid_coordinates(self):
+        try:
+            return self.latitude is not None and self.longitude is not None and -90.0 <= float(self.latitude) <= 90.0 and -180.0 <= float(self.longitude) <= 180.0
+        except (ValueError, TypeError):
+            return False
 
 class SavedLocation(models.Model):
     LOCATION_TYPE_CHOICES = (
@@ -76,6 +89,13 @@ class SavedLocation(models.Model):
     def __str__(self):
         default_str = " [Default]" if self.is_default else ""
         return f"{self.name} ({self.get_location_type_display()}){default_str} - {self.user.username}"
+
+    @property
+    def has_valid_coordinates(self):
+        try:
+            return self.latitude is not None and self.longitude is not None and -90.0 <= float(self.latitude) <= 90.0 and -180.0 <= float(self.longitude) <= 180.0
+        except (ValueError, TypeError):
+            return False
 
 class ChefProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='chef_profile')

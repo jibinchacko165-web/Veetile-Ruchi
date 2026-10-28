@@ -282,7 +282,7 @@
                             🟢 Available
                         </span>
                         <div style="font-size: 0.75rem; color: #059669; font-weight: 600; margin-top: 0.25rem;">
-                            ✓ Ready for assignment
+                            Ready for assignment
                         </div>
                     {% elif c.realtime_status == 'Busy (currently delivering an order)' %}
                         <span class="badge" style="background: #F59E0B; color: #78350F; font-weight: 700; font-size: 0.74rem; padding: 0.25rem 0.65rem; border-radius: 20px; display: inline-block;">
@@ -324,20 +324,20 @@
 
     {% if cash_collected_orders_count %}
         <!-- Cash Collected Successfully Staff Alert Banner -->
-        <div style="background: #ECFDF5; border: 1.5px solid #10B981; border-radius: 12px; padding: 0.9rem 1.25rem; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
+        <div style="background: #F8FAFC; border: 1.5px solid #CBD5E1; border-radius: 12px; padding: 0.9rem 1.25rem; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
             <div style="display: flex; align-items: center; gap: 0.6rem;">
                 <span style="font-size: 1.5rem;">💵</span>
                 <div>
-                    <strong style="color: #065F46; font-size: 0.95rem; display: block;">
+                    <strong style="color: #1E293B; font-size: 0.95rem; display: block;">
                         Cash Collected Successfully ({{ cash_collected_orders_count }} Order{{ cash_collected_orders_count|pluralize }})
                     </strong>
-                    <span style="color: #047857; font-size: 0.84rem;">
+                    <span style="color: #475569; font-size: 0.84rem;">
                         Courier boy has received payment from customer. Please verify and confirm cash deposited to register below.
                     </span>
                 </div>
             </div>
-            <span class="badge" style="background: #059669; color: #fff; font-weight: 800; padding: 0.45rem 0.9rem; border-radius: 8px; font-size: 0.85rem;">
-                ✓ Cash Collected Successfully
+            <span class="badge" style="background: #334155; color: #fff; font-weight: 800; padding: 0.45rem 0.9rem; border-radius: 8px; font-size: 0.85rem;">
+                Cash Collected Successfully
             </span>
         </div>
     {% endif %}
@@ -491,7 +491,7 @@
                                                     Cash Collected Successfully &bull; Cash Received by Courier Boy
                                                 </strong>
                                                 <span style="color: #047857; font-size: 0.82rem;">
-                                                    Cash of <strong>₹{{ order.payment.amount }}</strong> has been collected successfully from customer by courier 
+                                                    Cash of <strong>₹{{ order.payment.amount }}</strong> has been collected successfully from customer by 
                                                     <strong>
                                                         {% if order.payment.cash_collected_by %}
                                                             {{ order.payment.cash_collected_by.get_full_name|default:order.payment.cash_collected_by.username|title }}
@@ -508,8 +508,8 @@
                                             </div>
                                         </div>
                                         <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
-                                            <span class="badge badge-success" style="background: #059669; color: white; font-weight: 800; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.82rem;">
-                                                ✓ Cash Collected Successfully
+                                            <span class="badge badge-success" style="background: #334155; color: white; font-weight: 800; padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.82rem;">
+                                                Cash Collected Successfully
                                             </span>
                                             <span class="badge" style="background: #E0E7FF; color: #3730A3; font-weight: 700; padding: 0.35rem 0.65rem; border-radius: 6px; font-size: 0.78rem;">
                                                 Cash Received by Courier
@@ -664,17 +664,17 @@
                                 <form method="POST" action="{% url 'staff_confirm_payment' order.order_id %}">
                                     {% csrf_token %}
                                     <button type="submit" class="btn" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; background: #059669; color: #ffffff; font-weight: 700; border: none; border-radius: 6px;">
-                                        ✓ Confirm Cash Deposited to Register
+                                        Confirm Cash Deposited to Register
                                     </button>
                                 </form>
                             {% elif order.payment.status == 'success' %}
                                 <span style="font-size: 0.82rem; color: #059669; font-weight: 700; display: inline-flex; align-items: center; gap: 0.25rem;">
-                                    ✓ Cash Collected & Verified
+                                    Cash Collected & Verified
                                 </span>
                             {% endif %}
                         {% elif order.payment and order.payment.payment_method == 'upi' and order.payment.status in 'success,paid_online' %}
                             <span style="font-size: 0.82rem; color: #059669; font-weight: 700; display: inline-flex; align-items: center; gap: 0.25rem;">
-                                ✓ Paid Online
+                                Paid Online
                             </span>
                         {% endif %}
                         
@@ -1058,7 +1058,7 @@
         </div>
 
         <button type="submit" class="btn btn-lg" style="font-weight: 600; padding: 0.85rem 2rem; border-radius: 8px;">
-            ✓ Save Hotel Branch
+            Save Hotel Branch
         </button>
     </form>
 </div>

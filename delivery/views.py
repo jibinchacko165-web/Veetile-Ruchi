@@ -390,7 +390,7 @@ def pickup_order(request, assignment_id):
             user=order.user,
             order=order,
             title="Food Picked Up",
-            message=f"Your order #{order.order_id} has been picked up by courier {profile.user.username.title()} and will be out for delivery soon.",
+            message=f"Your order #{order.order_id} has been picked up by {profile.courier_name} and will be out for delivery soon.",
             notification_type='general'
         )
 
@@ -518,7 +518,7 @@ def complete_delivery(request, assignment_id):
                     user=staff,
                     order=order,
                     title=f"Cash Collected for Order #{order.order_id}",
-                    message=f"Courier {profile.courier_name} collected cash of ₹{payment.amount} upon delivering Order #{order.order_id}.",
+                    message=f"{profile.courier_name} collected cash of ₹{payment.amount} upon delivering Order #{order.order_id}.",
                     notification_type='staff_delivery_alert'
                 )
 
@@ -632,7 +632,7 @@ def courier_collect_cash(request, assignment_id):
                 user=staff,
                 order=order,
                 title=f"Cash Collected Successfully for Order #{order.order_id}",
-                message=f"Cash Collected Successfully: Courier {courier_name} has collected cash of ₹{payment.amount} for Order #{order.order_id}.",
+                message=f"Cash Collected Successfully: {courier_name} has collected cash of ₹{payment.amount} for Order #{order.order_id}.",
                 notification_type='staff_delivery_alert'
             )
 
@@ -641,7 +641,7 @@ def courier_collect_cash(request, assignment_id):
             user=order.user,
             order=order,
             title="Cash Payment Received",
-            message=f"Courier {courier_name} has received your cash payment of ₹{payment.amount} for Order #{order.order_id}. Thank you!",
+            message=f"{courier_name} has received your cash payment of ₹{payment.amount} for Order #{order.order_id}. Thank you!",
             notification_type='general'
         )
 
@@ -1055,7 +1055,7 @@ def submit_delivery_feedback(request, order_id):
         if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('format') == 'json':
             return JsonResponse({
                 'status': 'success',
-                'message': f"Thank you! Your feedback for courier {delivery_boy.courier_name} has been submitted successfully.",
+                'message': f"Thank you! Your feedback for {delivery_boy.courier_name} has been submitted successfully.",
                 'rating': rating,
                 'timeliness_rating': timeliness_rating,
                 'behavior_rating': behavior_rating,
@@ -1063,7 +1063,7 @@ def submit_delivery_feedback(request, order_id):
                 'comment': comment
             })
 
-        messages.success(request, f"Thank you! Your feedback for courier {delivery_boy.courier_name} has been submitted successfully.")
+        messages.success(request, f"Thank you! Your feedback for {delivery_boy.courier_name} has been submitted successfully.")
         next_url = request.POST.get('next') or request.META.get('HTTP_REFERER') or 'order_history'
         return redirect(next_url)
 

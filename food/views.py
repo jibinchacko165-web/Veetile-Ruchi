@@ -1062,7 +1062,11 @@ def admin_dashboard(request, section='overview'):
     elif section == 'delivery':
         table_data = DeliveryAssignment.objects.select_related('order', 'delivery_boy', 'delivery_boy__user').all().order_by('-assigned_at')
     elif section == 'customer-behaviors':
-        table_data = CustomerBehavior.objects.select_related('user').all()
+        for cust_user in User.objects.filter(role='customer'):
+            CustomerBehavior.objects.get_or_create(user=cust_user)
+        table_data = CustomerBehavior.objects.select_related('user').annotate(
+            dynamic_order_count=Count('user__orders')
+        ).order_by('-dynamic_order_count', 'user__username')
     elif section == 'food-demand':
         table_data = FoodDemandForecast.objects.select_related('food_item').all().order_by('-predicted_quantity')
     elif section == 'food-waste':

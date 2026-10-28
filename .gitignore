@@ -26,4 +26,9 @@ backups_verified/
 db_dump_*.json
 db_pre_supabase_backup.*
 MCA_Academic_Report_Toolkit/
+backups/
+node_modules/
+package.json
+package-lock.json
+generate_git_log_pdf.py
 

@@ -211,10 +211,22 @@
         }
         @media (max-width: 480px) {
             .kpi-grid { grid-template-columns: 1fr; }
-            .topbar { padding: 0 0.8rem; }
-            .content-area { padding: 1rem 0.6rem; }
-            .topbar-search { width: 120px; font-size: 0.78rem; }
+            .topbar { padding: 0 0.6rem; height: 56px; }
+            .topbar-left { gap: 0.5rem; }
+            .topbar-right { gap: 0.5rem; }
+            .page-title { font-size: 0.95rem; }
+            .page-breadcrumb { display: none; }
+            .content-area { padding: 0.85rem 0.5rem; }
+            .search-wrapper { display: none; }
             .topbar-date { display: none; }
+            .logout-btn { padding: 0.35rem 0.6rem; }
+            .logout-text { display: none; }
+        }
+        @media (max-width: 374px) {
+            .card { padding: 0.85rem; border-radius: 10px; }
+            .page-title { font-size: 0.88rem; }
+            .admin-avatar { width: 32px; height: 32px; font-size: 0.78rem; }
+            .logout-btn { padding: 0.35rem 0.5rem; font-size: 0.75rem; }
         }
 
         /* ═══════════════════════════════ SCROLLBAR ═════════════════════════ */
@@ -233,11 +245,21 @@
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebar-overlay');
         if (!sidebar) return;
-        sidebar.classList.toggle('open');
+        const isOpen = sidebar.classList.toggle('open');
         if (overlay) {
-            overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
+            overlay.style.display = isOpen ? 'block' : 'none';
         }
+        document.body.style.overflow = isOpen ? 'hidden' : '';
     }
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar && sidebar.classList.contains('open')) {
+                toggleAdminSidebar();
+            }
+        }
+    });
 </script>
 
 <!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
@@ -276,7 +298,6 @@
     <a href="/dashboard/delivery/" class="nav-item {% if active_section == 'delivery' %}active{% endif %}"><i class="fa-solid fa-truck-fast"></i> Delivery Management</a>
 
     <div class="nav-section-title">AI &amp; Delivery</div>
-    <a href="{% url 'staff_dashboard' %}" class="nav-item"><i class="fa-solid fa-location-crosshairs"></i> AI GPS Tracking</a>
     <a href="{% url 'ai_analytics_dashboard' %}" class="nav-item"><i class="fa-solid fa-brain"></i> AI Analytics Dashboard</a>
 
     <div class="nav-section-title">AI Analytics</div>
@@ -309,14 +330,9 @@
             </div>
         </div>
         <div class="topbar-right">
-            <div class="topbar-date"><i class="fa-regular fa-calendar fa-sm"></i> <span id="current-date"></span></div>
-            <div class="search-wrapper">
-                <i class="fa-solid fa-search"></i>
-                <input type="text" class="topbar-search" placeholder="Search anything…">
-            </div>
 
             <div class="admin-avatar" title="{{ request.user.username }}">{{ request.user.username|slice:":2"|upper }}</div>
-            <a href="{% url 'logout' %}" class="logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+            <a href="{% url 'logout' %}" class="logout-btn" title="Sign Out"><i class="fa-solid fa-right-from-bracket"></i> <span class="logout-text">Logout</span></a>
         </div>
     </header>
 
@@ -1276,8 +1292,9 @@
 </div><!-- /main-content -->
 
 <script>
-    // Current date display
-    document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'short', day:'numeric', month:'long', year:'numeric'});
+    // Current date display (if present)
+    const curDateEl = document.getElementById('current-date');
+    if (curDateEl) curDateEl.textContent = new Date().toLocaleDateString('en-IN', {weekday:'short', day:'numeric', month:'long', year:'numeric'});
 
     document.addEventListener('DOMContentLoaded', function() {
 

@@ -347,7 +347,7 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         # Checkout Screen
         chk_resp = self.client.get(reverse('checkout_view'))
         self.assertEqual(chk_resp.status_code, 200)
-        self.assertContains(chk_resp, 'Delivery Location')
+        self.assertContains(chk_resp, 'Order Summary')
 
         initial_stock = self.food1.stock_quantity
 
@@ -769,6 +769,7 @@ class CustomerWorkflowAndSecurityTests(TestCase):
         # Verify coordinates, Leaflet map, and destination overview are present
         content = track_resp.content.decode('utf-8')
         self.assertIn('delivery-nav-map', content)
+        self.assertNotIn('earth.google.com/web', content)
         self.assertIn('Estimated Arrival:', content)
         self.assertIn('9.5564', content)
         self.assertIn('76.7909', content)
@@ -1371,6 +1372,121 @@ class IndependentDualFeedbackAndCourierTests(TestCase):
         
         order.refresh_from_db()
         self.assertEqual(order.status, 'pending')
+
+class RazorpayPaymentIntegrationTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.customer = User.objects.create_user(
+            username='razorpay_user',
+            email='rzp_cust@example.com',
+            password='Password123!',
+            role='customer',
+            latitude=9.5564,
+            longitude=76.7909
+        )
+        self.chef = User.objects.create_user(
+            username='rzp_chef',
+            email='rzp_chef@example.com',
+            password='Password123!',
+            role='chef'
+        )
+        ChefProfile.objects.create(user=self.chef, is_approved=True)
+        self.cat = Category.objects.create(name='Kerala Meals')
+        self.session = MealSession.objects.create(name='Lunch', start_time=time(11, 0), end_time=time(15, 0))
+        self.food = FoodItem.objects.create(
+            chef=self.chef,
+            name='Kerala Fish Curry Meals',
+            price=Decimal('180.00'),
+            category=self.cat,
+            meal_session=self.session,
+            stock_quantity=10
+        )
+
+    def test_razorpay_checkout_flow(self):
+        """Test placing an order with Razorpay redirects to the Razorpay checkout screen."""
+        self.client.login(username='razorpay_user', password='Password123!')
+        CartItem.objects.create(user=self.customer, food_item=self.food, quantity=1)
+
+        place_resp = self.client.post(reverse('place_order'), {
+            'latitude': '9.556400',
+            'longitude': '76.790900',
+            'payment_method': 'razorpay'
+        })
+        self.assertEqual(place_resp.status_code, 302)
+
+        order = Order.objects.filter(user=self.customer).latest('created_at')
+        self.assertRedirects(place_resp, reverse('razorpay_payment', kwargs={'order_id': order.order_id}))
+
+        payment = Payment.objects.get(order=order)
+        self.assertEqual(payment.payment_method, 'razorpay')
+        self.assertEqual(payment.status, 'pending')
+        self.assertTrue(payment.is_razorpay)
+
+        # Check payment screen loads properly
+        pay_page_resp = self.client.get(reverse('razorpay_payment', kwargs={'order_id': order.order_id}))
+        self.assertEqual(pay_page_resp.status_code, 200)
+        self.assertContains(pay_page_resp, order.order_id)
+        self.assertContains(pay_page_resp, "Razorpay")
+
+    def test_razorpay_callback_and_verification(self):
+        """Test Razorpay callback verifies payment and marks order paid online."""
+        self.client.login(username='razorpay_user', password='Password123!')
+        order = Order.objects.create(
+            user=self.customer,
+            total_amount=Decimal('250.00'),
+            status='pending',
+            latitude=9.5564,
+            longitude=76.7909,
+            delivery_address="Kanjirappally"
+        )
+        payment = Payment.objects.create(
+            order=order,
+            payment_method='razorpay',
+            amount=Decimal('250.00'),
+            status='pending',
+            razorpay_order_id='order_mock_test123'
+        )
+
+        callback_resp = self.client.post(reverse('razorpay_callback'), {
+            'order_id': order.order_id,
+            'razorpay_payment_id': 'pay_test_abc123456',
+            'razorpay_order_id': 'order_mock_test123',
+            'razorpay_signature': 'sig_test_sig123'
+        })
+        self.assertRedirects(callback_resp, reverse('order_tracking', kwargs={'order_id': order.order_id}))
+
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, 'success')
+        self.assertEqual(payment.transaction_id, 'pay_test_abc123456')
+        self.assertTrue(payment.is_paid_online)
+        self.assertEqual(payment.display_status, "Paid Online")
+
+    def test_razorpay_switch_to_cod(self):
+        """Test customer can switch an unpaid Razorpay order to Cash on Delivery."""
+        self.client.login(username='razorpay_user', password='Password123!')
+        order = Order.objects.create(
+            user=self.customer,
+            total_amount=Decimal('150.00'),
+            status='pending',
+            latitude=9.5564,
+            longitude=76.7909,
+            delivery_address="Kanjirappally"
+        )
+        payment = Payment.objects.create(
+            order=order,
+            payment_method='razorpay',
+            amount=Decimal('150.00'),
+            status='pending'
+        )
+
+        switch_resp = self.client.get(reverse('razorpay_switch_to_cod', kwargs={'order_id': order.order_id}))
+        self.assertRedirects(switch_resp, reverse('order_tracking', kwargs={'order_id': order.order_id}))
+
+        payment.refresh_from_db()
+        self.assertEqual(payment.payment_method, 'cod')
+        self.assertEqual(payment.status, 'pending')
+        self.assertTrue(payment.is_cod)
+        self.assertEqual(payment.display_status, "Cash on Delivery")
 
 
 

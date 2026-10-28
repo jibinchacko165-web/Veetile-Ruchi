@@ -286,7 +286,7 @@ def is_within_delivery_perimeter(customer_lat, customer_lon, branch_id=None, che
     if dist <= allowed_radius:
         return True, dist, f"Location is inside our service area ({dist} km from {hub_name})."
     else:
-        return False, dist, f"Sorry, delivery is currently available only within {radius_str} km of {hub_display}. Sorry, this hotel cannot deliver to your selected location. Please choose a nearer address or another available hotel."
+        return False, dist, f"Sorry, your delivery location is outside our 30 km delivery area from Kanjirappally (delivery is currently available only within {radius_str} km of {hub_display}). Sorry, this hotel cannot deliver to your selected location. Please choose a nearer address or another available hotel."
 
 def validate_coordinates(lat, lon):
     try:
@@ -649,7 +649,8 @@ def calculate_accurate_order_eta(order, chef_lat, chef_lon, cust_lat, cust_lon,
             stage_idx = 4
             prep_status_display = "Picked Up by Courier"
             status_label = "Food Picked Up 📦"
-            status_display = f"Courier {courier_display_name} has picked up your food from the kitchen"
+            c_label = courier_display_name if "courier" in str(courier_display_name).lower() else f"Courier {courier_display_name}"
+            status_display = f"{c_label} has picked up your food from the kitchen"
             remaining_travel_time = f"~{int(round(travel_mins))} mins road travel"
             road_distance_display = f"{road_dist_km} km (Kitchen to Delivery Location)"
             eta_status_type = 'picked_up'
@@ -664,7 +665,8 @@ def calculate_accurate_order_eta(order, chef_lat, chef_lon, cust_lat, cust_lon,
                 remaining_travel_time = "Arriving in < 2 mins"
             else:
                 status_label = "Out for Delivery 🛵"
-                status_display = f"Courier {courier_display_name} is on the way to your delivery destination"
+                c_label = courier_display_name if "courier" in str(courier_display_name).lower() else f"Courier {courier_display_name}"
+                status_display = f"{c_label} is on the way to your delivery destination"
                 remaining_travel_time = f"Approximately {int(round(travel_mins))} minutes"
 
             if is_courier_origin:
@@ -798,7 +800,8 @@ def calculate_accurate_order_eta(order, chef_lat, chef_lon, cust_lat, cust_lon,
         prep_time_minutes = 0.0
         c_name = (courier_user.get_full_name() or courier_user.username).title() if courier_user else "Partner"
         status_label = "Courier Assigned 🛵"
-        status_display = f"Courier {c_name} assigned • Heading to kitchen for pickup"
+        c_label = c_name if "courier" in str(c_name).lower() else f"Courier {c_name}"
+        status_display = "Courier Boy"
         prep_status_display = "Food Prepared"
         status_badge_class = 'badge-green'
         pickup_buffer = 4.0

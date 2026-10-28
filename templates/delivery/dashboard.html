@@ -1,14 +1,6 @@
 {% extends 'base.html' %}
 
 {% block extra_head %}
-<!-- Leaflet Map CSS & JS (Local Static Assets) -->
-<link rel="stylesheet" href="/static/leaflet/leaflet.css" />
-<script src="/static/leaflet/leaflet.js"></script>
-<script>
-    if (typeof L !== 'undefined' && L.Icon && L.Icon.Default) {
-        L.Icon.Default.imagePath = '/static/leaflet/images/';
-    }
-</script>
 <style>
 .custom-div-icon {
     background: transparent;
@@ -31,23 +23,11 @@
                     {{ profile.user.username|first|upper }}
                 </div>
                 <h3 style="font-size: 1.1rem; color: var(--primary-brown); margin: 0; font-weight: 700;">
-                    Courier: {{ profile.user.username|title }}
+                    {{ profile.courier_name }}
                 </h3>
                 <p style="font-size: 0.82rem; color: var(--text-muted); margin: 0.25rem 0 0.5rem 0;">
                     Vehicle: <strong style="font-family: monospace; color: var(--primary-orange);">{{ active_vehicle_number }}</strong>
                 </p>
-                {% if all_profiles %}
-                <form method="GET" action="{% url 'delivery_boy_dashboard' %}" style="margin: 0.5rem 0;">
-                    <input type="hidden" name="tab" value="{{ tab }}">
-                    <select name="vehicle_number" onchange="this.form.submit()" style="width: 100%; padding: 0.35rem 0.5rem; border-radius: 8px; border: 1.5px solid var(--primary-orange); font-size: 0.82rem; font-weight: 700; font-family: monospace; color: var(--primary-brown); background: #FFF8F5; cursor: pointer;">
-                        {% for p in all_profiles %}
-                            <option value="{{ p.vehicle_number }}" {% if p.vehicle_number|lower == active_vehicle_number|lower %}selected{% endif %}>
-                                🛵 {{ p.vehicle_number }} ({% if p.user.first_name %}{{ p.user.first_name }}{% else %}{{ p.user.username|title }}{% endif %})
-                            </option>
-                        {% endfor %}
-                    </select>
-                </form>
-                {% endif %}
                 <span class="badge {% if profile.status == 'available' %}badge-success{% else %}badge-warning{% endif %}" style="font-size: 0.75rem; padding: 0.35rem 0.85rem;">
                     {% if profile.status == 'available' %}🟢 Ready for Dispatch{% else %}🟡 On Active Delivery{% endif %}
                 </span>
@@ -418,6 +398,7 @@
             <!-- Delivery Tasks List View (Dashboard / New / Active / Completed) -->
             <div class="card">
                 
+                {% if tab != 'completed' %}
                 <!-- Filter Search & Title Bar -->
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
                     <h3 style="color: var(--primary-brown); font-weight: 700; display: flex; align-items: center; gap: 0.5rem; margin: 0;">
@@ -428,8 +409,6 @@
                             New / Assigned Delivery Tasks (Total: {{ pending_count }})
                         {% elif tab == 'active' or tab == 'in_transit' %}
                             Out-For-Delivery Active Tasks (Total: {{ active_count }})
-                        {% elif tab == 'completed' %}
-                            Completed & Delivered Orders (Total: {{ completed_count }})
                         {% elif tab == 'today' %}
                             Today's Assigned Orders (Total: {{ todays_count }})
                         {% else %}
@@ -452,6 +431,7 @@
                         {% endif %}
                     </form>
                 </div>
+                {% endif %}
 
                 <!-- Delivery Cards Container -->
                 <div style="display: flex; flex-direction: column; gap: 1.25rem;">
@@ -547,7 +527,7 @@
                                                         <span style="color: #065F46; font-weight: 700;">💵 Cash on Delivery</span>
                                                         <span class="badge" style="background: #059669; color: white; font-weight: 700; font-size: 0.8rem; border-radius: 6px; padding: 0.3rem 0.65rem;">✓ Cash Collected</span>
                                                     </div>
-                                                    <span style="display: block; font-size: 0.78rem; color: #047857; margin-top: 0.25rem;">✓ Cash of ₹{{ assign.order.total_amount }} collected from customer.</span>
+                                                    <span style="display: block; font-size: 0.78rem; color: #047857; margin-top: 0.25rem;">Cash of ₹{{ assign.order.total_amount }} collected from customer.</span>
                                                 {% else %}
                                                     <div style="display: flex; justify-content: space-between; align-items: center; background: #FFFBEB; padding: 0.45rem 0.75rem; border-radius: 6px; border: 1px solid #FDE68A;">
                                                         <span style="color: #92400E; font-weight: 700;">💵 Cash on Delivery</span>
@@ -571,7 +551,7 @@
                                                     </div>
                                                     {% if assign.status == 'delivered' or assign.order.status == 'delivered' %}
                                                         <span style="display: block; font-size: 0.75rem; color: #047857; margin-top: 0.25rem; font-weight: 600;">
-                                                            ✓ Food handed over! Click "Cash Collected" above to record payment.
+                                                            Food handed over! Click "Cash Collected" above to record payment.
                                                         </span>
                                                     {% else %}
                                                         <span style="display: block; font-size: 0.75rem; color: #B45309; margin-top: 0.25rem; font-weight: 600;">
@@ -644,12 +624,11 @@
                             <!-- Footer Action Bar: Prominent Navigation, View Location & Delivery Actions -->
                             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; background: #ffffff; padding: 1rem; border-radius: 12px; border: 1px solid var(--border-light);">
                                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                    <button type="button" class="btn btn-outline" onclick="openOrderMapModal('{{ assign.order.order_id }}', '{{ assign.order.latitude|default:'' }}', '{{ assign.order.longitude|default:'' }}', '{{ assign.order.formatted_delivery_address|escapejs }}', '{% url 'delivery_boy_track' assign.id %}', '{{ assign.order.customer_name|escapejs }}', '{{ assign.order.customer_phone|escapejs }}')" style="padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 700; background: #ffffff; color: var(--primary-brown); display: inline-flex; align-items: center; gap: 0.4rem;">
-                                        🗺️ View Customer Map
-                                    </button>
-                                    <a href="{% url 'delivery_boy_track' assign.id %}" class="btn" style="padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 700; text-decoration: none; background: #2563eb; color: #fff;">
-                                        🛵 Delivery Details & Live GPS
-                                    </a>
+                                    {% if assign.status != 'delivered' and assign.order.status != 'delivered' %}
+                                        <a href="{% url 'delivery_boy_track' assign.id %}" class="btn" style="padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 700; text-decoration: none; background: #2563eb; color: #fff;">
+                                            🛵 Delivery Details & Live GPS
+                                        </a>
+                                    {% endif %}
                                 </div>
 
                                 <div style="display: flex; gap: 0.5rem; align-items: center;">
@@ -703,7 +682,7 @@
                         <div style="text-align: center; padding: 2.5rem 1.5rem; background: #FFF8E1; border-radius: 16px; border: 1.5px solid #FFE082;">
                             <span style="font-size: 2.8rem; display: block; margin-bottom: 0.6rem;">🛵</span>
                             <h4 style="color: #8B4513; font-weight: 800; font-size: 1.15rem; margin-bottom: 0.4rem;">
-                                Logged in as Courier: {{ profile.courier_name }} — 📞 {{ profile.user.phone|default:"No Phone" }} {% if profile.vehicle_number %}(Vehicle #{{ profile.vehicle_number }}){% endif %}
+                                Logged in as: {{ profile.courier_name }} — 📞 {{ profile.user.phone|default:"No Phone" }} {% if profile.vehicle_number %}(Vehicle #{{ profile.vehicle_number }}){% endif %}
                             </h4>
                             <p style="color: var(--text-main); font-size: 0.95rem; font-weight: 600; margin: 0 auto; max-width: 560px; line-height: 1.5;">
                                 You currently have no active delivery assignments.
@@ -956,7 +935,6 @@ function openCourierNotifModal() {
     const modal = document.getElementById('courierNotificationModal');
     if (modal) {
         modal.style.display = 'flex';
-        playCourierAlarmSound();
     }
 }
 
@@ -1226,243 +1204,25 @@ if (document.readyState === 'loading') {
     </div>
 </div>
 
-<!-- Courier Dashboard Customer Delivery Location Map Modal -->
-<div id="orderMapModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); z-index: 99999; align-items: center; justify-content: center; padding: 1rem;">
-    <div style="background: #ffffff; border-radius: 16px; max-width: 800px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 12px 36px rgba(0,0,0,0.3); border: 1.5px solid var(--border-light); display: flex; flex-direction: column;">
-        <!-- Modal Header -->
-        <div style="padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; background: var(--bg-cream); border-top-left-radius: 16px; border-top-right-radius: 16px;">
-            <div>
-                <h3 id="modalOrderTitle" style="margin: 0; color: var(--primary-brown); font-size: 1.15rem; font-weight: 700;">
-                    📍 Customer Delivery Location
-                </h3>
-                <span id="modalOrderAddress" style="font-size: 0.82rem; color: var(--text-muted); display: block; margin-top: 0.2rem;"></span>
-            </div>
-            <button type="button" onclick="closeOrderMapModal()" class="btn btn-sm btn-outline" style="padding: 0.35rem 0.65rem; font-size: 1rem; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;">
-                ✕
-            </button>
-        </div>
-
-        <!-- Modal Controls Bar -->
-        <div style="padding: 0.75rem 1.5rem; background: #fafafa; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
-            <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-                <button type="button" id="modalBtnZoomCustomer" onclick="modalZoomCustomer()" class="btn btn-outline" style="padding: 0.35rem 0.75rem; font-size: 0.82rem; font-weight: 600; background: #fff;">
-                    🎯 Zoom Customer
-                </button>
-                <button type="button" id="modalBtnGetGps" onclick="modalGetCourierGps()" class="btn" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 700; background: #2563eb; color: #fff;">
-                    📡 Get My Location
-                </button>
-            </div>
-            <a id="modalTrackLink" href="#" class="btn btn-sm" style="padding: 0.4rem 0.9rem; font-size: 0.82rem; font-weight: 700; background: #10b981; color: #fff; text-decoration: none;">
-                🛵 Open Live Tracking &rarr;
-            </a>
-        </div>
-
-        <!-- Missing Coords Alert -->
-        <div id="modalMissingAlert" style="display: none; margin: 1rem 1.5rem 0 1.5rem; background: #fffbeb; border: 1px solid #fde68a; color: #b45309; padding: 0.65rem 1rem; border-radius: 8px; font-size: 0.85rem;">
-            ⚠️ Customer delivery coordinates are unavailable for this order. Showing Kerala Central Kitchen Hub.
-        </div>
-
-        <!-- Map Container -->
-        <div style="padding: 1rem 1.5rem; flex: 1;">
-            <div id="dashboard-modal-map" style="height: 420px; width: 100%; border-radius: 12px; border: 1.5px solid var(--border-light);"></div>
-        </div>
-    </div>
-</div>
-
 <script>
-let modalMap = null;
-let modalCustomerMarker = null;
-let modalCourierMarker = null;
-let modalCustLat = null;
-let modalCustLon = null;
-let modalCourierLat = null;
-let modalCourierLon = null;
-let modalCustomerName = '';
-let modalCustomerPhone = '';
-
-function openOrderMapModal(orderId, latStr, lonStr, address, trackUrl, customerName = '', customerPhone = '') {
-    const modal = document.getElementById("orderMapModal");
-    const title = document.getElementById("modalOrderTitle");
-    const addr = document.getElementById("modalOrderAddress");
-    const link = document.getElementById("modalTrackLink");
-    const alertBox = document.getElementById("modalMissingAlert");
-
-    modalCustomerName = customerName || '';
-    modalCustomerPhone = customerPhone || '';
-
-    if (title) {
-        title.innerHTML = `📍 Order #${orderId}${customerName ? ` &bull; 👤 ${customerName}` : ''}`;
-    }
-    if (addr) {
-        let metaHtml = '';
-        if (customerName) metaHtml += `<span>👤 <strong>${customerName}</strong></span>`;
-        if (customerPhone) metaHtml += ` &bull; <span>📞 <a href="tel:${customerPhone}" style="color: #2563EB; font-weight: 700; text-decoration: none;">${customerPhone}</a></span>`;
-        metaHtml += `<br><span style="margin-top: 0.25rem; display: inline-block;">🏠 <strong>Address:</strong> ${address || 'Kanjirappally Service Area'}</span>`;
-        addr.innerHTML = metaHtml;
-    }
-    if (link) link.href = trackUrl || "#";
-
-    modalCustLat = parseFloat(latStr);
-    modalCustLon = parseFloat(lonStr);
-
-    // Auto-correct reversed coordinates if needed
-    if (modalCustLat >= 70 && modalCustLat <= 80 && modalCustLon >= 8 && modalCustLon <= 13) {
-        const tmp = modalCustLat;
-        modalCustLat = modalCustLon;
-        modalCustLon = tmp;
-    }
-
-    const hasValidCoords = Number.isFinite(modalCustLat) && Number.isFinite(modalCustLon) &&
-                           modalCustLat >= -90 && modalCustLat <= 90 &&
-                           modalCustLon >= -180 && modalCustLon <= 180;
-
-    if (alertBox) alertBox.style.display = hasValidCoords ? "none" : "block";
-
-    if (modal) {
-        modal.style.display = "flex";
-        document.body.style.overflow = "hidden";
-    }
-
-    setTimeout(() => {
-        initModalMap(hasValidCoords ? modalCustLat : 9.5564, hasValidCoords ? modalCustLon : 76.7909, hasValidCoords, address);
-    }, 150);
-}
-
-function closeOrderMapModal() {
-    const modal = document.getElementById("orderMapModal");
-    if (modal) {
-        modal.style.display = "none";
-        document.body.style.overflow = "";
-    }
-}
-
-function initModalMap(lat, lon, hasValidCoords, address) {
-    const container = document.getElementById("dashboard-modal-map");
-    if (!container || typeof L === 'undefined') return;
-
-    if (!modalMap) {
-        modalMap = L.map('dashboard-modal-map', {
-            center: [lat, lon],
-            zoom: hasValidCoords ? 14 : 11,
-            zoomControl: true,
-            scrollWheelZoom: true
-        });
-
-        const primaryTileUrl = window.MAP_TILE_URL || "{{ MAP_TILE_URL|default:'https://tile.openstreetmap.org/{z}/{x}/{y}.png'|escapejs }}";
-        const primaryTileAttr = window.MAP_TILE_ATTRIBUTION || '{{ MAP_TILE_ATTRIBUTION|default:"&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"|safe }}';
-        const primaryTileSubdomains = window.MAP_TILE_SUBDOMAINS || "{{ MAP_TILE_SUBDOMAINS|default:'abc'|escapejs }}";
-
-        L.tileLayer(primaryTileUrl, {
-            subdomains: primaryTileSubdomains,
-            maxZoom: 19,
-            attribution: primaryTileAttr
-        }).addTo(modalMap);
-    } else {
-        modalMap.setView([lat, lon], hasValidCoords ? 14 : 11);
-    }
-
-    if (modalCustomerMarker) {
-        modalMap.removeLayer(modalCustomerMarker);
-        modalCustomerMarker = null;
-    }
-
-    if (hasValidCoords) {
-        let popupHtml = `<b>Customer Delivery Destination</b><br>`;
-        if (modalCustomerName) popupHtml += `<b>👤 Customer:</b> ${modalCustomerName}<br>`;
-        if (modalCustomerPhone) popupHtml += `<b>📞 Phone:</b> ${modalCustomerPhone}<br>`;
-        popupHtml += `<b>🏠 Address:</b> ${address || 'Delivery Address'}<br><strong>Coordinates:</strong> Lat ${lat.toFixed(6)}, Lon ${lon.toFixed(6)}`;
-
-        modalCustomerMarker = L.marker([lat, lon], {
-            icon: L.divIcon({
-                className: 'custom-div-icon',
-                html: `<div style="background-color:#2563EB; width:32px; height:32px; border-radius:50%; border:2.5px solid white; box-shadow:0 3px 10px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; color:white; font-size:16px;">📍</div>`,
-                iconSize: [32, 32],
-                iconAnchor: [16, 16],
-                popupAnchor: [0, -18]
-            })
-        }).addTo(modalMap).bindPopup(popupHtml).openPopup();
-    }
-
-    modalMap.invalidateSize();
-}
-
-function modalZoomCustomer() {
-    if (!modalMap || !modalCustomerMarker) {
-        alert("Customer delivery coordinates are unavailable.");
-        return;
-    }
-    modalMap.setView([modalCustLat, modalCustLon], 16, { animate: true });
-    modalCustomerMarker.openPopup();
-}
-
-function modalViewBoth() {
-    if (!modalMap) return;
-    const pts = [];
-    if (Number.isFinite(modalCustLat) && Number.isFinite(modalCustLon)) {
-        pts.push([modalCustLat, modalCustLon]);
-    }
-    if (Number.isFinite(modalCourierLat) && Number.isFinite(modalCourierLon)) {
-        pts.push([modalCourierLat, modalCourierLon]);
-    }
-    if (pts.length > 1) {
-        modalMap.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 });
-    } else if (pts.length === 1) {
-        modalMap.setView(pts[0], 15);
-    } else {
-        alert("No valid coordinates available to view.");
-    }
-}
-
-function modalGetCourierGps() {
-    const btn = document.getElementById("modalBtnGetGps");
-    const orig = btn ? btn.innerHTML : "📡 Get My Location";
-    if (btn) {
-        btn.innerHTML = `<span style="display:inline-block; width:10px; height:10px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin 1s linear infinite; margin-right:4px;"></span> Acquiring...`;
-        btn.disabled = true;
-    }
-
-    if (!navigator.geolocation) {
-        alert("Browser Geolocation is not supported on this device.");
-        if (btn) { btn.innerHTML = orig; btn.disabled = false; }
-        return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-        function(pos) {
-            if (btn) { btn.innerHTML = orig; btn.disabled = false; }
-            modalCourierLat = pos.coords.latitude;
-            modalCourierLon = pos.coords.longitude;
-            const acc = pos.coords.accuracy;
-
-            if (modalMap) {
-                if (!modalCourierMarker) {
-                    modalCourierMarker = L.marker([modalCourierLat, modalCourierLon], {
-                        icon: L.divIcon({
-                            className: 'custom-div-icon',
-                            html: `<div style="background-color:#D97736; width:32px; height:32px; border-radius:50%; border:2.5px solid white; box-shadow:0 3px 10px rgba(0,0,0,0.35); display:flex; align-items:center; justify-content:center; color:white; font-size:16px;">🛵</div>`,
-                            iconSize: [32, 32],
-                            iconAnchor: [16, 16],
-                            popupAnchor: [0, -18]
-                        })
-                    }).addTo(modalMap).bindPopup(`<b>Your Location (Courier)</b><br>Lat: ${modalCourierLat.toFixed(5)}, Lon: ${modalCourierLon.toFixed(5)}<br>Accuracy: &plusmn;${Math.round(acc)}m`);
-                } else {
-                    modalCourierMarker.setLatLng([modalCourierLat, modalCourierLon]);
-                }
-                modalCourierMarker.openPopup();
+function copyCoords(lat, lon, btn) {
+    if (!lat || !lon) return;
+    const text = `${lat}, ${lon}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            if (btn) {
+                const orig = btn.innerHTML;
+                btn.innerHTML = '✅ Copied!';
+                setTimeout(() => { btn.innerHTML = orig; }, 2000);
             }
-
-            modalViewBoth();
-        },
-        function(err) {
-            if (btn) { btn.innerHTML = orig; btn.disabled = false; }
-            let msg = "Could not retrieve GPS location.";
-            if (err.code === 1) msg = "Location permission denied. Please allow access in browser.";
-            else if (err.code === 2) msg = "Location unavailable. Please verify device GPS.";
-            else if (err.code === 3) msg = "Location request timed out. Please try again.";
-            alert(msg);
-        },
-        { enableHighAccuracy: true, timeout: 20000, maximumAge: 5000 }
-    );
+        });
+    } else {
+        prompt("Copy coordinates to clipboard:", text);
+    }
 }
+
+// Backwards-compatibility no-ops for obsolete map calls
+function openOrderMapModal() {}
+function closeOrderMapModal() {}
 </script>
 {% endblock %}

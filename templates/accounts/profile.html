@@ -84,7 +84,7 @@
             if (dist <= MAX_SERVICE_RADIUS_KM) {
                 statusMsg.innerHTML = `<span style="color: #065F46; font-weight: 600;">🟢 Pinned Location:</span> Lat ${lat.toFixed(4)}, Lon ${lng.toFixed(4)}${accText} &mdash; <strong style="color: #047857;">Inside 30 km service area (${dist} km from Kanjirappally Hub)</strong>.`;
             } else {
-                statusMsg.innerHTML = `<span style="color: #B45309; font-weight: 600;">⚠️ Pinned Location:</span> Lat ${lat.toFixed(4)}, Lon ${lng.toFixed(4)}${accText} &mdash; <span style="color: #DC2626; font-weight: 600;">Outside 30 km service area (${dist} km from Kanjirappally Hub)</span>. Delivery requires address within 30 km.`;
+                statusMsg.innerHTML = `<span style="color: #B45309; font-weight: 600;">⚠️ Pinned Location:</span> Lat ${lat.toFixed(4)}, Lon ${lng.toFixed(4)}${accText} &mdash; <span style="color: #DC2626; font-weight: 600;">Sorry, your delivery location is outside our 30 km delivery area from Kanjirappally.</span> (${dist} km from Hub)`;
             }
         }
 

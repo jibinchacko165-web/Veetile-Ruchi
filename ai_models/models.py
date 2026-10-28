@@ -43,3 +43,23 @@ class CustomerBehavior(models.Model):
 
     def __str__(self):
         return f"Behavior of {self.user.username}: {self.get_behavior_segment_display()}"
+
+    @property
+    def total_orders_placed(self):
+        if hasattr(self, 'dynamic_order_count'):
+            return self.dynamic_order_count
+        if self.user:
+            return self.user.orders.count()
+        return 0
+
+    @property
+    def segment(self):
+        count = self.total_orders_placed
+        if count >= 10:
+            return 'High-Value'
+        elif count >= 3:
+            return 'Regular'
+        elif self.behavior_segment:
+            disp = self.get_behavior_segment_display().replace(' Customer', '')
+            return disp if disp else 'Regular'
+        return 'Regular'

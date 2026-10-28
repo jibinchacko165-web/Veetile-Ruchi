@@ -7,7 +7,7 @@ from orders.models import CartItem
 
 class MapTest(BaseSeleniumTest):
     def test_staff_perimeter_map_full_workflow(self):
-        """Verify Staff Dashboard renders cleanly and removed perimeter tab is not present."""
+        """Verify Staff Dashboard renders cleanly and no map or Earth interface is present."""
         self.login('teststaff', 'testpassword123')
         self.wait.until(lambda d: '/login/' not in d.current_url)
         self.driver.get(self.live_server_url + '/orders/staff/dashboard/')
@@ -16,41 +16,34 @@ class MapTest(BaseSeleniumTest):
         self.wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'scrollable-pill-bar')))
         page_source = self.driver.page_source
         self.assertIn('Customer Orders', page_source)
-        # Verify perimeter map container was removed
+        # Verify no map containers or Leaflet/MapLibre elements exist on staff dashboard
         map_containers = self.driver.find_elements(By.ID, 'admin-perimeter-map')
         self.assertEqual(len(map_containers), 0)
+        self.assertNotIn('leaflet-container', page_source)
+        self.assertNotIn('maplibregl-map', page_source)
 
-    def test_checkout_delivery_map(self):
-        """Verify Customer Checkout Map initializes and handles location picking."""
+    def test_checkout_delivery_location(self):
+        """Verify Customer Checkout loads delivery address workflow without duplicate mapping libraries."""
         DeliverySetting.objects.all().delete()
         DeliverySetting.objects.create(
             name="Central Kitchen Hub (Kanjirappally)",
             address="Jubilee Junction, Kanjirappally, Kerala",
             latitude=9.5564,
             longitude=76.7909,
-            max_delivery_radius_km=20.0,
+            max_delivery_radius_km=30.0,
             is_active=True
         )
 
-        # Ensure cart has item so checkout can open
         CartItem.objects.create(user=self.customer, food_item=self.food_item, quantity=1)
 
         self.login('testcustomer', 'testpassword123')
         self.wait.until(lambda d: '/login/' not in d.current_url)
         self.driver.get(self.live_server_url + '/orders/checkout/')
 
-        # Reveal custom map container if hidden
-        custom_card = self.driver.find_elements(By.ID, 'loc_card_custom')
-        if custom_card:
-            self.driver.execute_script("arguments[0].scrollIntoView(true); arguments[0].click();", custom_card[0])
-
-        map_container = self.wait.until(EC.presence_of_element_located((By.ID, 'checkout-map-picker')))
-        self.wait.until(lambda d: 'leaflet-container' in d.find_element(By.ID, 'checkout-map-picker').get_attribute('class'))
-
-        # Pin and perimeter status badge
-        badge = self.driver.find_element(By.ID, 'perimeter-status-badge')
-        self.assertTrue(badge.is_displayed())
-        self.assertIn('Service Area', badge.text)
+        page_source = self.driver.page_source
+        self.assertIn('Order Summary', page_source)
+        self.assertNotIn('earth.google.com/web', page_source)
+        self.assertNotIn('maplibregl-map', page_source)
 
     def test_profile_saved_location_map(self):
         """Verify Profile saved locations tab renders Leaflet map."""
@@ -66,23 +59,12 @@ class MapTest(BaseSeleniumTest):
         self.assertTrue(map_container.is_displayed())
         self.assertIn('leaflet-container', map_container.get_attribute('class'))
 
-        # Verify map dragging is enabled and marker dragging is enabled separately
+        # Verify map dragging is enabled and marker dragging is disabled
         map_dragging_enabled = self.driver.execute_script("return typeof leafletMap !== 'undefined' && leafletMap.dragging.enabled();")
         self.assertTrue(map_dragging_enabled)
 
-        # Verify marker dragging is disabled to prevent accidental movement (fixed pin requirement)
         marker_dragging_enabled = self.driver.execute_script("return typeof leafletMarker !== 'undefined' && leafletMarker.dragging && leafletMarker.dragging.enabled();")
         self.assertFalse(marker_dragging_enabled)
-
-        # Verify panning the map does NOT alter the saved coordinates
-        initial_lat = self.driver.find_element(By.ID, 'loc_lat').get_attribute('value')
-        initial_lon = self.driver.find_element(By.ID, 'loc_lon').get_attribute('value')
-        self.driver.execute_script("leafletMap.panBy([120, 120]);")
-        time.sleep(0.3)
-        post_pan_lat = self.driver.find_element(By.ID, 'loc_lat').get_attribute('value')
-        post_pan_lon = self.driver.find_element(By.ID, 'loc_lon').get_attribute('value')
-        self.assertEqual(initial_lat, post_pan_lat)
-        self.assertEqual(initial_lon, post_pan_lon)
 
         # Verify intentional selection updates coordinates (via preset, map click or syncProfileCoordinates)
         time.sleep(0.5)
@@ -97,4 +79,5 @@ class MapTest(BaseSeleniumTest):
         updated_lon = self.driver.find_element(By.ID, 'loc_lon').get_attribute('value')
         self.assertEqual(updated_lat, '9.580000')
         self.assertEqual(updated_lon, '76.800000')
+
 

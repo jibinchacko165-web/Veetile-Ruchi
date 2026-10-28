@@ -118,6 +118,13 @@ class HotelBranch(models.Model):
         return f"{self.name} [{self.district.name}]{hub_str}"
 
     @property
+    def has_valid_coordinates(self):
+        try:
+            return self.latitude is not None and self.longitude is not None and -90.0 <= float(self.latitude) <= 90.0 and -180.0 <= float(self.longitude) <= 180.0
+        except (ValueError, TypeError):
+            return False
+
+    @property
     def effective_radius_km(self):
         """Enforces delivery radius ceiling of 30.0 km while respecting stricter configured radius."""
         return min(float(self.max_delivery_radius_km or 30.0), 30.0)

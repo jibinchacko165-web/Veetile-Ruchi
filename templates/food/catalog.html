@@ -49,18 +49,7 @@
 
     <!-- Search Form with Quick Tag Pills -->
     <div style="max-width: 650px; margin: 0 auto;">
-        <form method="GET" action="{% url 'food_catalog' %}" style="display: flex; gap: 0.5rem; background: #FFFFFF; padding: 0.4rem 0.5rem; border-radius: 50px; border: 1.5px solid var(--border-leaf); box-shadow: var(--shadow-md);">
-            <input type="text" name="q" value="{{ query }}" placeholder="Search Kerala dishes (e.g. Appam, Puttu, Sadya, Fish Curry, Beef Fry)..." style="flex: 1; background: transparent; border: none; color: var(--text-main); padding: 0 1.25rem; outline: none; font-size: 1rem; font-family: inherit; font-weight: 400;">
-            {% if cat_filter %}
-                <input type="hidden" name="category" value="{{ cat_filter }}">
-            {% endif %}
-            {% if session_filter %}
-                <input type="hidden" name="session" value="{{ session_filter }}">
-            {% endif %}
-            <button type="submit" class="btn btn-sm" style="padding: 0.7rem 1.6rem; border-radius: 50px; font-weight: 600;">
-                <i class="fa-solid fa-magnifying-glass"></i> Search
-            </button>
-        </form>
+
 
         <!-- Popular Kerala Dish Quick Search Tags -->
         <div style="display: flex; justify-content: center; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.85rem; font-size: 0.84rem;">
@@ -121,7 +110,7 @@
                             <div class="food-card-media">
                                 <img src="{{ rec.food.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ rec.food.name }}" loading="lazy">
                                 <span class="badge badge-success" style="position: absolute; top: 12px; left: 12px; font-weight: 700; color: #FFFFFF; background: #2E7D32;">
-                                    ✓ Recommended for {{ target_rec_session }}
+                                    Recommended for {{ target_rec_session }}
                                 </span>
                             </div>
                             <div class="food-card-body">

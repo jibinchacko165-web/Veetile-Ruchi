@@ -318,23 +318,23 @@
                                 </form>
                             {% elif item.order.status == 'ready_pickup' %}
                                 <span style="font-size: 0.85rem; color: var(--success); font-weight: 700;">
-                                    ✓ Food Prepared — Awaiting Staff Courier Assignment
+                                    Food Prepared — Awaiting Staff Courier Assignment
                                 </span>
                             {% elif item.order.status == 'assigned' %}
                                 <span style="font-size: 0.85rem; color: #2563eb; font-weight: 700;">
-                                    ✓ Courier Assigned — Awaiting Pickup
+                                    Courier Assigned — Awaiting Pickup
                                 </span>
                             {% elif item.order.status == 'picked_up' or item.order.status == 'in_transit' %}
                                 <span style="font-size: 0.85rem; color: var(--primary-orange); font-weight: 700;">
-                                    ✓ Picked Up — In Transit
+                                    Picked Up — In Transit
                                 </span>
                             {% elif item.order.status == 'delivered' %}
                                 <span style="font-size: 0.85rem; color: var(--success); font-weight: 700;">
-                                    ✓ Delivered
+                                    Delivered
                                 </span>
                             {% else %}
                                 <span style="font-size: 0.85rem; color: var(--success); font-weight: 700;">
-                                    ✓ {{ item.order.get_status_display }}
+                                    {{ item.order.get_status_display }}
                                 </span>
                             {% endif %}
                         </div>
@@ -761,7 +761,7 @@
                                     `;
                                 } else {
                                     const statusColor = isAssigned ? '#2563eb' : (isTransit ? 'var(--primary-orange)' : 'var(--success)');
-                                    actionControls = `<span style="font-size: 0.85rem; color: ${statusColor}; font-weight: 700;">✓ ${item.status_message}</span>`;
+                                    actionControls = `<span style="font-size: 0.85rem; color: ${statusColor}; font-weight: 700;">${item.status_message}</span>`;
                                 }
 
                                 html += `

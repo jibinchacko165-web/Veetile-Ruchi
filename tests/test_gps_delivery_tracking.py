@@ -719,6 +719,7 @@ class StartNavigationCoordinateTests(TestCase):
         self.assertIn('initLeafletMap()', content)
         self.assertIn('btn-zoom-customer', content)
         self.assertIn('btn-locate-courier', content)
+        self.assertNotIn('earth.google.com/web', content)
         # User requested deletion of Zoom Courier and View Both buttons
         self.assertNotIn('btn-zoom-courier', content)
         self.assertNotIn('btn-view-both', content)
@@ -1248,8 +1249,31 @@ class LiveDeliveryMapVisibilityTests(TestCase):
         self.assertIn('id="live-delivery-map"', content)
         self.assertIn('Locate Me', content)
         self.assertIn('Re-center Map', content)
-        self.assertNotIn('OpenStreetMap Navigation', content)
-        self.assertNotIn('id="external-nav-link"', content)
+        self.assertNotIn('earth.google.com/web', content)
+
+    def test_staff_user_sees_leaflet_tracking_map(self):
+        """Staff user viewing active order tracking sees the single Leaflet tracking map, while retaining all staff features."""
+        staff_user = User.objects.create_user(
+            username='staff_map_verifier',
+            password='password123',
+            role='staff'
+        )
+        self.client.force_login(staff_user)
+        response = self.client.get(reverse('order_tracking', kwargs={'order_id': self.active_order.order_id}))
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode('utf-8')
+
+        # Live Order Leaflet Tracking Map is rendered for staff
+        self.assertIn('id="live-order-map-section"', content)
+        self.assertIn('id="live-delivery-map"', content)
+        self.assertIn('Re-center Map', content)
+        self.assertNotIn('earth.google.com/web', content)
+
+        # Other staff features and order info are fully preserved
+        self.assertIn(self.customer.get_full_name().lower(), content.lower())
+        self.assertIn('Customer & Delivery Details', content)
+        self.assertIn('Ordered Food Items', content)
+        self.assertIn('Payment Status', content)
 
     def test_delivered_order_hides_entire_map_section(self):
         """Delivered order completely removes the Live Map section and controls from HTML."""
@@ -1270,10 +1294,9 @@ class LiveDeliveryMapVisibilityTests(TestCase):
         self.assertNotIn('Live Order Delivery Map & GPS Tracking', content)
         self.assertNotIn('id="btn-customer-gps"', content)
         self.assertNotIn('id="customer-gps-retry-btn"', content)
-        self.assertNotIn('id="external-nav-link"', content)
+        self.assertNotIn('id="osm-map-link"', content)
         self.assertNotIn('Re-center Map', content)
         self.assertNotIn('Locate Me', content)
-        self.assertNotIn('OpenStreetMap Navigation', content)
 
         # Context flags
         self.assertFalse(response.context.get('show_map'))
@@ -1988,6 +2011,7 @@ class OrderLifecycleAndCourierWorkflowTests(TestCase):
         # Kept buttons MUST exist
         self.assertIn('btn-zoom-customer', content)
         self.assertIn('btn-locate-courier', content)
+        self.assertNotIn('earth.google.com/web', content)
 
         # Customer name and address must be visible
         cust_name = self.customer.get_full_name() or self.customer.username.title()
@@ -2006,8 +2030,8 @@ class OrderLifecycleAndCourierWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         content = response.content.decode('utf-8')
 
-        # Vehicle switcher is available so courier boys can switch between vehicle assignments
-        self.assertIn('name="vehicle_number"', content)
+        # Vehicle switcher was removed per requirement
+        self.assertNotIn('name="vehicle_number"', content)
 
         # View Both button in modal must be deleted
         self.assertNotIn('modalBtnViewBoth', content)

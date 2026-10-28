@@ -12,7 +12,7 @@
     <div class="grid-2" style="grid-template-columns: 1.15fr 1fr; gap: 2rem; align-items: start;">
         <!-- Left Column: Focal Dish Image & Chef Trust Card -->
         <div>
-            <div style="border-radius: var(--radius-lg); overflow: hidden; background: #F4EBE1; border: 1.5px solid var(--border-warm); box-shadow: var(--shadow-md); position: relative; height: 380px;">
+            <div class="food-detail-image-wrapper" style="border-radius: var(--radius-lg); overflow: hidden; background: #F4EBE1; border: 1.5px solid var(--border-warm); box-shadow: var(--shadow-md); position: relative; max-height: 380px; aspect-ratio: 16/10; width: 100%;">
                 <img src="{{ food.image|default:'/static/images/food-placeholder.jpg' }}" alt="{{ food.name }}" style="width: 100%; height: 100%; object-fit: cover;">
                 
                 <span class="badge badge-green" style="position: absolute; top: 16px; left: 16px; font-size: 0.82rem;">
@@ -32,7 +32,7 @@
                         <div>
                             <span style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 500; display: block;">Prepared by Home Chef</span>
                             <span style="color: var(--primary-brown); font-size: 1.1rem; font-weight: 600;">{{ food.chef.username|upper }}</span>
-                            <p style="margin: 0; font-size: 0.85rem; color: var(--primary-green); font-weight: 500;">✓ Verified Local Kerala Kitchen</p>
+                            <p style="margin: 0; font-size: 0.85rem; color: var(--primary-green); font-weight: 500;">Verified Local Kerala Kitchen</p>
                         </div>
                     </div>
                     <div style="text-align: right;">
@@ -69,26 +69,68 @@
 
                 <!-- Price and Ordering Box -->
                 <div style="background: var(--bg-cream); border: 1.5px solid var(--border-leaf); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1rem;">
-                        <span style="font-size: 0.95rem; color: var(--text-muted); font-weight: 500;">Price per portion:</span>
-                        <span style="font-size: 1.85rem; font-weight: 700; color: var(--primary-green);">₹{{ food.price }}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.75rem;">
+                        <span id="detail-top-label" style="font-size: 0.95rem; color: var(--text-muted); font-weight: 500;">Total Price:</span>
+                        <span id="detail-unit-price" style="font-size: 1.85rem; font-weight: 700; color: var(--primary-green);">₹{{ food.price|floatformat:2 }}</span>
                     </div>
 
                     {% if food.stock_quantity > 0 %}
-                        <div style="display: flex; gap: 0.75rem;">
-                            <a href="{% url 'cart_add' food.id %}" class="btn" style="flex: 1; font-size: 1.05rem; font-weight: 600; border-radius: 10px;">
-                                <i class="fa-solid fa-cart-shopping"></i> Add to Basket
-                            </a>
-                            {% if not user.is_authenticated %}
-                                <a href="{% url 'login' %}?next={% url 'food_detail' food.id %}" class="btn btn-outline" style="padding: 0.75rem 1.1rem; border-color: var(--border-warm);" title="Sign in to save to Wishlist">
-                                    <i class="fa-solid fa-heart" style="color: #CBD5E1;"></i>
-                                </a>
-                            {% elif user.role == 'customer' %}
-                                <a href="{% url 'wishlist_toggle' food.id %}" class="btn btn-outline wishlist-toggle-btn" data-food-id="{{ food.id }}" style="padding: 0.75rem 1.1rem; border-color: {% if is_in_wishlist %}#EF4444{% else %}var(--border-warm){% endif %}; color: {% if is_in_wishlist %}#EF4444{% else %}#64748B{% endif %}; cursor: pointer;" title="{% if is_in_wishlist %}Remove from Wishlist{% else %}Save to Wishlist{% endif %}">
-                                    <i class="fa-solid fa-heart" style="color: {% if is_in_wishlist %}#EF4444{% else %}#CBD5E1{% endif %};"></i>
-                                </a>
-                            {% endif %}
-                        </div>
+                        <form method="POST" action="{% url 'cart_add' food.id %}" id="add-to-cart-form" style="margin: 0;">
+                            {% csrf_token %}
+                            <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.85rem;">
+                                <div style="display: inline-flex; align-items: center; background: #ffffff; border: 1.5px solid var(--border-warm); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow-sm);">
+                                    <button type="button" id="btn-qty-minus" onclick="changeDetailQty(-1)" class="btn btn-outline" style="width: 44px; height: 44px; padding: 0; font-size: 1.35rem; font-weight: 700; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="Decrease quantity">−</button>
+                                    <input type="number" id="detail-qty" name="quantity" value="1" min="1" max="{{ food.stock_quantity }}" style="width: 52px; height: 44px; border: none; text-align: center; font-size: 1.15rem; font-weight: 700; color: var(--text-heading); -moz-appearance: textfield; background: transparent; padding: 0;" oninput="updateFoodPriceAndTotals()" onchange="updateFoodPriceAndTotals()">
+                                    <button type="button" id="btn-qty-plus" onclick="changeDetailQty(1)" class="btn btn-outline" style="width: 44px; height: 44px; padding: 0; font-size: 1.35rem; font-weight: 700; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="Increase quantity">+</button>
+                                </div>
+                                <button type="submit" id="btn-add-to-cart" class="btn" style="flex: 1; min-height: 44px; font-size: 1.05rem; font-weight: 600; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;">
+                                    <i class="fa-solid fa-cart-shopping"></i> Add to Cart
+                                </button>
+                                {% if not user.is_authenticated %}
+                                    <a href="{% url 'login' %}?next={% url 'food_detail' food.id %}" class="btn btn-outline" style="width: 44px; height: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-color: var(--border-warm); border-radius: 10px;" title="Sign in to save to Wishlist">
+                                        <i class="fa-solid fa-heart" style="color: #CBD5E1;"></i>
+                                    </a>
+                                {% elif user.role == 'customer' %}
+                                    <a href="{% url 'wishlist_toggle' food.id %}" class="btn btn-outline wishlist-toggle-btn" data-food-id="{{ food.id }}" style="width: 44px; height: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-color: {% if is_in_wishlist %}#EF4444{% else %}var(--border-warm){% endif %}; border-radius: 10px; cursor: pointer;" title="{% if is_in_wishlist %}Remove from Wishlist{% else %}Save to Wishlist{% endif %}">
+                                        <i class="fa-solid fa-heart" style="color: {% if is_in_wishlist %}#EF4444{% else %}#CBD5E1{% endif %};"></i>
+                                    </a>
+                                {% endif %}
+                            </div>
+
+                            <!-- DYNAMIC REAL-TIME TOTAL PRICE & TAX BREAKDOWN -->
+                            <div id="dynamic-total-container" style="background: #ffffff; border: 1.5px solid var(--border-warm); border-radius: 12px; padding: 1rem 1.15rem; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+                                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.6rem;">
+                                    <div>
+                                        <span id="detail-bottom-label" style="font-size: 1.05rem; font-weight: 700; color: var(--text-heading); display: block;">Order Total:</span>
+                                        <span id="price-mode-badge" style="font-size: 0.76rem; color: #166534; background: #dcfce7; padding: 0.15rem 0.55rem; border-radius: 4px; font-weight: 600; display: inline-block; margin-top: 0.15rem;">GST Included (No Extra Tax)</span>
+                                    </div>
+                                    <span id="detail-total-price" style="font-size: 1.85rem; font-weight: 800; color: var(--primary-green); font-family: monospace;">₹{{ food.price|floatformat:2 }}</span>
+                                </div>
+
+                                <div id="price-breakdown-details" style="font-size: 0.86rem; color: var(--text-muted); border-top: 1px dashed var(--border-warm); padding-top: 0.6rem; display: flex; flex-direction: column; gap: 0.35rem;">
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span>Unit Price per Portion:</span>
+                                        <span style="font-weight: 600; color: var(--text-heading);">₹{{ food.price|floatformat:2 }}</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span>Selected Quantity:</span>
+                                        <strong id="breakdown-qty" style="color: var(--text-heading);">1 portion</strong>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span id="breakdown-taxable-label">Subtotal (Taxable Value):</span>
+                                        <span id="breakdown-taxable-val" style="font-weight: 600; color: var(--text-heading);">₹0.00</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span id="breakdown-gst-label">GST (5% Included):</span>
+                                        <span id="breakdown-gst-val" style="font-weight: 600; color: var(--primary-green);">₹0.00</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; font-weight: 700; color: var(--text-heading); border-top: 1.5px solid var(--border-warm); padding-top: 0.45rem; margin-top: 0.2rem; font-size: 1rem;">
+                                        <span>Final Payable Amount:</span>
+                                        <span id="breakdown-final-val" style="color: var(--primary-green);">₹{{ food.price|floatformat:2 }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
                     {% else %}
                         <button class="btn" disabled style="width: 100%; opacity: 0.6; cursor: not-allowed;">
                             Currently Unavailable
@@ -264,4 +306,109 @@
         {% endif %}
     </div>
 </div>
+
+<script>
+    (function() {
+        const foodUnitPrice = parseFloat('{{ food.price }}') || 0;
+        const gstRate = parseFloat('{{ GST_RATE_PERCENT|default:"5.0" }}') || 5.0;
+        const gstMode = '{{ GST_MODE|default:"inclusive" }}'; // 'inclusive' (Mode B) or 'exclusive' (Mode A)
+        const maxStock = parseInt('{{ food.stock_quantity|default:"999" }}', 10) || 1;
+
+        function formatINR(val) {
+            return '₹' + Number(val).toFixed(2);
+        }
+
+        window.changeDetailQty = function(delta) {
+            const qInput = document.getElementById('detail-qty');
+            if (!qInput) return;
+            let current = parseInt(qInput.value, 10);
+            if (isNaN(current) || current < 1) current = 1;
+            let target = current + delta;
+            if (target < 1) target = 1;
+            if (target > maxStock) target = maxStock;
+            qInput.value = target;
+            updateFoodPriceAndTotals();
+        };
+
+        window.updateFoodPriceAndTotals = function() {
+            const qInput = document.getElementById('detail-qty');
+            if (!qInput) return;
+            let qty = parseInt(qInput.value, 10);
+            if (isNaN(qty) || qty < 1) {
+                qty = 1;
+                qInput.value = 1;
+            } else if (qty > maxStock) {
+                qty = maxStock;
+                qInput.value = maxStock;
+            }
+
+            let taxable = 0;
+            let gstAmount = 0;
+            let finalTotal = 0;
+
+            if (gstMode === 'exclusive' || gstMode === 'additional') {
+                // Mode A: GST is additional
+                const basePrice = foodUnitPrice * qty;
+                gstAmount = basePrice * (gstRate / 100.0);
+                finalTotal = basePrice + gstAmount;
+                taxable = basePrice;
+
+                const badge = document.getElementById('price-mode-badge');
+                if (badge) {
+                    badge.textContent = `GST (${gstRate}% Additional)`;
+                    badge.style.background = '#fef3c7';
+                    badge.style.color = '#92400e';
+                }
+                const gstLabel = document.getElementById('breakdown-gst-label');
+                if (gstLabel) gstLabel.textContent = `GST (${gstRate}% Additional):`;
+                const taxLabel = document.getElementById('breakdown-taxable-label');
+                if (taxLabel) taxLabel.textContent = 'Subtotal (Base Price):';
+            } else {
+                // Mode B: GST is already included in displayed price
+                finalTotal = foodUnitPrice * qty;
+                gstAmount = (finalTotal * gstRate) / (100.0 + gstRate);
+                taxable = finalTotal - gstAmount;
+
+                const badge = document.getElementById('price-mode-badge');
+                if (badge) {
+                    badge.textContent = `GST (${gstRate}% Included in Price)`;
+                    badge.style.background = '#dcfce7';
+                    badge.style.color = '#166534';
+                }
+                const gstLabel = document.getElementById('breakdown-gst-label');
+                if (gstLabel) gstLabel.textContent = `GST (${gstRate}% Included):`;
+                const taxLabel = document.getElementById('breakdown-taxable-label');
+                if (taxLabel) taxLabel.textContent = 'Subtotal (Taxable Value):';
+            }
+
+            const formattedTotal = formatINR(finalTotal);
+
+            // Single shared calculation: Both displayed prices always show the exact same amount for the selected quantity
+            const topPriceEl = document.getElementById('detail-unit-price');
+            if (topPriceEl) topPriceEl.textContent = formattedTotal;
+
+            const totalEl = document.getElementById('detail-total-price');
+            if (totalEl) totalEl.textContent = formattedTotal;
+
+            const qtyEl = document.getElementById('breakdown-qty');
+            if (qtyEl) qtyEl.textContent = qty + (qty === 1 ? ' portion' : ' portions');
+
+            const taxableEl = document.getElementById('breakdown-taxable-val');
+            if (taxableEl) taxableEl.textContent = formatINR(taxable);
+
+            const gstEl = document.getElementById('breakdown-gst-val');
+            if (gstEl) gstEl.textContent = formatINR(gstAmount);
+
+            const finalEl = document.getElementById('breakdown-final-val');
+            if (finalEl) finalEl.textContent = formattedTotal;
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateFoodPriceAndTotals();
+        });
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            updateFoodPriceAndTotals();
+        }
+    })();
+</script>
 {% endblock %}

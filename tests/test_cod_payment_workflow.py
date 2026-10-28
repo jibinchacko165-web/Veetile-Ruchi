@@ -593,10 +593,10 @@ class CodPaymentWorkflowTestCase(TestCase):
         self.assertEqual(payment.status, 'cash_collected')
         self.assertEqual(payment.cash_collected_by, self.courier_user1)
 
-        # 5. Tracking page shows "✓ Cash Collected" badge
+        # 5. Tracking page shows "Cash Collected" badge
         resp = self.client.get(reverse('delivery_boy_track', args=[assignment.id]))
         self.assertEqual(resp.status_code, 200)
-        self.assertIn("✓ Cash Collected", resp.content.decode('utf-8'))
+        self.assertIn("Cash Collected", resp.content.decode('utf-8'))
 
         # 6. Staff dashboard displays "Cash Collected Successfully" confirmation message
         self.client.login(username="staff_user", password=self.password)

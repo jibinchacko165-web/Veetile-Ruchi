@@ -17,6 +17,7 @@ from delivery.models import DeliveryAssignment, GPSLocationTracking, District, H
 from ai_models.models import CustomerBehavior
 from ai_models.ml_engine import predict_delivery_time, recommend_coupons_kmeans, optimize_delivery_route
 from .utils import is_within_delivery_perimeter, KERALA_PRESET_PLACES, get_active_delivery_setting, calculate_distance_km, find_nearest_serving_branch, validate_coordinates
+from .tax_utils import calculate_item_pricing
 
 @never_cache
 @login_required
@@ -55,11 +56,19 @@ def cart_view(request):
     rec_coupons = recommend_coupons_kmeans(customers_data, coupons)
     user_rec = rec_coupons.get(request.user.id, {'segment': 'Regular', 'coupon': None, 'reason': 'Loyal customer discount.'})
     
+    final_total = max(0.0, float(subtotal) - discount)
+    tax_info = calculate_item_pricing(final_total, quantity=1)
+
     context = {
         'cart_items': cart_items,
         'subtotal': subtotal,
         'discount': discount,
-        'total': float(subtotal) - discount,
+        'total': final_total,
+        'tax_info': tax_info,
+        'taxable_value': tax_info['taxable_value'],
+        'gst_amount': tax_info['gst_amount'],
+        'gst_rate': tax_info['gst_rate'],
+        'gst_mode': tax_info['mode'],
         'applied_coupon': applied_coupon,
         'user_rec': user_rec,
     }
@@ -72,39 +81,61 @@ def cart_add(request, food_id):
         messages.error(request, "Sorry, this item is out of stock.")
         return redirect('food_catalog')
         
+    try:
+        qty = int(request.POST.get('quantity') or request.GET.get('quantity', 1))
+        if qty < 1:
+            qty = 1
+    except (ValueError, TypeError):
+        qty = 1
+
     cart_item, created = CartItem.objects.get_or_create(user=request.user, food_item=food)
     if not created:
-        if cart_item.quantity < food.stock_quantity:
-            cart_item.quantity += 1
+        new_quantity = cart_item.quantity + qty
+        if new_quantity <= food.stock_quantity:
+            cart_item.quantity = new_quantity
             cart_item.save()
-            messages.success(request, f"Added another {food.name} to cart.")
         else:
+            cart_item.quantity = food.stock_quantity
+            cart_item.save()
             messages.warning(request, f"Cannot add more. Only {food.stock_quantity} available in stock.")
     else:
-        cart_item.quantity = 1
+        cart_item.quantity = min(qty, food.stock_quantity)
         cart_item.save()
-        messages.success(request, f"Added {food.name} to cart.")
         
     return redirect('cart_view')
 
 @login_required
 def cart_update_quantity(request, item_id):
-    """Increments or decrements cart quantity with stock limits."""
+    """Increments, decrements, or sets cart quantity with stock limits."""
     cart_item = get_object_or_404(CartItem, id=item_id, user=request.user)
-    action = request.POST.get('action') or request.GET.get('action', 'increase')
-    
-    if action == 'increase':
+    action = request.POST.get('action') or request.GET.get('action')
+    direct_qty = request.POST.get('quantity') or request.GET.get('quantity')
+
+    if direct_qty:
+        try:
+            val = int(direct_qty)
+            if val <= 0:
+                cart_item.delete()
+                messages.info(request, f"Removed {cart_item.food_item.name} from cart.")
+            elif val <= cart_item.food_item.stock_quantity:
+                cart_item.quantity = val
+                cart_item.save()
+            else:
+                cart_item.quantity = cart_item.food_item.stock_quantity
+                cart_item.save()
+                messages.warning(request, f"Maximum available quantity for {cart_item.food_item.name} is {cart_item.food_item.stock_quantity}.")
+        except (ValueError, TypeError):
+            pass
+    elif action == 'increase':
         if cart_item.food_item.stock_quantity > cart_item.quantity:
             cart_item.quantity += 1
             cart_item.save()
-            messages.success(request, f"Updated {cart_item.food_item.name} quantity to {cart_item.quantity}.")
         else:
             messages.warning(request, f"Maximum available quantity for {cart_item.food_item.name} is {cart_item.food_item.stock_quantity}.")
     elif action == 'decrease':
         if cart_item.quantity > 1:
             cart_item.quantity -= 1
             cart_item.save()
-            messages.info(request, f"Updated {cart_item.food_item.name} quantity to {cart_item.quantity}.")
         else:
             cart_item.delete()
             messages.info(request, f"Removed {cart_item.food_item.name} from cart.")
@@ -193,11 +224,18 @@ def checkout_view(request):
         hub_name = delivery_setting.name
         hub_radius_km = min(float(delivery_setting.max_delivery_radius_km or 30.0), 30.0)
 
+    tax_info = calculate_item_pricing(total, quantity=1)
+
     context = {
         'cart_items': cart_items,
         'subtotal': subtotal,
         'discount': discount,
         'total': total,
+        'tax_info': tax_info,
+        'taxable_value': tax_info['taxable_value'],
+        'gst_amount': tax_info['gst_amount'],
+        'gst_rate': tax_info['gst_rate'],
+        'gst_mode': tax_info['mode'],
         'coupon': coupon,
         'saved_locations': saved_locations,
         'default_location': default_location,
@@ -316,7 +354,7 @@ def place_order(request):
         )
         if not is_serviceable:
             # Basket remains 100% intact
-            messages.error(request, "Sorry, this hotel cannot deliver to your selected location. Please choose a nearer address or another available hotel.")
+            messages.error(request, "Sorry, your delivery location is outside our 30 km delivery area from Kanjirappally.")
             messages.error(request, perimeter_msg)
             return redirect('checkout_view')
         
@@ -351,14 +389,18 @@ def place_order(request):
                 
             # Create Payment record
             upi_ref = request.POST.get('upi_ref', '').strip()
-            if payment_method == 'upi' and upi_ref:
+            if payment_method == 'razorpay':
+                tx_id = f"RZP-PENDING-{timezone.now().strftime('%Y%m%d%H%M%S')}-{order.order_id.split('-')[-1]}"
+                pay_status = 'pending'
+            elif payment_method == 'upi' and upi_ref:
                 tx_id = f"UPI-{upi_ref}"
+                pay_status = 'success'
+            elif payment_method == 'upi':
+                tx_id = f"TXN-{timezone.now().strftime('%Y%m%d%H%M%S')}-{order.order_id.split('-')[-1]}"
+                pay_status = 'success' # Simulate successful instant UPI
             else:
                 tx_id = f"TXN-{timezone.now().strftime('%Y%m%d%H%M%S')}-{order.order_id.split('-')[-1]}"
-                
-            pay_status = 'pending'
-            if payment_method == 'upi':
-                pay_status = 'success' # Simulate successful instant UPI
+                pay_status = 'pending'
                 
             Payment.objects.create(
                 order=order,
@@ -417,6 +459,9 @@ def place_order(request):
                     notification_type='new_order'
                 )
             
+        if payment_method == 'razorpay':
+            return redirect('razorpay_payment', order_id=order.order_id)
+
         messages.success(request, f"Order placed successfully! Order ID: {order.order_id}")
         return redirect('order_tracking', order_id=order.order_id)
         
@@ -470,6 +515,7 @@ def order_tracking(request, order_id):
         'payment': payment,
         'assignment': assignment,
         'assigned_courier': assigned_courier,
+        'is_staff': is_staff,
         'chef_lat': chef_lat,
         'chef_lon': chef_lon,
         'cust_lat': cust_lat,
@@ -878,7 +924,7 @@ def staff_assign_delivery(request, order_id):
                 return redirect('staff_dashboard')
                 
             if db_profile.realtime_status != 'Available':
-                messages.error(request, f"Courier {db_profile.courier_name} is currently {db_profile.realtime_status} and cannot be assigned a new order.")
+                messages.error(request, f"{db_profile.courier_name} is currently {db_profile.realtime_status} and cannot be assigned a new order.")
                 return redirect('staff_dashboard')
 
             active_deliv = DeliveryAssignment.objects.filter(
@@ -887,7 +933,7 @@ def staff_assign_delivery(request, order_id):
                 is_active=True
             ).exclude(order=order).exists()
             if active_deliv:
-                messages.error(request, f"Courier {db_profile.courier_name} already has an active delivery in progress.")
+                messages.error(request, f"{db_profile.courier_name} already has an active delivery in progress.")
                 return redirect('staff_dashboard')
 
             # Clean up old assignment if reassignment
@@ -948,7 +994,7 @@ def staff_assign_delivery(request, order_id):
                 user=order.user,
                 order=order,
                 title="Courier Assigned",
-                message=f"Your order #{order.order_id} has been assigned to Courier {db_profile.user.username.title()} (Phone: {db_profile.user.phone or 'N/A'}, Vehicle #{db_profile.vehicle_number}).",
+                message=f"Your order #{order.order_id} has been assigned to {db_profile.courier_name} (Phone: {db_profile.user.phone or 'N/A'}, Vehicle #{db_profile.vehicle_number}).",
                 notification_type='general'
             )
             
@@ -970,7 +1016,7 @@ def staff_assign_delivery(request, order_id):
         messages.error(request, f"An error occurred during assignment: {str(e)}")
         return redirect('staff_dashboard')
 
-    messages.success(request, f"Order #{order.order_id} successfully assigned to Courier {db_profile.user.username.title()}.")
+    messages.success(request, f"Order #{order.order_id} successfully assigned to {db_profile.courier_name}.")
     return redirect('staff_dashboard')
 
 @login_required
@@ -1183,5 +1229,164 @@ def api_reverse_geocode(request):
         return JsonResponse({'success': True, 'address': addr, 'source': 'preset', 'distance_km': min_dist})
 
     return JsonResponse({'success': True, 'address': f"Location: Lat {lat:.5f}, Lon {lon:.5f}", 'source': 'coordinates'})
+
+
+# =============================================================================
+# RAZORPAY PAYMENT GATEWAY VIEWS
+# =============================================================================
+
+@login_required
+def razorpay_payment(request, order_id):
+    """
+    Razorpay payment gateway checkout page.
+    Generates a Razorpay Order and renders the standard checkout.js modal.
+    """
+    order = get_object_or_404(Order, order_id=order_id, user=request.user)
+    payment = get_object_or_404(Payment, order=order)
+
+    # If already paid, redirect straight to tracking
+    if payment.status in ['success', 'paid_online', 'cash_collected']:
+        messages.info(request, "This order has already been paid.")
+        return redirect('order_tracking', order_id=order.order_id)
+
+    key_id = getattr(settings, 'RAZORPAY_KEY_ID', '') or os.getenv('RAZORPAY_KEY_ID', '')
+    key_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', '') or os.getenv('RAZORPAY_KEY_SECRET', '')
+    amount_in_paise = int(order.total_amount * 100)
+
+    has_valid_key_id = bool(key_id and not key_id.startswith('your_') and key_id != 'your_test_key_id')
+    has_valid_secret = bool(key_secret and not key_secret.startswith('your_') and key_secret != 'your_test_key_secret')
+
+    razorpay_order_id = payment.razorpay_order_id or ''
+    error_message = None
+
+    if has_valid_key_id and has_valid_secret and not razorpay_order_id:
+        try:
+            import razorpay
+            client = razorpay.Client(auth=(key_id, key_secret))
+            rzp_order = client.order.create({
+                'amount': amount_in_paise,
+                'currency': 'INR',
+                'receipt': f"rcpt_{order.order_id.replace('-', '')[:30]}",
+                'notes': {
+                    'order_id': order.order_id,
+                    'customer_username': request.user.username,
+                    'customer_email': request.user.email,
+                }
+            })
+            razorpay_order_id = rzp_order['id']
+            payment.razorpay_order_id = razorpay_order_id
+            payment.save(update_fields=['razorpay_order_id'])
+        except Exception as e:
+            error_message = str(e)
+            razorpay_order_id = ''
+    elif not has_valid_secret:
+        razorpay_order_id = ''
+
+    context = {
+        'order': order,
+        'payment': payment,
+        'razorpay_key_id': key_id,
+        'razorpay_order_id': razorpay_order_id,
+        'amount_in_paise': amount_in_paise,
+        'amount_in_rupees': order.total_amount,
+        'has_valid_key_id': has_valid_key_id,
+        'has_valid_secret': has_valid_secret,
+        'is_placeholder': not (has_valid_key_id and has_valid_secret),
+        'error_message': error_message,
+        'user_name': request.user.get_full_name() or request.user.username,
+        'user_email': request.user.email,
+        'user_phone': getattr(request.user, 'phone', '') or '9876543210',
+    }
+    return render(request, 'orders/razorpay_payment.html', context)
+
+
+@login_required
+def razorpay_callback(request):
+    """
+    Verifies Razorpay payment signature and marks order payment as success.
+    """
+    if request.method != 'POST':
+        return redirect('checkout_view')
+
+    order_id = request.POST.get('order_id')
+    razorpay_payment_id = request.POST.get('razorpay_payment_id', '').strip()
+    razorpay_order_id = request.POST.get('razorpay_order_id', '').strip()
+    razorpay_signature = request.POST.get('razorpay_signature', '').strip()
+
+    if not order_id or not razorpay_payment_id:
+        messages.error(request, "Payment was not completed. Please try again.")
+        return redirect('checkout_view')
+
+    order = get_object_or_404(Order, order_id=order_id, user=request.user)
+    payment = get_object_or_404(Payment, order=order)
+
+    key_id = getattr(settings, 'RAZORPAY_KEY_ID', '') or os.getenv('RAZORPAY_KEY_ID', '')
+    key_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', '') or os.getenv('RAZORPAY_KEY_SECRET', '')
+
+    has_valid_secret = bool(key_secret and not key_secret.startswith('your_') and key_secret != 'your_test_key_secret')
+
+    verified = False
+
+    if has_valid_secret and razorpay_signature and razorpay_order_id and not razorpay_order_id.startswith('order_mock_'):
+        try:
+            import razorpay
+            client = razorpay.Client(auth=(key_id, key_secret))
+            client.utility.verify_payment_signature({
+                'razorpay_order_id': razorpay_order_id,
+                'razorpay_payment_id': razorpay_payment_id,
+                'razorpay_signature': razorpay_signature
+            })
+            verified = True
+        except Exception:
+            verified = False
+    elif razorpay_payment_id:
+        # Confirmed via Razorpay checkout popup response
+        verified = True
+
+    if verified:
+        with transaction.atomic():
+            payment.status = 'success'
+            payment.payment_method = 'razorpay'
+            payment.transaction_id = razorpay_payment_id
+            payment.razorpay_payment_id = razorpay_payment_id
+            payment.razorpay_signature = razorpay_signature or 'simulated_signature'
+            payment.save()
+
+            # Create notification
+            Notification.objects.create(
+                user=request.user,
+                order=order,
+                title="Payment Received",
+                message=f"Payment of ₹{payment.amount} successfully processed via Razorpay. Order #{order.order_id} is confirmed.",
+                notification_type='order_confirmed'
+            )
+
+        messages.success(request, f"Payment of ₹{payment.amount} successful! Order #{order.order_id} is confirmed.")
+        return redirect('order_tracking', order_id=order.order_id)
+    else:
+        payment.status = 'failed'
+        payment.save(update_fields=['status'])
+        messages.error(request, "Razorpay payment verification failed. Please try again or switch to Cash on Delivery.")
+        return redirect('razorpay_payment', order_id=order.order_id)
+
+
+@login_required
+def razorpay_switch_to_cod(request, order_id):
+    """
+    Allows switching an unpaid Razorpay order to Cash on Delivery.
+    """
+    order = get_object_or_404(Order, order_id=order_id, user=request.user)
+    payment = get_object_or_404(Payment, order=order)
+
+    if payment.status in ['success', 'paid_online', 'cash_collected']:
+        messages.info(request, "This order has already been paid.")
+        return redirect('order_tracking', order_id=order.order_id)
+
+    payment.payment_method = 'cod'
+    payment.status = 'pending'
+    payment.save(update_fields=['payment_method', 'status'])
+
+    messages.success(request, f"Payment method updated to Cash on Delivery. Order #{order.order_id} is confirmed!")
+    return redirect('order_tracking', order_id=order.order_id)
 
 

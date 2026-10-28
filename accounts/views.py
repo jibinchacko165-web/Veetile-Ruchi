@@ -18,6 +18,7 @@ from django.conf import settings
 from django.db.models import Q
 from .models import User, ChefProfile, DeliveryBoyProfile, PasswordResetOTP, SavedLocation
 from .decorators import role_required
+from .validators import validate_email_address
 from health.models import HealthProfile
 from orders.models import Notification
 from orders.utils import KERALA_PRESET_PLACES
@@ -99,7 +100,16 @@ def register_view(request):
             messages.error(request, "Username already exists. Please choose a different username.")
             return render(request, 'accounts/register.html', {'form_data': form_data})
 
-        if email and User.objects.filter(email__iexact=email).exists():
+        if not email:
+            messages.error(request, "Email address is required.")
+            return render(request, 'accounts/register.html', {'form_data': form_data})
+
+        is_valid_email, email_err = validate_email_address(email)
+        if not is_valid_email:
+            messages.error(request, email_err)
+            return render(request, 'accounts/register.html', {'form_data': form_data})
+
+        if User.objects.filter(email__iexact=email).exists():
             messages.error(request, "An account with this email address already exists. Please sign in or use a different email.")
             return render(request, 'accounts/register.html', {'form_data': form_data})
 
@@ -201,7 +211,6 @@ def login_view(request):
                 return render(request, 'accounts/login.html', {'prefilled_username': identifier})
 
             login(request, user)
-            messages.success(request, f"Welcome back, {user.get_full_name() or user.username}!")
             return redirect('dashboard_redirect')
         else:
             messages.error(request, "Invalid username/email or password.")
@@ -291,12 +300,13 @@ def profile_view(request):
             loc_type = request.POST.get('location_type', 'home')
             description = request.POST.get('description', '').strip()
             landmark = request.POST.get('landmark', '').strip()
-            try:
-                lat = float(request.POST.get('latitude', 9.462534))
-                lon = float(request.POST.get('longitude', 76.72185))
-            except (ValueError, TypeError):
-                lat = 9.462534
-                lon = 76.72185
+            lat_raw = request.POST.get('latitude')
+            lon_raw = request.POST.get('longitude')
+            from orders.utils import validate_coordinates
+            c_lat, c_lon = validate_coordinates(lat_raw, lon_raw)
+            if c_lat is None or c_lon is None:
+                messages.error(request, "Invalid or missing GPS coordinates. Please detect your device GPS or select a valid Kerala location.")
+                return redirect(f"{reverse('profile')}?tab=locations")
             is_default = request.POST.get('is_default') == 'on'
 
             SavedLocation.objects.create(
@@ -305,8 +315,8 @@ def profile_view(request):
                 location_type=loc_type,
                 description=description,
                 landmark=landmark,
-                latitude=lat,
-                longitude=lon,
+                latitude=c_lat,
+                longitude=c_lon,
                 is_default=is_default
             )
             messages.success(request, f"Saved location '{loc_name}' added successfully!")
@@ -386,14 +396,14 @@ def profile_view(request):
             if form.is_valid():
                 form.save()
                 
-                try:
-                    user.latitude = float(request.POST.get('latitude', '') or user.latitude)
-                except (ValueError, TypeError):
-                    pass
-                try:
-                    user.longitude = float(request.POST.get('longitude', '') or user.longitude)
-                except (ValueError, TypeError):
-                    pass
+                lat_raw = request.POST.get('latitude')
+                lon_raw = request.POST.get('longitude')
+                if lat_raw not in (None, '') and lon_raw not in (None, ''):
+                    from orders.utils import validate_coordinates
+                    c_lat, c_lon = validate_coordinates(lat_raw, lon_raw)
+                    if c_lat is not None and c_lon is not None:
+                        user.latitude = c_lat
+                        user.longitude = c_lon
                 user.save()
 
                 # Update Role Specific Details
@@ -722,8 +732,8 @@ from django.core.cache import cache
 
 def reverse_geocode_api(request):
     """
-    Reverse-geocodes latitude and longitude into human-readable place name/address.
-    Uses OpenStreetMap Nominatim with policy-compliant User-Agent and caching.
+    Reverse-geocodes latitude and longitude into human-readable place description.
+    Uses strict coordinate bounds validation and server caching.
     """
     try:
         lat_val = float(request.GET.get('lat', ''))

@@ -24,6 +24,10 @@ class CartItem(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.food_item.name} x{self.quantity}"
 
+    @property
+    def total_price(self):
+        return self.food_item.price * self.quantity
+
 class Coupon(models.Model):
     code = models.CharField(max_length=20, unique=True)
     discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)
@@ -242,6 +246,13 @@ class Order(models.Model):
     def is_cash_collected(self):
         return hasattr(self, 'payment') and self.payment and self.payment.is_cash_collected
 
+    @property
+    def has_valid_coordinates(self):
+        try:
+            return self.latitude is not None and self.longitude is not None and -90.0 <= float(self.latitude) <= 90.0 and -180.0 <= float(self.longitude) <= 180.0
+        except (ValueError, TypeError):
+            return False
+
     def __str__(self):
         return f"Order {self.order_id} ({self.status})"
 
@@ -258,6 +269,7 @@ class Payment(models.Model):
     PAYMENT_METHOD_CHOICES = (
         ('cod', 'Cash On Delivery'),
         ('upi', 'UPI Payment'),
+        ('razorpay', 'Razorpay Online Payment'),
     )
     STATUS_CHOICES = (
         ('pending', 'Pending'),
@@ -267,9 +279,12 @@ class Payment(models.Model):
     )
     order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='payment')
     payment_method = models.CharField(max_length=10, choices=PAYMENT_METHOD_CHOICES, default='cod')
-    transaction_id = models.CharField(max_length=50, blank=True, null=True)
+    transaction_id = models.CharField(max_length=100, blank=True, null=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+    razorpay_order_id = models.CharField(max_length=100, blank=True, null=True)
+    razorpay_payment_id = models.CharField(max_length=100, blank=True, null=True)
+    razorpay_signature = models.CharField(max_length=255, blank=True, null=True)
     cash_collected_at = models.DateTimeField(null=True, blank=True)
     cash_collected_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -284,14 +299,14 @@ class Payment(models.Model):
     def display_status(self):
         """
         User-facing payment status string:
-        - If online (UPI) and paid: "Paid Online"
+        - If online (UPI or Razorpay) and paid: "Paid Online"
         - If COD and courier collected: "Cash Collected"
         - If COD and pending: "Cash on Delivery"
         - If COD and staff verified: "Cash Collected"
         - If failed: "Failed"
         - Fallback: "Pending"
         """
-        if self.payment_method == 'upi':
+        if self.payment_method in ['upi', 'razorpay']:
             if self.status in ['success', 'paid_online']:
                 return "Paid Online"
             elif self.status == 'failed':
@@ -309,7 +324,11 @@ class Payment(models.Model):
 
     @property
     def is_paid_online(self):
-        return self.payment_method == 'upi' and self.status in ['success', 'paid_online']
+        return self.payment_method in ['upi', 'razorpay'] and self.status in ['success', 'paid_online']
+
+    @property
+    def is_razorpay(self):
+        return self.payment_method == 'razorpay'
 
     @property
     def is_cod(self):
