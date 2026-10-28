@@ -1,12 +1,17 @@
 import os
+import hmac
+import hashlib
+import json
+import logging
 from django.conf import settings
 from django.db import models, transaction
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, HttpResponseBadRequest
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_GET
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET, require_POST
 from django.contrib import messages
 from django.utils import timezone
 from .models import CartItem, Coupon, Order, OrderItem, Payment, Wishlist, Notification, ChefFeedback
@@ -1235,23 +1240,38 @@ def api_reverse_geocode(request):
 # RAZORPAY PAYMENT GATEWAY VIEWS
 # =============================================================================
 
+logger = logging.getLogger(__name__)
+
 @login_required
 def razorpay_payment(request, order_id):
     """
     Razorpay payment gateway checkout page.
     Generates a Razorpay Order and renders the standard checkout.js modal.
+    Enforces authorization, trusted pricing, and safe retry workflows.
     """
-    order = get_object_or_404(Order, order_id=order_id, user=request.user)
+    is_staff = request.user.role in ['staff', 'admin']
+    if is_staff:
+        order = get_object_or_404(Order, order_id=order_id)
+    else:
+        order = get_object_or_404(Order, order_id=order_id, user=request.user)
+
     payment = get_object_or_404(Payment, order=order)
 
     # If already paid, redirect straight to tracking
     if payment.status in ['success', 'paid_online', 'cash_collected']:
-        messages.info(request, "This order has already been paid.")
+        messages.info(request, f"Order #{order.order_id} has already been paid.")
         return redirect('order_tracking', order_id=order.order_id)
+
+    # If order is cancelled, prevent checkout
+    if order.status == 'cancelled':
+        messages.error(request, f"Order #{order.order_id} is cancelled and cannot be paid.")
+        return redirect('order_history')
 
     key_id = getattr(settings, 'RAZORPAY_KEY_ID', '') or os.getenv('RAZORPAY_KEY_ID', '')
     key_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', '') or os.getenv('RAZORPAY_KEY_SECRET', '')
-    amount_in_paise = int(order.total_amount * 100)
+    
+    # Calculate amount in paise from trusted server-side total
+    amount_in_paise = int(round(float(order.total_amount) * 100))
 
     has_valid_key_id = bool(key_id and not key_id.startswith('your_') and key_id != 'your_test_key_id')
     has_valid_secret = bool(key_secret and not key_secret.startswith('your_') and key_secret != 'your_test_key_secret')
@@ -1269,15 +1289,17 @@ def razorpay_payment(request, order_id):
                 'receipt': f"rcpt_{order.order_id.replace('-', '')[:30]}",
                 'notes': {
                     'order_id': order.order_id,
-                    'customer_username': request.user.username,
-                    'customer_email': request.user.email,
+                    'customer_username': order.user.username,
+                    'customer_email': order.user.email,
                 }
             })
             razorpay_order_id = rzp_order['id']
             payment.razorpay_order_id = razorpay_order_id
-            payment.save(update_fields=['razorpay_order_id'])
+            payment.save(update_fields=['razorpay_order_id', 'updated_at'])
+            logger.info("Created Razorpay order %s for Order #%s", razorpay_order_id, order.order_id)
         except Exception as e:
             error_message = str(e)
+            logger.error("Failed to generate Razorpay order for Order #%s: %s", order.order_id, error_message)
             razorpay_order_id = ''
     elif not has_valid_secret:
         razorpay_order_id = ''
@@ -1293,9 +1315,10 @@ def razorpay_payment(request, order_id):
         'has_valid_secret': has_valid_secret,
         'is_placeholder': not (has_valid_key_id and has_valid_secret),
         'error_message': error_message,
-        'user_name': request.user.get_full_name() or request.user.username,
-        'user_email': request.user.email,
-        'user_phone': getattr(request.user, 'phone', '') or '9876543210',
+        'failure_reason': payment.failure_reason,
+        'user_name': order.user.get_full_name() or order.user.username,
+        'user_email': order.user.email,
+        'user_phone': getattr(order.user, 'phone', '') or '9876543210',
     }
     return render(request, 'orders/razorpay_payment.html', context)
 
@@ -1304,31 +1327,69 @@ def razorpay_payment(request, order_id):
 def razorpay_callback(request):
     """
     Verifies Razorpay payment signature and marks order payment as success.
+    Supports both traditional POST form submissions and modern asynchronous AJAX/JSON requests.
+    Enforces authorization, cryptographic signature validation, idempotency, and atomic updates.
     """
     if request.method != 'POST':
         return redirect('checkout_view')
 
-    order_id = request.POST.get('order_id')
-    razorpay_payment_id = request.POST.get('razorpay_payment_id', '').strip()
-    razorpay_order_id = request.POST.get('razorpay_order_id', '').strip()
-    razorpay_signature = request.POST.get('razorpay_signature', '').strip()
+    is_ajax = (
+        request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+        'application/json' in request.content_type
+    )
+
+    if 'application/json' in request.content_type:
+        try:
+            body_data = json.loads(request.body.decode('utf-8'))
+        except (ValueError, UnicodeDecodeError):
+            body_data = {}
+        order_id = body_data.get('order_id', '').strip()
+        razorpay_payment_id = body_data.get('razorpay_payment_id', '').strip()
+        razorpay_order_id = body_data.get('razorpay_order_id', '').strip()
+        razorpay_signature = body_data.get('razorpay_signature', '').strip()
+    else:
+        order_id = request.POST.get('order_id', '').strip()
+        razorpay_payment_id = request.POST.get('razorpay_payment_id', '').strip()
+        razorpay_order_id = request.POST.get('razorpay_order_id', '').strip()
+        razorpay_signature = request.POST.get('razorpay_signature', '').strip()
 
     if not order_id or not razorpay_payment_id:
-        messages.error(request, "Payment was not completed. Please try again.")
+        error_msg = "Payment details are incomplete. Payment was not verified."
+        if is_ajax:
+            return JsonResponse({'success': False, 'message': error_msg}, status=400)
+        messages.error(request, error_msg)
         return redirect('checkout_view')
 
-    order = get_object_or_404(Order, order_id=order_id, user=request.user)
+    is_staff = request.user.role in ['staff', 'admin']
+    if is_staff:
+        order = get_object_or_404(Order, order_id=order_id)
+    else:
+        order = get_object_or_404(Order, order_id=order_id, user=request.user)
+
     payment = get_object_or_404(Payment, order=order)
+
+    # Idempotent check: if already confirmed and matched
+    if payment.status in ['success', 'paid_online']:
+        logger.info("Idempotent check passed: Payment for Order #%s already marked success.", order.order_id)
+        redirect_url = reverse('order_tracking', kwargs={'order_id': order.order_id})
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'redirect_url': redirect_url,
+                'message': f"Payment of ₹{payment.amount} is already confirmed."
+            })
+        messages.success(request, f"Payment of ₹{payment.amount} successful! Order #{order.order_id} is confirmed.")
+        return redirect('order_tracking', order_id=order.order_id)
 
     key_id = getattr(settings, 'RAZORPAY_KEY_ID', '') or os.getenv('RAZORPAY_KEY_ID', '')
     key_secret = getattr(settings, 'RAZORPAY_KEY_SECRET', '') or os.getenv('RAZORPAY_KEY_SECRET', '')
-
     has_valid_secret = bool(key_secret and not key_secret.startswith('your_') and key_secret != 'your_test_key_secret')
 
     verified = False
 
     if has_valid_secret and razorpay_signature and razorpay_order_id and not razorpay_order_id.startswith('order_mock_'):
         try:
+            # 1. Primary verification using Razorpay client utility
             import razorpay
             client = razorpay.Client(auth=(key_id, key_secret))
             client.utility.verify_payment_signature({
@@ -1337,37 +1398,250 @@ def razorpay_callback(request):
                 'razorpay_signature': razorpay_signature
             })
             verified = True
-        except Exception:
-            verified = False
-    elif razorpay_payment_id:
-        # Confirmed via Razorpay checkout popup response
+        except Exception as e_rzp:
+            # 2. Fallback to direct HMAC SHA256 comparison for robustness
+            msg = f"{razorpay_order_id}|{razorpay_payment_id}".encode('utf-8')
+            expected_sig = hmac.new(key_secret.encode('utf-8'), msg, hashlib.sha256).hexdigest()
+            if hmac.compare_digest(expected_sig, razorpay_signature):
+                verified = True
+            else:
+                logger.warning("Razorpay signature verification rejected for Order #%s: %s", order.order_id, e_rzp)
+                verified = False
+    elif razorpay_payment_id and (razorpay_order_id.startswith('order_mock_') or not has_valid_secret):
+        # Simulated test payment for developer testing
         verified = True
 
     if verified:
         with transaction.atomic():
-            payment.status = 'success'
-            payment.payment_method = 'razorpay'
-            payment.transaction_id = razorpay_payment_id
-            payment.razorpay_payment_id = razorpay_payment_id
-            payment.razorpay_signature = razorpay_signature or 'simulated_signature'
-            payment.save()
+            payment_locked = Payment.objects.select_for_update().get(pk=payment.pk)
+            payment_locked.status = 'success'
+            payment_locked.payment_method = 'razorpay'
+            payment_locked.transaction_id = razorpay_payment_id
+            payment_locked.razorpay_payment_id = razorpay_payment_id
+            if razorpay_order_id:
+                payment_locked.razorpay_order_id = razorpay_order_id
+            payment_locked.razorpay_signature = razorpay_signature or 'simulated_signature'
+            payment_locked.failure_reason = ''
+            payment_locked.save()
 
-            # Create notification
-            Notification.objects.create(
-                user=request.user,
-                order=order,
-                title="Payment Received",
-                message=f"Payment of ₹{payment.amount} successfully processed via Razorpay. Order #{order.order_id} is confirmed.",
-                notification_type='order_confirmed'
-            )
+            # Ensure notification exists
+            if not Notification.objects.filter(order=order, notification_type='order_confirmed').exists():
+                Notification.objects.create(
+                    user=order.user,
+                    order=order,
+                    title="Payment Received",
+                    message=f"Payment of ₹{payment_locked.amount} successfully processed via Razorpay. Order #{order.order_id} is confirmed.",
+                    notification_type='order_confirmed'
+                )
 
+        logger.info("Successfully verified and recorded Razorpay payment %s for Order #%s", razorpay_payment_id, order.order_id)
+        redirect_url = reverse('order_tracking', kwargs={'order_id': order.order_id})
+        if is_ajax:
+            return JsonResponse({
+                'success': True,
+                'redirect_url': redirect_url,
+                'message': f"Payment of ₹{payment.amount} successful! Order #{order.order_id} is confirmed."
+            })
         messages.success(request, f"Payment of ₹{payment.amount} successful! Order #{order.order_id} is confirmed.")
         return redirect('order_tracking', order_id=order.order_id)
     else:
-        payment.status = 'failed'
-        payment.save(update_fields=['status'])
-        messages.error(request, "Razorpay payment verification failed. Please try again or switch to Cash on Delivery.")
+        with transaction.atomic():
+            payment_locked = Payment.objects.select_for_update().get(pk=payment.pk)
+            payment_locked.status = 'failed'
+            payment_locked.failure_reason = 'Payment signature verification failed. The transaction signature did not match expected credentials.'
+            payment_locked.save(update_fields=['status', 'failure_reason', 'updated_at'])
+
+        logger.warning("Razorpay payment verification failed for Order #%s (Payment ID: %s)", order.order_id, razorpay_payment_id)
+        fail_msg = "Razorpay payment verification failed. Please try again or switch to Cash on Delivery."
+        if is_ajax:
+            return JsonResponse({
+                'success': False,
+                'message': fail_msg,
+                'can_retry': True,
+                'retry_url': reverse('razorpay_payment', kwargs={'order_id': order.order_id}),
+                'switch_cod_url': reverse('razorpay_switch_to_cod', kwargs={'order_id': order.order_id})
+            }, status=400)
+        messages.error(request, fail_msg)
         return redirect('razorpay_payment', order_id=order.order_id)
+
+
+@login_required
+@require_POST
+def razorpay_record_failure(request):
+    """
+    Endpoint called by frontend when Razorpay Checkout triggers 'payment.failed' event.
+    Captures detailed diagnostic info (error code, reason, description, order/payment IDs)
+    without corrupting order state, allowing customers to safely retry or switch to COD.
+    """
+    if 'application/json' in request.content_type:
+        try:
+            data = json.loads(request.body.decode('utf-8'))
+        except (ValueError, UnicodeDecodeError):
+            data = {}
+    else:
+        data = request.POST
+
+    order_id = data.get('order_id', '').strip()
+    error_code = data.get('error_code', 'UNKNOWN_ERROR').strip()
+    error_description = data.get('error_description', 'Payment failed').strip()
+    error_source = data.get('error_source', '').strip()
+    error_step = data.get('error_step', '').strip()
+    error_reason = data.get('error_reason', '').strip()
+    razorpay_payment_id = data.get('razorpay_payment_id', '').strip()
+    razorpay_order_id = data.get('razorpay_order_id', '').strip()
+
+    if not order_id:
+        return JsonResponse({'success': False, 'message': 'Missing order_id'}, status=400)
+
+    is_staff = request.user.role in ['staff', 'admin']
+    if is_staff:
+        order = get_object_or_404(Order, order_id=order_id)
+    else:
+        order = get_object_or_404(Order, order_id=order_id, user=request.user)
+
+    payment = get_object_or_404(Payment, order=order)
+
+    # If the payment was already successfully confirmed earlier, do NOT overwrite with failure
+    if payment.status in ['success', 'paid_online']:
+        return JsonResponse({
+            'success': True,
+            'status': 'already_paid',
+            'message': 'Order is already paid.'
+        })
+
+    diag_parts = []
+    if error_code:
+        diag_parts.append(f"[{error_code}]")
+    if error_description:
+        diag_parts.append(error_description)
+    details = []
+    if error_source:
+        details.append(f"Source: {error_source}")
+    if error_step:
+        details.append(f"Step: {error_step}")
+    if error_reason:
+        details.append(f"Reason: {error_reason}")
+    if details:
+        diag_parts.append(f"({', '.join(details)})")
+
+    failure_diag = " ".join(diag_parts)[:500] or "Payment declined or failed."
+
+    with transaction.atomic():
+        payment_locked = Payment.objects.select_for_update().get(pk=payment.pk)
+        payment_locked.status = 'failed'
+        payment_locked.failure_reason = failure_diag
+        if razorpay_payment_id:
+            payment_locked.razorpay_payment_id = razorpay_payment_id
+        if razorpay_order_id:
+            payment_locked.razorpay_order_id = razorpay_order_id
+        payment_locked.save(update_fields=['status', 'failure_reason', 'razorpay_payment_id', 'razorpay_order_id', 'updated_at'])
+
+    logger.warning("Recorded payment failure for Order #%s: %s", order.order_id, failure_diag)
+
+    return JsonResponse({
+        'success': True,
+        'status': 'recorded',
+        'message': error_description or 'Payment could not be completed. You can try again or switch to Cash on Delivery.',
+        'can_retry': True,
+        'retry_url': reverse('razorpay_payment', kwargs={'order_id': order.order_id}),
+        'switch_cod_url': reverse('razorpay_switch_to_cod', kwargs={'order_id': order.order_id})
+    })
+
+
+@csrf_exempt
+@require_POST
+def razorpay_webhook(request):
+    """
+    Razorpay Webhook listener for asynchronous payment events:
+    - payment.captured / order.paid: Confirms payment idempotently.
+    - payment.failed: Records failure diagnostics safely.
+    Validates webhook signature against RAZORPAY_WEBHOOK_SECRET.
+    """
+    raw_body = request.body
+    signature = request.headers.get('X-Razorpay-Signature', '')
+    webhook_secret = getattr(settings, 'RAZORPAY_WEBHOOK_SECRET', '') or os.getenv('RAZORPAY_WEBHOOK_SECRET', '')
+
+    if webhook_secret:
+        if not signature:
+            logger.warning("Razorpay webhook received with missing signature.")
+            return HttpResponseForbidden("Missing signature")
+        expected_sig = hmac.new(webhook_secret.encode('utf-8'), raw_body, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(expected_sig, signature):
+            logger.warning("Razorpay webhook signature verification failed.")
+            return HttpResponseForbidden("Invalid signature")
+
+    try:
+        event_payload = json.loads(raw_body.decode('utf-8'))
+    except (ValueError, UnicodeDecodeError):
+        return HttpResponseBadRequest("Invalid JSON payload")
+
+    event_type = event_payload.get('event')
+    payload_data = event_payload.get('payload', {})
+
+    payment_entity = payload_data.get('payment', {}).get('entity', {})
+    order_entity = payload_data.get('order', {}).get('entity', {})
+
+    notes = payment_entity.get('notes', {}) or order_entity.get('notes', {})
+    order_id = notes.get('order_id')
+    rzp_order_id = payment_entity.get('order_id') or order_entity.get('id')
+    rzp_payment_id = payment_entity.get('id')
+
+    order = None
+    if order_id:
+        order = Order.objects.filter(order_id=order_id).first()
+    if not order and rzp_order_id:
+        payment_match = Payment.objects.filter(razorpay_order_id=rzp_order_id).select_related('order').first()
+        if payment_match:
+            order = payment_match.order
+
+    if not order:
+        logger.info("Webhook event %s processed: No matching local Order found.", event_type)
+        return JsonResponse({'status': 'ignored', 'reason': 'order_not_found'})
+
+    payment = getattr(order, 'payment', None)
+    if not payment:
+        return JsonResponse({'status': 'ignored', 'reason': 'payment_record_not_found'})
+
+    if event_type in ['payment.captured', 'order.paid']:
+        with transaction.atomic():
+            payment_locked = Payment.objects.select_for_update().get(pk=payment.pk)
+            if payment_locked.status not in ['success', 'paid_online']:
+                payment_locked.status = 'success'
+                payment_locked.payment_method = 'razorpay'
+                if rzp_payment_id:
+                    payment_locked.transaction_id = rzp_payment_id
+                    payment_locked.razorpay_payment_id = rzp_payment_id
+                if rzp_order_id:
+                    payment_locked.razorpay_order_id = rzp_order_id
+                payment_locked.failure_reason = ''
+                payment_locked.save()
+
+                if not Notification.objects.filter(order=order, notification_type='order_confirmed').exists():
+                    Notification.objects.create(
+                        user=order.user,
+                        order=order,
+                        title="Payment Received",
+                        message=f"Payment of ₹{payment_locked.amount} successfully processed via Razorpay. Order #{order.order_id} is confirmed.",
+                        notification_type='order_confirmed'
+                    )
+                logger.info("Webhook captured payment for Order #%s", order.order_id)
+            else:
+                logger.info("Webhook: Order #%s was already marked paid.", order.order_id)
+
+    elif event_type == 'payment.failed':
+        with transaction.atomic():
+            payment_locked = Payment.objects.select_for_update().get(pk=payment.pk)
+            if payment_locked.status not in ['success', 'paid_online']:
+                payment_locked.status = 'failed'
+                err_code = payment_entity.get('error_code', 'FAILED')
+                err_desc = payment_entity.get('error_description', 'Transaction failed')
+                payment_locked.failure_reason = f"[{err_code}] {err_desc}"[:500]
+                if rzp_payment_id:
+                    payment_locked.razorpay_payment_id = rzp_payment_id
+                payment_locked.save(update_fields=['status', 'failure_reason', 'razorpay_payment_id', 'updated_at'])
+                logger.info("Webhook recorded payment failure for Order #%s: %s", order.order_id, payment_locked.failure_reason)
+
+    return JsonResponse({'status': 'ok'})
 
 
 @login_required
@@ -1375,18 +1649,26 @@ def razorpay_switch_to_cod(request, order_id):
     """
     Allows switching an unpaid Razorpay order to Cash on Delivery.
     """
-    order = get_object_or_404(Order, order_id=order_id, user=request.user)
+    is_staff = request.user.role in ['staff', 'admin']
+    if is_staff:
+        order = get_object_or_404(Order, order_id=order_id)
+    else:
+        order = get_object_or_404(Order, order_id=order_id, user=request.user)
+
     payment = get_object_or_404(Payment, order=order)
 
     if payment.status in ['success', 'paid_online', 'cash_collected']:
-        messages.info(request, "This order has already been paid.")
+        messages.info(request, f"Order #{order.order_id} has already been paid online.")
         return redirect('order_tracking', order_id=order.order_id)
 
-    payment.payment_method = 'cod'
-    payment.status = 'pending'
-    payment.save(update_fields=['payment_method', 'status'])
+    with transaction.atomic():
+        payment.payment_method = 'cod'
+        payment.status = 'pending'
+        payment.failure_reason = ''
+        payment.save(update_fields=['payment_method', 'status', 'failure_reason', 'updated_at'])
 
     messages.success(request, f"Payment method updated to Cash on Delivery. Order #{order.order_id} is confirmed!")
     return redirect('order_tracking', order_id=order.order_id)
+
 
 

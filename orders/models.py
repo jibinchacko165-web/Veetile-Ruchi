@@ -293,7 +293,9 @@ class Payment(models.Model):
         on_delete=models.SET_NULL,
         related_name='collected_payments'
     )
+    failure_reason = models.TextField(blank=True, null=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     @property
     def display_status(self):

@@ -366,6 +366,7 @@ MAP_TILE_FALLBACK_ATTRIBUTION = os.environ.get('MAP_TILE_FALLBACK_ATTRIBUTION', 
 # Razorpay Payment Gateway Configuration
 RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID', '')
 RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET', '')
+RAZORPAY_WEBHOOK_SECRET = os.getenv('RAZORPAY_WEBHOOK_SECRET', '')
 
 # Centralized GST & Tax Configuration
 # GST_MODE: 'inclusive' (Mode B: GST is included in displayed food price) or 'exclusive' (Mode A: GST is added on top)

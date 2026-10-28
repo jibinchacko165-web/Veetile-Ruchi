@@ -6,6 +6,20 @@
 {% block extra_head %}
 <!-- Razorpay Official Standard Checkout Script -->
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<style>
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    .rzp-spinner {
+        display: inline-block;
+        width: 32px;
+        height: 32px;
+        border: 3px solid rgba(51, 153, 204, 0.2);
+        border-radius: 50%;
+        border-top-color: #3399CC;
+        animation: spin 0.8s linear infinite;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -54,7 +68,6 @@
                 <span style="color: var(--primary-green); font-weight: 800; font-size: 1.45rem;">₹{{ amount_in_rupees|floatformat:2 }}</span>
             </div>
         </div>
-
 
         {% if not has_valid_key_id %}
         <!-- Notice when Key ID is missing or placeholder -->
@@ -108,7 +121,102 @@
         </div>
         {% endif %}
 
-        <!-- Hidden Verification Callback Form -->
+        <!-- Pre-existing Server-side Failure Reason Banner -->
+        {% if failure_reason or payment.status == 'failed' %}
+        <div id="server-failure-banner" style="background: #FEF2F2; border: 1.5px solid #F87171; border-radius: 12px; padding: 1.15rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+                <span style="font-size: 1.4rem;">⚠️</span>
+                <div style="flex: 1;">
+                    <strong style="color: #991B1B; font-size: 0.96rem; display: block; margin-bottom: 0.25rem;">
+                        Payment Not Completed
+                    </strong>
+                    <p style="color: #7F1D1D; font-size: 0.88rem; margin: 0 0 0.45rem 0; line-height: 1.5;">
+                        {{ failure_reason|default:"The previous payment attempt was declined or cancelled." }}
+                    </p>
+                    <p style="color: #991B1B; font-size: 0.82rem; margin: 0; line-height: 1.4;">
+                        🔒 Your food order <strong>#{{ order.order_id }}</strong> remains safely saved. You can retry with Razorpay below or choose Cash on Delivery.
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Runtime Client-Side Failure Banner (Populated via JS on payment.failed event) -->
+        <div id="runtime-failure-banner" style="display: none; background: #FEF2F2; border: 1.5px solid #F87171; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+                <span style="font-size: 1.4rem;">❌</span>
+                <div style="flex: 1;">
+                    <strong id="failure-title" style="color: #991B1B; font-size: 0.98rem; display: block; margin-bottom: 0.25rem;">
+                        Payment Declined
+                    </strong>
+                    <p id="failure-desc" style="color: #7F1D1D; font-size: 0.88rem; margin: 0 0 0.5rem 0; line-height: 1.5;">
+                        Your payment could not be processed.
+                    </p>
+                    <p style="color: #991B1B; font-size: 0.82rem; margin: 0 0 0.75rem 0; line-height: 1.4;">
+                        🔒 Your order <strong>#{{ order.order_id }}</strong> is still safe. No charges were captured. You can retry with a different card/UPI or switch to Cash on Delivery.
+                    </p>
+                    <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+                        <button type="button" onclick="retryPaymentModal()" class="btn btn-sm" style="padding: 0.45rem 0.9rem; font-size: 0.85rem; font-weight: 600; border-radius: 8px; background: #991B1B; border-color: #991B1B; color: #fff; cursor: pointer;">
+                            🔄 Retry Razorpay Payment
+                        </button>
+                        <a href="{% url 'razorpay_switch_to_cod' order.order_id %}" class="btn btn-outline btn-sm" style="padding: 0.45rem 0.9rem; font-size: 0.85rem; font-weight: 600; border-radius: 8px; border-color: #991B1B; color: #991B1B; text-decoration: none;">
+                            💵 Switch to Cash on Delivery
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Runtime Checkout Dismissed Banner (Populated via JS on modal.ondismiss) -->
+        <div id="runtime-dismissed-banner" style="display: none; background: #FFFBEB; border: 1.5px solid #FCD34D; border-radius: 12px; padding: 1rem 1.15rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; gap: 0.65rem; align-items: center;">
+                <span style="font-size: 1.25rem;">ℹ️</span>
+                <div style="flex: 1;">
+                    <strong style="color: #92400E; font-size: 0.92rem; display: block; margin-bottom: 0.15rem;">
+                        Payment Window Closed
+                    </strong>
+                    <span style="color: #78350F; font-size: 0.84rem; line-height: 1.4; display: block;">
+                        You closed the Razorpay window without completing the transaction. Your order <strong>#{{ order.order_id }}</strong> is safely reserved. Click below to reopen payment when ready.
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Verification In-Progress Banner -->
+        <div id="verification-progress-banner" style="display: none; background: #EFF6FF; border: 1.5px solid #93C5FD; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; text-align: center;">
+            <div class="rzp-spinner" style="margin-bottom: 0.65rem;"></div>
+            <h4 style="color: #1E40AF; margin: 0 0 0.35rem 0; font-size: 1.05rem; font-weight: 700;">
+                🔒 Verifying Payment with Razorpay...
+            </h4>
+            <p style="color: #1E3A8A; font-size: 0.86rem; margin: 0;">
+                Confirming transaction security with the bank. Please do not close or refresh this page.
+            </p>
+        </div>
+
+        <!-- Network Delay Banner -->
+        <div id="runtime-network-banner" style="display: none; background: #F8FAFC; border: 1.5px solid #94A3B8; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+                <span style="font-size: 1.3rem;">⏳</span>
+                <div>
+                    <strong style="color: #334155; font-size: 0.95rem; display: block; margin-bottom: 0.25rem;">
+                        Verification In-Flight
+                    </strong>
+                    <p style="color: #475569; font-size: 0.86rem; margin: 0 0 0.65rem 0; line-height: 1.5;">
+                        A temporary network interruption occurred while communicating with our server. If your bank account or card was debited, your order will automatically be confirmed.
+                    </p>
+                    <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+                        <a href="{% url 'order_tracking' order.order_id %}" class="btn btn-sm" style="padding: 0.45rem 0.9rem; font-size: 0.85rem; font-weight: 600; border-radius: 8px;">
+                            🔎 Check Order Status
+                        </a>
+                        <button type="button" onclick="retryPaymentModal()" class="btn btn-outline btn-sm" style="padding: 0.45rem 0.9rem; font-size: 0.85rem; font-weight: 600; border-radius: 8px;">
+                            🔄 Retry Checkout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden Verification Callback Form (Fallback for no-JS) -->
         <form method="POST" action="{% url 'razorpay_callback' %}" id="razorpay-form">
             {% csrf_token %}
             <input type="hidden" name="order_id" value="{{ order.order_id }}">
@@ -118,27 +226,27 @@
         </form>
 
         <!-- Main CTA: Pay via Razorpay -->
-        <button id="rzp-button" type="button" class="btn" style="width: 100%; padding: 1rem; font-size: 1.15rem; font-weight: 700; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: #3399CC; border-color: #3399CC; color: #ffffff; cursor: pointer;">
+        <button id="rzp-button" type="button" class="btn" style="width: 100%; min-height: 52px; padding: 1rem; font-size: 1.15rem; font-weight: 700; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 0.5rem; background: #3399CC; border-color: #3399CC; color: #ffffff; cursor: pointer; transition: all 0.2s ease;">
             🔒 Pay ₹{{ amount_in_rupees|floatformat:2 }} via Razorpay
         </button>
 
         {% if not has_valid_key_id or not has_valid_secret %}
-        <!-- Optional Sandbox Simulation Tool for Developers ONLY -->
+        <!-- Sandbox Simulation Tool for Local Testing ONLY -->
         <div style="margin-top: 1.25rem; padding: 0.9rem; background: #F8FAFC; border: 1px dashed #CBD5E1; border-radius: 10px; text-align: center;">
             <span style="font-size: 0.78rem; color: #64748B; font-weight: 600; display: block; margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.05em;">
                 🛠️ Developer Testing Tool
             </span>
             <p style="font-size: 0.8rem; color: #64748B; margin: 0 0 0.6rem 0;">
-                Test database status & live order tracking flow without Razorpay credentials:
+                Test database confirmation & live tracking workflow without Razorpay credentials:
             </p>
-            <button type="button" onclick="confirmAndSimulate()" class="btn btn-outline" style="padding: 0.45rem 1rem; font-size: 0.84rem; font-weight: 600; border-color: #94A3B8; color: #475569; border-radius: 8px;">
+            <button type="button" onclick="confirmAndSimulate()" class="btn btn-outline" style="padding: 0.45rem 1rem; font-size: 0.84rem; font-weight: 600; border-color: #94A3B8; color: #475569; border-radius: 8px; cursor: pointer;">
                 ⚡ Simulate Test Payment Confirmation
             </button>
         </div>
         {% endif %}
 
         <!-- Fallback Options -->
-        <div style="border-top: 1px solid var(--border-warm); margin-top: 1.5rem; padding-top: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: gap; gap: 0.75rem;">
+        <div style="border-top: 1px solid var(--border-warm); margin-top: 1.5rem; padding-top: 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
             <a href="{% url 'razorpay_switch_to_cod' order.order_id %}" style="color: var(--primary-brown); font-size: 0.9rem; font-weight: 600; text-decoration: none;">
                 💵 Switch to Cash on Delivery (COD)
             </a>
@@ -150,6 +258,74 @@
 </div>
 
 <script>
+    function getCsrfToken() {
+        const input = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (input) return input.value;
+        const cookieValue = document.cookie
+            .split('; ')
+            .find(row => row.startsWith('csrftoken='))
+            ?.split('=')[1];
+        return cookieValue || '';
+    }
+
+    function hideBanners() {
+        const dismissBanner = document.getElementById('runtime-dismissed-banner');
+        const failBanner = document.getElementById('runtime-failure-banner');
+        const netBanner = document.getElementById('runtime-network-banner');
+        const serverBanner = document.getElementById('server-failure-banner');
+        if (dismissBanner) dismissBanner.style.display = 'none';
+        if (failBanner) failBanner.style.display = 'none';
+        if (netBanner) netBanner.style.display = 'none';
+        if (serverBanner) serverBanner.style.display = 'none';
+    }
+
+    function showVerificationProgress() {
+        const p = document.getElementById('verification-progress-banner');
+        if (p) {
+            p.style.display = 'block';
+            p.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        const btn = document.getElementById('rzp-button');
+        if (btn) {
+            btn.disabled = true;
+            btn.style.opacity = '0.65';
+            btn.innerHTML = '⏳ Verifying with Razorpay...';
+        }
+    }
+
+    function hideVerificationProgress() {
+        const p = document.getElementById('verification-progress-banner');
+        if (p) p.style.display = 'none';
+        const btn = document.getElementById('rzp-button');
+        if (btn) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.innerHTML = '🔄 Retry Payment ₹{{ amount_in_rupees|floatformat:2 }} via Razorpay';
+        }
+    }
+
+    function showFailureBanner(code, description, reason) {
+        hideBanners();
+        const banner = document.getElementById('runtime-failure-banner');
+        const titleEl = document.getElementById('failure-title');
+        const descEl = document.getElementById('failure-desc');
+        if (banner) {
+            if (titleEl) titleEl.innerText = "Payment Declined (" + (code || "FAILED") + ")";
+            if (descEl) descEl.innerText = description || "Your transaction was declined by the bank or gateway.";
+            banner.style.display = 'block';
+            banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    function showNetworkErrorBanner(title, message) {
+        hideBanners();
+        const banner = document.getElementById('runtime-network-banner');
+        if (banner) {
+            banner.style.display = 'block';
+            banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
     var options = {
         "key": "{{ razorpay_key_id }}",
         "amount": "{{ amount_in_paise }}",
@@ -160,11 +336,49 @@
         "order_id": "{{ razorpay_order_id }}",
         {% endif %}
         "handler": function (response) {
-            // This ONLY executes when the customer successfully pays inside Razorpay popup
-            document.getElementById('razorpay_payment_id').value = response.razorpay_payment_id;
-            document.getElementById('razorpay_order_id').value = response.razorpay_order_id || '{{ razorpay_order_id }}';
-            document.getElementById('razorpay_signature').value = response.razorpay_signature || '';
-            document.getElementById('razorpay-form').submit();
+            // Executes when payment is authorized inside Razorpay modal
+            showVerificationProgress();
+
+            const payload = {
+                order_id: "{{ order.order_id }}",
+                razorpay_payment_id: response.razorpay_payment_id || '',
+                razorpay_order_id: response.razorpay_order_id || '{{ razorpay_order_id }}',
+                razorpay_signature: response.razorpay_signature || ''
+            };
+
+            fetch("{% url 'razorpay_callback' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCsrfToken(),
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(function(res) {
+                return res.json().then(function(data) {
+                    return { ok: res.ok, status: res.status, data: data };
+                });
+            })
+            .then(function(resObj) {
+                if (resObj.ok && resObj.data.success) {
+                    window.location.href = resObj.data.redirect_url;
+                } else {
+                    hideVerificationProgress();
+                    showFailureBanner(
+                        "VERIFICATION_FAILED",
+                        (resObj.data && resObj.data.message) ? resObj.data.message : "Payment signature verification failed. Please try again or switch to COD."
+                    );
+                }
+            })
+            .catch(function(err) {
+                console.error("Verification network error:", err);
+                hideVerificationProgress();
+                showNetworkErrorBanner(
+                    "Network Timeout",
+                    "We could not confirm the verification response due to a network delay. If money was deducted, your order will automatically confirm. Check your order status before paying again."
+                );
+            });
         },
         "prefill": {
             "name": "{{ user_name }}",
@@ -179,7 +393,18 @@
         },
         "modal": {
             "ondismiss": function() {
-                console.log('Customer dismissed Razorpay payment window');
+                console.log('Customer dismissed Razorpay checkout window.');
+                const btn = document.getElementById('rzp-button');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.innerHTML = '🔒 Pay ₹{{ amount_in_rupees|floatformat:2 }} via Razorpay';
+                }
+                const dismissBanner = document.getElementById('runtime-dismissed-banner');
+                if (dismissBanner) {
+                    dismissBanner.style.display = 'block';
+                    dismissBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
             }
         }
     };
@@ -188,33 +413,88 @@
     {% if has_valid_key_id and has_valid_secret and razorpay_order_id %}
     try {
         rzp1 = new Razorpay(options);
-        rzp1.on('payment.failed', function (response){
-            alert("Payment Failed: " + (response.error ? response.error.description : "Transaction declined."));
+        
+        // Listen for payment failure event
+        rzp1.on('payment.failed', function (response) {
+            console.warn("Razorpay payment.failed event received:", response);
+            const err = response.error || {};
+            const errCode = err.code || 'PAYMENT_FAILED';
+            const errDesc = err.description || 'Payment was declined by your bank or payment provider.';
+            const errSource = err.source || '';
+            const errStep = err.step || '';
+            const errReason = err.reason || '';
+            const meta = err.metadata || {};
+            const payId = meta.payment_id || '';
+            const rzpOrderId = meta.order_id || '{{ razorpay_order_id }}';
+
+            // Reset button to allow retry
+            const btn = document.getElementById('rzp-button');
+            if (btn) {
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.innerHTML = '🔄 Retry Payment ₹{{ amount_in_rupees|floatformat:2 }} via Razorpay';
+            }
+
+            // Display in-page failure card (no disruptive browser alerts)
+            showFailureBanner(errCode, errDesc, errReason);
+
+            // Record diagnostics securely in backend
+            fetch("{% url 'razorpay_record_failure' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCsrfToken(),
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                body: JSON.stringify({
+                    order_id: "{{ order.order_id }}",
+                    error_code: errCode,
+                    error_description: errDesc,
+                    error_source: errSource,
+                    error_step: errStep,
+                    error_reason: errReason,
+                    razorpay_payment_id: payId,
+                    razorpay_order_id: rzpOrderId
+                })
+            }).catch(function(e) {
+                console.warn("Could not log payment failure to backend:", e);
+            });
         });
     } catch(e) {
         console.warn("Razorpay standard script could not be initialized:", e);
     }
     {% endif %}
 
+    function retryPaymentModal() {
+        hideBanners();
+        if (rzp1) {
+            rzp1.open();
+        } else {
+            document.getElementById('rzp-button').click();
+        }
+    }
+
     // When the customer clicks the primary Pay button
-    document.getElementById('rzp-button').onclick = function(e){
+    document.getElementById('rzp-button').onclick = function(e) {
         e.preventDefault();
+        hideBanners();
         if (rzp1) {
             rzp1.open();
         } else {
             {% if not has_valid_key_id %}
-            alert("⚠️ Razorpay Key ID Required:\n\nYour .env file currently has a placeholder key ('your_test_key_id').\n\nPlease add your active Razorpay Test Key (starts with rzp_test_...) to your .env file.");
+            showFailureBanner("CONFIG_NOTICE", "Razorpay Key ID required in .env (starts with rzp_test_...). You can use the developer testing tool below or switch to Cash on Delivery.");
             {% elif not has_valid_secret %}
-            alert("⚠️ Razorpay Key Secret Required:\n\nRazorpay requires both Key ID and Key Secret to process orders.\n\nPlease add your RAZORPAY_KEY_SECRET to your .env file.\n\nYou can find or regenerate it in your Razorpay Dashboard (dashboard.razorpay.com/app/keys).");
+            showFailureBanner("CONFIG_NOTICE", "Razorpay Key Secret required in .env to sign payment requests. You can use the developer testing tool below or switch to Cash on Delivery.");
             {% else %}
-            alert("Unable to open Razorpay payment gateway. Please check your internet connection or switch to Cash on Delivery.");
+            showFailureBanner("GATEWAY_NOTICE", "Unable to open Razorpay payment gateway modal. Please check your internet connection or switch to Cash on Delivery.");
             {% endif %}
         }
     };
 
-    // Manual developer testing only — requires explicit confirmation
+    // Manual developer testing tool — for local sandbox simulation
     function confirmAndSimulate() {
         if (confirm("Simulate test payment confirmation for Order #{{ order.order_id }}?")) {
+            showVerificationProgress();
             const mockPayId = "pay_test_" + Math.random().toString(36).substring(2, 12);
             document.getElementById('razorpay_payment_id').value = mockPayId;
             document.getElementById('razorpay_signature').value = "sig_simulated_success_" + Math.random().toString(36).substring(2, 10);
